@@ -115,7 +115,8 @@ function DayCell({
       className={`cal-cell cal-cell-${mode} ${inMonth ? '' : 'is-outside'} ${isToday ? 'is-today' : ''} ${isPast ? 'is-past' : ''} ${isOver ? 'is-over' : ''}`}
     >
       <div className="cal-cell-head">
-        <span className="cal-day-number">{mode === 'week' ? format(day, 'EEE d') : format(day, 'd')}</span>
+        {/* Week mode shows the date in the column header row instead, so the cell stays uncluttered. */}
+        {mode === 'month' && <span className="cal-day-number">{format(day, 'd')}</span>}
         {tasks.length > 0 && <span className="cal-count muted">{tasks.length}</span>}
         <button
           type="button"
@@ -234,7 +235,12 @@ export function CalendarView({ tasks, projects, onOpenTask, onAddTask }: Calenda
   };
 
   const activeTask = activeId ? taskById.get(activeId) : undefined;
-  const weekdayLabels = days.slice(0, 7).map((d) => format(d, 'EEE'));
+  const today = todayStr();
+  const weekdayHeaders = days.slice(0, 7).map((d) => ({
+    key: toDateStr(d),
+    label: mode === 'week' ? format(d, 'EEE d') : format(d, 'EEE'),
+    isToday: mode === 'week' && toDateStr(d) === today,
+  }));
 
   return (
     <DndContext
@@ -279,9 +285,9 @@ export function CalendarView({ tasks, projects, onOpenTask, onAddTask }: Calenda
         <div className="cal-layout">
           <div className="cal-grid-wrap">
             <div className="cal-weekdays">
-              {weekdayLabels.map((label) => (
-                <div key={label} className="cal-weekday">
-                  {label}
+              {weekdayHeaders.map((h) => (
+                <div key={h.key} className={`cal-weekday ${h.isToday ? 'is-today' : ''}`}>
+                  {h.isToday ? <span className="cal-weekday-today">{h.label}</span> : h.label}
                 </div>
               ))}
             </div>

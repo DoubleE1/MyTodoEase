@@ -2,6 +2,7 @@ import {
   CalendarDays,
   CalendarRange,
   CheckCircle2,
+  ChevronRight,
   Hash,
   Inbox,
   Minimize2,
@@ -16,7 +17,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { Label, Project, Task } from '../api/types';
 import { colorHex } from '../lib/colors';
 import { todayStr } from '../lib/dates';
@@ -43,6 +44,64 @@ interface SidebarProps {
   /** In the browser there is no title bar, so Mini mode lives here instead. */
   showCompactButton: boolean;
   onCompact: () => void;
+}
+
+const COLLAPSE_KEY_PREFIX = 'mytodoease.sidebar.collapsed.';
+
+function readCollapsed(id: string): boolean {
+  try {
+    return window.localStorage.getItem(COLLAPSE_KEY_PREFIX + id) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+/** Sidebar group with a heading that toggles its list; the open/closed state is remembered per group. */
+function CollapsibleSection({
+  id,
+  icon,
+  title,
+  action,
+  children,
+}: {
+  id: string;
+  icon: ReactNode;
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  const [collapsed, setCollapsed] = useState(() => readCollapsed(id));
+  const toggle = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      window.localStorage.setItem(COLLAPSE_KEY_PREFIX + id, String(next));
+    } catch {
+      // Not persisted; fine.
+    }
+  };
+  const listId = `sidebar-section-${id}`;
+  return (
+    <section className={`sidebar-section ${collapsed ? 'is-collapsed' : ''}`}>
+      <div className="sidebar-heading">
+        <button
+          type="button"
+          className="heading-toggle"
+          onClick={toggle}
+          aria-expanded={!collapsed}
+          aria-controls={listId}
+          title={collapsed ? `Show ${title.toLowerCase()}` : `Hide ${title.toLowerCase()}`}
+        >
+          <ChevronRight size={13} className="heading-chevron" />
+          {icon}
+          <span>{title}</span>
+        </button>
+        <span className="spacer" />
+        {action}
+      </div>
+      {!collapsed && <div id={listId}>{children}</div>}
+    </section>
+  );
 }
 
 const THEME_META: Record<ThemePreference, { label: string; icon: ReactNode }> = {
@@ -218,37 +277,35 @@ export function Sidebar({
       </nav>
 
       {favorites.length > 0 && (
-        <section className="sidebar-section">
-          <div className="sidebar-heading">
-            <Star size={13} />
-            <span>Favorites</span>
-          </div>
+        <CollapsibleSection id="favorites" icon={<Star size={13} />} title="Favorites">
           {favorites.map(projectItem)}
-        </section>
+        </CollapsibleSection>
       )}
 
-      <section className="sidebar-section">
-        <div className="sidebar-heading">
-          <Hash size={13} />
-          <span>My Projects</span>
-          <span className="spacer" />
+      <CollapsibleSection
+        id="projects"
+        icon={<Hash size={13} />}
+        title="My Projects"
+        action={
           <button type="button" className="icon-btn" title="Add project" aria-label="Add project" onClick={onAddProject}>
             <Plus size={15} />
           </button>
-        </div>
+        }
+      >
         {userProjects.length === 0 && <p className="sidebar-empty">No projects yet.</p>}
         {userProjects.map(projectItem)}
-      </section>
+      </CollapsibleSection>
 
-      <section className="sidebar-section">
-        <div className="sidebar-heading">
-          <Tag size={13} />
-          <span>Labels</span>
-          <span className="spacer" />
+      <CollapsibleSection
+        id="labels"
+        icon={<Tag size={13} />}
+        title="Labels"
+        action={
           <button type="button" className="icon-btn" title="Add label" aria-label="Add label" onClick={onAddLabel}>
             <Plus size={15} />
           </button>
-        </div>
+        }
+      >
         {labels.length === 0 && <p className="sidebar-empty">No labels yet.</p>}
         {labels.map((label) => (
           <NavItem
@@ -288,7 +345,7 @@ export function Sidebar({
             }
           />
         ))}
-      </section>
+      </CollapsibleSection>
 
       <div className="sidebar-footer">
         <button
