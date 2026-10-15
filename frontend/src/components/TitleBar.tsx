@@ -27,7 +27,7 @@ export function TitleBar({
   onToggleDock,
 }: TitleBarProps) {
   return (
-    <div className="titlebar">
+    <div className={`titlebar ${docked ? 'is-docked' : ''}`}>
       <span className="titlebar-brand">
         <Logo size={16} />
         <span>

@@ -2072,6 +2072,11 @@ ul {
   -webkit-app-region: drag;
 }
 
+/* Docked: the window is pinned to the screen edge, so the bar must not act as a drag handle. */
+.titlebar.is-docked {
+  -webkit-app-region: no-drag;
+}
+
 .titlebar-brand {
   display: inline-flex;
   align-items: center;

@@ -144,6 +144,7 @@ function createWindow() {
       // Release the strip but do not record the strip as a window size: the remembered
       // mini bounds must stay the floating ones so undocking later restores them.
       releaseAppBarSync();
+      restoreCaptionButtons();
     } else {
       rememberBounds();
     }
@@ -185,6 +186,7 @@ function restoreCaptionButtons() {
   if (!win || win.isDestroyed()) return;
   win.setMinimizable(true);
   win.setMaximizable(true);
+  win.setMovable(true);
 }
 
 /** Apply bounds now and once more shortly after, in case a deferred frame update overrides them. */
@@ -288,6 +290,7 @@ async function setDocked(flag) {
       }
       settings.docked = true;
       settings.dockWhenCompact = false;
+      win.setMovable(false); // pinned to the edge; the page also drops its drag region
       console.log('[dock] docked', dockedBounds);
     } else {
       // Flag off first: releasing the strip fires resize events that must not re-assert the dock.
