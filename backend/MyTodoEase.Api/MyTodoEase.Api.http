@@ -1,0 +1,21 @@
+@api = http://localhost:5080
+
+GET {{api}}/api/health
+
+###
+GET {{api}}/api/projects
+
+###
+POST {{api}}/api/projects
+Content-Type: application/json
+
+{ "name": "Work", "color": "blue" }
+
+###
+GET {{api}}/api/tasks
+
+###
+POST {{api}}/api/tasks
+Content-Type: application/json
+
+{ "content": "Write the spec", "projectId": "<projectId>", "priority": 1, "dueDate": "2026-10-16" }

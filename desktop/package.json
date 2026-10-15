@@ -1,0 +1,33 @@
+{
+  "name": "desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "MyTodoEase desktop shell",
+  "main": "main.cjs",
+  "scripts": {
+    "dev": "wait-on http-get://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "build": {
+    "appId": "com.mytodoease.desktop",
+    "productName": "MyTodoEase",
+    "directories": {
+      "output": "../release"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "renderer/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0",
+    "electron": "^41.7.1",
+    "electron-builder": "^26.15.3",
+    "wait-on": "^9.5.1"
+  }
+}

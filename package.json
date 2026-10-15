@@ -1,0 +1,22 @@
+{
+  "name": "mytodoease",
+  "private": true,
+  "version": "0.1.0",
+  "description": "MyTodoEase - a Todoist-style todo app: ASP.NET Core + MongoDB backend, React front end, Electron desktop shell.",
+  "workspaces": [
+    "frontend",
+    "desktop"
+  ],
+  "scripts": {
+    "db": "docker compose up -d",
+    "db:stop": "docker compose stop",
+    "api": "dotnet run --project backend/MyTodoEase.Api",
+    "web": "npm run dev -w frontend",
+    "desktop": "npm run dev -w desktop",
+    "dev": "concurrently -k -n api,web,desktop -c blue,green,magenta \"npm run api\" \"npm run web\" \"npm run desktop\"",
+    "build": "npm run build -w frontend && npm run build -w desktop"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.5"
+  }
+}

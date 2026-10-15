@@ -1,0 +1,29 @@
+# Node
+node_modules/
+dist/
+dist-electron/
+release/
+*.log
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+
+# Env
+.env
+.env.local
+appsettings.Development.local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Claude local settings
+.claude/settings.local.json
+
+# TypeScript incremental build info
+*.tsbuildinfo
