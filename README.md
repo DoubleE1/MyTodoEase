@@ -1,6 +1,6 @@
 # MyTodoEase
 
-A Todoist-style todo app: Windows desktop shell (Electron) around a React UI, backed by an ASP.NET Core API and MongoDB.
+A Todoist-style todo app: Windows desktop shell (Electron) around a React UI, backed by an ASP.NET Core API with an embedded LiteDB database. Nothing else to install.
 The same React code can later be served as a web app, and the API is the single source of truth for a future mobile app
 and for notification jobs (email, Telegram).
 
@@ -10,26 +10,23 @@ and for notification jobs (email, Telegram).
 | -------- | ------------------------------------------------- | ----------- |
 | Desktop  | Electron 41                                       | `desktop/`  |
 | UI       | React 19, Vite 8, TypeScript, TanStack Query      | `frontend/` |
-| API      | ASP.NET Core minimal API (.NET 10), MongoDB.Driver | `backend/`  |
-| Database | MongoDB 7 in Docker                               | `docker-compose.yml` |
+| API      | ASP.NET Core minimal API (.NET 10), LiteDB         | `backend/`  |
+| Database | LiteDB (embedded, single file)                    | `%LOCALAPPDATA%\MyTodoEase\mytodoease.db` |
 
 ## Prerequisites
 
 - Node 20 (`nvm use 20`, see `.nvmrc`)
 - .NET 10 SDK
-- Docker Desktop (for MongoDB)
 
 ## Run in development
 
 ```bash
 npm install
-npm run db        # MongoDB in Docker on localhost:27018 (skip if MongoDB already runs locally)
 npm run dev       # API (5080) + Vite (5173) + Electron window
 ```
 
-The API defaults to `mongodb://localhost:27017`, which is where a MongoDB installed as a Windows service listens.
-To use the Docker container instead, set `Mongo.ConnectionString` to `mongodb://localhost:27018` in
-`backend/MyTodoEase.Api/appsettings.json` (or an `appsettings.Development.json` override).
+Data lives in `%LOCALAPPDATA%\MyTodoEase\mytodoease.db`, shared by development runs and the installed app.
+Set `MYTODOEASE_DATA_DIR` (or `Storage:Path` in `appsettings.json`) to store it somewhere else.
 
 Or run pieces individually: `npm run api`, `npm run web`, `npm run desktop`.
 The API also works from a browser at http://localhost:5173 without Electron.
@@ -84,7 +81,7 @@ alpha mask (radius about 23% of the side), and export 512px PNGs plus an ICO wit
 
 ## Configuration
 
-- API: `backend/MyTodoEase.Api/appsettings.json` → `Mongo.ConnectionString`, `Mongo.Database`
+- API: `backend/MyTodoEase.Api/appsettings.json` → `Storage.Path` (LiteDB file; empty = `%LOCALAPPDATA%\MyTodoEase\mytodoease.db`), or the `MYTODOEASE_DATA_DIR` environment variable
 - UI: `frontend/.env` → `VITE_API_URL` (defaults to `http://localhost:5080`)
 
 ## Build a Windows installer
@@ -99,10 +96,9 @@ electron-builder, which writes `release/MyTodoEase-Setup-<version>.exe` (NSIS, p
 desktop + Start Menu shortcuts) plus the unpacked app in `release/win-unpacked/`.
 
 The installed `MyTodoEase.exe` starts the bundled API on `http://localhost:5080` (unless something already answers
-there), waits for it to become healthy, and stops it on exit. **MongoDB is not bundled**: the target PC needs MongoDB
-listening on `mongodb://localhost:27017` (for example the MongoDB Community Server Windows service). If the API
-cannot start, the app shows a dialog saying so and keeps retrying in the window. Override the API address with the
-`MYTODOEASE_API_URL` environment variable.
+there), waits for it to become healthy, and stops it on exit. The database is an embedded LiteDB file, so a clean PC
+needs nothing else installed. If the API cannot start, the app shows a dialog saying so and keeps retrying in the
+window. Override the API address with the `MYTODOEASE_API_URL` environment variable.
 
 ## Not yet
 

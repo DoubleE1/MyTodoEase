@@ -1,5 +1,5 @@
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
+
+using LiteDB;
 
 namespace MyTodoEase.Api.Models;
 
@@ -20,7 +20,7 @@ public enum Recurrence
 /// </summary>
 public sealed class TodoTask
 {
-    [BsonId, BsonRepresentation(BsonType.ObjectId)]
+    [BsonId]
     public string Id { get; set; } = null!;
     public string Content { get; set; } = "";
     public string Description { get; set; } = "";
@@ -32,7 +32,6 @@ public sealed class TodoTask
     public int Priority { get; set; } = 4;
     public string? DueDate { get; set; }
     public string? DueTime { get; set; }
-    [BsonRepresentation(BsonType.String)]
     public Recurrence Recurrence { get; set; } = Recurrence.None;
     public bool IsCompleted { get; set; }
     public DateTime? CompletedAt { get; set; }

@@ -1,11 +1,11 @@
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
+
+using LiteDB;
 
 namespace MyTodoEase.Api.Models;
 
 public sealed class Project
 {
-    [BsonId, BsonRepresentation(BsonType.ObjectId)]
+    [BsonId]
     public string Id { get; set; } = null!;
     public string Name { get; set; } = "";
     public string Color { get; set; } = "grey";

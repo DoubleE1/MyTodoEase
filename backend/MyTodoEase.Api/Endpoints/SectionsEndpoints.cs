@@ -1,4 +1,3 @@
-using MongoDB.Driver;
 using MyTodoEase.Api.Data;
 using MyTodoEase.Api.Models;
 
@@ -10,67 +9,73 @@ public static class SectionsEndpoints
     {
         var group = app.MapGroup("/api/sections").WithTags("Sections");
 
-        group.MapGet("/", async (string? projectId, MongoContext db) =>
+        group.MapGet("/", (string? projectId, AppDb db) =>
         {
-            var filter = projectId is null
-                ? Builders<Section>.Filter.Empty
-                : Builders<Section>.Filter.Eq(s => s.ProjectId, projectId);
-            return Results.Ok(await db.Sections.Find(filter).SortBy(s => s.Order).ThenBy(s => s.CreatedAt).ToListAsync());
+            var sections = projectId is null ? db.Sections.FindAll() : db.Sections.Find(s => s.ProjectId == projectId);
+            return Results.Ok(sections.OrderBy(s => s.Order).ThenBy(s => s.CreatedAt).ToList());
         });
 
-        group.MapPost("/", async (SectionWriteRequest req, MongoContext db) =>
+        group.MapPost("/", (SectionWriteRequest req, AppDb db) =>
         {
-            var errors = await ValidateAsync(req, db);
+            var errors = Validate(req, db);
             if (errors.Count > 0) return Results.ValidationProblem(errors);
 
-            var order = req.Order ?? await NextOrderAsync(db, req.ProjectId);
-            var section = new Section { ProjectId = req.ProjectId, Name = req.Name.Trim(), Order = order };
-            await db.Sections.InsertOneAsync(section);
+            var section = new Section
+            {
+                Id = AppDb.NewId(),
+                ProjectId = req.ProjectId,
+                Name = req.Name.Trim(),
+                Order = req.Order ?? NextOrder(db, req.ProjectId),
+            };
+            db.Sections.Insert(section);
             return Results.Created($"/api/sections/{section.Id}", section);
         });
 
-        group.MapPut("/{id}", async (string id, SectionWriteRequest req, MongoContext db) =>
+        group.MapPut("/{id}", (string id, SectionWriteRequest req, AppDb db) =>
         {
-            if (!MongoContext.IsValidId(id)) return Results.NotFound();
-            var errors = await ValidateAsync(req, db);
+            if (!AppDb.IsValidId(id)) return Results.NotFound();
+            var errors = Validate(req, db);
             if (errors.Count > 0) return Results.ValidationProblem(errors);
 
-            var update = Builders<Section>.Update
-                .Set(s => s.Name, req.Name.Trim())
-                .Set(s => s.ProjectId, req.ProjectId);
-            if (req.Order is int order) update = update.Set(s => s.Order, order);
+            var section = db.Sections.FindById(id);
+            if (section is null) return Results.NotFound();
 
-            var section = await db.Sections.FindOneAndUpdateAsync(
-                s => s.Id == id, update, new FindOneAndUpdateOptions<Section> { ReturnDocument = ReturnDocument.After });
-            return section is null ? Results.NotFound() : Results.Ok(section);
+            section.Name = req.Name.Trim();
+            section.ProjectId = req.ProjectId;
+            if (req.Order is int order) section.Order = order;
+            db.Sections.Update(section);
+            return Results.Ok(section);
         });
 
-        group.MapDelete("/{id}", async (string id, MongoContext db) =>
+        group.MapDelete("/{id}", (string id, AppDb db) =>
         {
-            if (!MongoContext.IsValidId(id)) return Results.NotFound();
-            var result = await db.Sections.DeleteOneAsync(s => s.Id == id);
-            if (result.DeletedCount == 0) return Results.NotFound();
+            if (!AppDb.IsValidId(id)) return Results.NotFound();
+            if (!db.Sections.Delete(id)) return Results.NotFound();
 
             // Tasks in the section are kept and moved to the project root rather than destroyed.
-            await db.Tasks.UpdateManyAsync(t => t.SectionId == id, Builders<TodoTask>.Update.Set(t => t.SectionId, null));
+            foreach (var task in db.Tasks.Find(t => t.SectionId == id).ToList())
+            {
+                task.SectionId = null;
+                db.Tasks.Update(task);
+            }
             return Results.NoContent();
         });
 
         return app;
     }
 
-    private static async Task<Dictionary<string, string[]>> ValidateAsync(SectionWriteRequest req, MongoContext db)
+    private static Dictionary<string, string[]> Validate(SectionWriteRequest req, AppDb db)
     {
         var errors = new Dictionary<string, string[]>();
         if (string.IsNullOrWhiteSpace(req.Name)) errors["name"] = ["Name is required."];
-        if (!MongoContext.IsValidId(req.ProjectId) || !await db.Projects.Find(p => p.Id == req.ProjectId).AnyAsync())
+        if (!AppDb.IsValidId(req.ProjectId) || db.Projects.FindById(req.ProjectId) is null)
             errors["projectId"] = ["Project does not exist."];
         return errors;
     }
 
-    private static async Task<int> NextOrderAsync(MongoContext db, string projectId)
+    private static int NextOrder(AppDb db, string projectId)
     {
-        var last = await db.Sections.Find(s => s.ProjectId == projectId).SortByDescending(s => s.Order).Limit(1).FirstOrDefaultAsync();
+        var last = db.Sections.Find(s => s.ProjectId == projectId).MaxBy(s => s.Order);
         return last is null ? 0 : last.Order + 1;
     }
 }

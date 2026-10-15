@@ -1,4 +1,3 @@
-using MongoDB.Driver;
 using MyTodoEase.Api.Data;
 using MyTodoEase.Api.Models;
 
@@ -10,51 +9,58 @@ public static class LabelsEndpoints
     {
         var group = app.MapGroup("/api/labels").WithTags("Labels");
 
-        group.MapGet("/", async (MongoContext db) =>
-            Results.Ok(await db.Labels.Find(_ => true).SortBy(l => l.Order).ThenBy(l => l.Name).ToListAsync()));
+        group.MapGet("/", (AppDb db) =>
+            Results.Ok(db.Labels.FindAll().OrderBy(l => l.Order).ThenBy(l => l.Name).ToList()));
 
-        group.MapPost("/", async (LabelWriteRequest req, MongoContext db) =>
+        group.MapPost("/", (LabelWriteRequest req, AppDb db) =>
         {
             if (string.IsNullOrWhiteSpace(req.Name))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["name"] = ["Name is required."] });
 
             var name = req.Name.Trim();
-            var existing = await db.Labels
-                .Find(Builders<Label>.Filter.Regex(l => l.Name, new MongoDB.Bson.BsonRegularExpression($"^{System.Text.RegularExpressions.Regex.Escape(name)}$", "i")))
-                .FirstOrDefaultAsync();
+            var all = db.Labels.FindAll().ToList();
+            var existing = all.FirstOrDefault(l => string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase));
             if (existing is not null) return Results.Ok(existing); // idempotent: labels are unique by name
 
-            var last = await db.Labels.Find(_ => true).SortByDescending(l => l.Order).Limit(1).FirstOrDefaultAsync();
-            var label = new Label { Name = name, Color = req.Color ?? "grey", Order = req.Order ?? (last is null ? 0 : last.Order + 1) };
-            await db.Labels.InsertOneAsync(label);
+            var last = all.MaxBy(l => l.Order);
+            var label = new Label
+            {
+                Id = AppDb.NewId(),
+                Name = name,
+                Color = req.Color ?? "grey",
+                Order = req.Order ?? (last is null ? 0 : last.Order + 1),
+            };
+            db.Labels.Insert(label);
             return Results.Created($"/api/labels/{label.Id}", label);
         });
 
-        group.MapPut("/{id}", async (string id, LabelWriteRequest req, MongoContext db) =>
+        group.MapPut("/{id}", (string id, LabelWriteRequest req, AppDb db) =>
         {
-            if (!MongoContext.IsValidId(id)) return Results.NotFound();
+            if (!AppDb.IsValidId(id)) return Results.NotFound();
             if (string.IsNullOrWhiteSpace(req.Name))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["name"] = ["Name is required."] });
 
-            var update = Builders<Label>.Update
-                .Set(l => l.Name, req.Name.Trim())
-                .Set(l => l.Color, req.Color ?? "grey");
-            if (req.Order is int order) update = update.Set(l => l.Order, order);
+            var label = db.Labels.FindById(id);
+            if (label is null) return Results.NotFound();
 
-            var label = await db.Labels.FindOneAndUpdateAsync(
-                l => l.Id == id, update, new FindOneAndUpdateOptions<Label> { ReturnDocument = ReturnDocument.After });
-            return label is null ? Results.NotFound() : Results.Ok(label);
+            label.Name = req.Name.Trim();
+            label.Color = req.Color ?? "grey";
+            if (req.Order is int order) label.Order = order;
+            db.Labels.Update(label);
+            return Results.Ok(label);
         });
 
-        group.MapDelete("/{id}", async (string id, MongoContext db) =>
+        group.MapDelete("/{id}", (string id, AppDb db) =>
         {
-            if (!MongoContext.IsValidId(id)) return Results.NotFound();
-            var result = await db.Labels.DeleteOneAsync(l => l.Id == id);
-            if (result.DeletedCount == 0) return Results.NotFound();
+            if (!AppDb.IsValidId(id)) return Results.NotFound();
+            if (!db.Labels.Delete(id)) return Results.NotFound();
 
-            await db.Tasks.UpdateManyAsync(
-                Builders<TodoTask>.Filter.AnyEq(t => t.LabelIds, id),
-                Builders<TodoTask>.Update.Pull(t => t.LabelIds, id));
+            // Array membership is filtered in memory: the data set is one user's tasks.
+            foreach (var task in db.Tasks.FindAll().Where(t => t.LabelIds.Contains(id)).ToList())
+            {
+                task.LabelIds.Remove(id);
+                db.Tasks.Update(task);
+            }
             return Results.NoContent();
         });
 

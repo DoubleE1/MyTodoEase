@@ -5,8 +5,8 @@ using MyTodoEase.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.Configure<MongoOptions>(builder.Configuration.GetSection(MongoOptions.SectionName));
-builder.Services.AddSingleton<MongoContext>();
+builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
+builder.Services.AddSingleton<AppDb>();
 builder.Services.AddOpenApi();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -26,7 +26,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-await app.Services.GetRequiredService<MongoContext>().InitializeAsync();
+var db = app.Services.GetRequiredService<AppDb>();
+db.Initialize();
+app.Logger.LogInformation("Storage: {Path}", db.FilePath);
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", time = DateTime.UtcNow }));
 app.MapProjects();

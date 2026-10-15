@@ -1,5 +1,5 @@
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
+
+using LiteDB;
 
 namespace MyTodoEase.Api.Models;
 
@@ -10,7 +10,7 @@ namespace MyTodoEase.Api.Models;
 /// </summary>
 public sealed class Completion
 {
-    [BsonId, BsonRepresentation(BsonType.ObjectId)]
+    [BsonId]
     public string Id { get; set; } = null!;
     public string TaskId { get; set; } = null!;
     public string Content { get; set; } = "";

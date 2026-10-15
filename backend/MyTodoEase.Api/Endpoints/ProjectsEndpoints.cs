@@ -1,4 +1,3 @@
-using MongoDB.Driver;
 using MyTodoEase.Api.Data;
 using MyTodoEase.Api.Models;
 
@@ -10,70 +9,70 @@ public static class ProjectsEndpoints
     {
         var group = app.MapGroup("/api/projects").WithTags("Projects");
 
-        group.MapGet("/", async (MongoContext db) =>
-            Results.Ok(await db.Projects.Find(_ => true).SortBy(p => p.Order).ThenBy(p => p.CreatedAt).ToListAsync()));
+        group.MapGet("/", (AppDb db) =>
+            Results.Ok(db.Projects.FindAll().OrderBy(p => p.Order).ThenBy(p => p.CreatedAt).ToList()));
 
-        group.MapGet("/{id}", async (string id, MongoContext db) =>
+        group.MapGet("/{id}", (string id, AppDb db) =>
         {
-            if (!MongoContext.IsValidId(id)) return Results.NotFound();
-            var project = await db.Projects.Find(p => p.Id == id).FirstOrDefaultAsync();
+            if (!AppDb.IsValidId(id)) return Results.NotFound();
+            var project = db.Projects.FindById(id);
             return project is null ? Results.NotFound() : Results.Ok(project);
         });
 
-        group.MapPost("/", async (ProjectWriteRequest req, MongoContext db) =>
+        group.MapPost("/", (ProjectWriteRequest req, AppDb db) =>
         {
             if (string.IsNullOrWhiteSpace(req.Name))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["name"] = ["Name is required."] });
 
-            var order = req.Order ?? await NextOrderAsync(db);
             var project = new Project
             {
+                Id = AppDb.NewId(),
                 Name = req.Name.Trim(),
                 Color = req.Color ?? "grey",
-                Order = order,
+                Order = req.Order ?? NextOrder(db),
                 IsFavorite = req.IsFavorite ?? false,
             };
-            await db.Projects.InsertOneAsync(project);
+            db.Projects.Insert(project);
             return Results.Created($"/api/projects/{project.Id}", project);
         });
 
-        group.MapPut("/{id}", async (string id, ProjectWriteRequest req, MongoContext db) =>
+        group.MapPut("/{id}", (string id, ProjectWriteRequest req, AppDb db) =>
         {
-            if (!MongoContext.IsValidId(id)) return Results.NotFound();
+            if (!AppDb.IsValidId(id)) return Results.NotFound();
             if (string.IsNullOrWhiteSpace(req.Name))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["name"] = ["Name is required."] });
 
-            var update = Builders<Project>.Update
-                .Set(p => p.Name, req.Name.Trim())
-                .Set(p => p.Color, req.Color ?? "grey")
-                .Set(p => p.IsFavorite, req.IsFavorite ?? false);
-            if (req.Order is int order) update = update.Set(p => p.Order, order);
+            var project = db.Projects.FindById(id);
+            if (project is null) return Results.NotFound();
 
-            var project = await db.Projects.FindOneAndUpdateAsync(
-                p => p.Id == id, update, new FindOneAndUpdateOptions<Project> { ReturnDocument = ReturnDocument.After });
-            return project is null ? Results.NotFound() : Results.Ok(project);
+            project.Name = req.Name.Trim();
+            project.Color = req.Color ?? "grey";
+            project.IsFavorite = req.IsFavorite ?? false;
+            if (req.Order is int order) project.Order = order;
+            db.Projects.Update(project);
+            return Results.Ok(project);
         });
 
-        group.MapDelete("/{id}", async (string id, MongoContext db) =>
+        group.MapDelete("/{id}", (string id, AppDb db) =>
         {
-            if (!MongoContext.IsValidId(id)) return Results.NotFound();
-            var project = await db.Projects.Find(p => p.Id == id).FirstOrDefaultAsync();
+            if (!AppDb.IsValidId(id)) return Results.NotFound();
+            var project = db.Projects.FindById(id);
             if (project is null) return Results.NotFound();
             if (project.IsInbox) return Results.Problem("The Inbox project cannot be deleted.", statusCode: StatusCodes.Status400BadRequest);
 
             // Cascade: a project owns its sections and tasks.
-            await db.Tasks.DeleteManyAsync(t => t.ProjectId == id);
-            await db.Sections.DeleteManyAsync(s => s.ProjectId == id);
-            await db.Projects.DeleteOneAsync(p => p.Id == id);
+            db.Tasks.DeleteMany(t => t.ProjectId == id);
+            db.Sections.DeleteMany(s => s.ProjectId == id);
+            db.Projects.Delete(id);
             return Results.NoContent();
         });
 
         return app;
     }
 
-    private static async Task<int> NextOrderAsync(MongoContext db)
+    private static int NextOrder(AppDb db)
     {
-        var last = await db.Projects.Find(_ => true).SortByDescending(p => p.Order).Limit(1).FirstOrDefaultAsync();
+        var last = db.Projects.FindAll().MaxBy(p => p.Order);
         return last is null ? 0 : last.Order + 1;
     }
 }

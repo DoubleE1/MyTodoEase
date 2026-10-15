@@ -454,8 +454,8 @@ app.whenReady().then(async () => {
     if (!ok) {
       dialog.showErrorBox(
         'MyTodoEase could not start its service',
-        `The task service did not respond at ${API_URL}.\n\nMyTodoEase needs MongoDB running on this computer (mongodb://localhost:27017). ` +
-          'Start MongoDB and open the app again; the window will keep retrying meanwhile.',
+        `The task service did not respond at ${API_URL}.\n\nAnother program may be using that port, or the service failed to start. ` +
+          'Close the app and open it again; the window will keep retrying meanwhile.',
       );
     }
   }
