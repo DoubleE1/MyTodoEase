@@ -99,7 +99,6 @@ function CollapsibleSection({
           {icon}
           <span>{title}</span>
         </button>
-        <span className="spacer" />
         {action}
       </div>
       {!collapsed && <div id={listId}>{children}</div>}
