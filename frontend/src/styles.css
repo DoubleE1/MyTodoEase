@@ -154,12 +154,222 @@ ul {
 .main {
   flex: 1;
   overflow-y: auto;
-  padding: 32px 48px 80px;
+  padding: 28px 40px 60px;
+  position: relative;
 }
 
+.main > *:not(.main-art) {
+  position: relative;
+  z-index: 1;
+}
+
+/* The content area is one frosted-glass card floating over the dot field. */
 .view {
   max-width: 800px;
   margin: 0 auto;
+  min-height: calc(100vh - 170px);
+  padding: 28px 32px 32px;
+  border-radius: 18px;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  backdrop-filter: blur(16px) saturate(1.15);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.62);
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --glass-shadow: 0 10px 40px rgba(60, 40, 120, 0.08);
+}
+
+:root[data-theme='dark'] {
+  --glass-bg: rgba(38, 38, 44, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* Header backdrop: a fixed dot grid. Dots inside a soft brand-colored halo breathe (grow and shrink
+   in place); nothing moves. Registered properties make the dot radius and halo size animatable. */
+
+@property --dot-r {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 1.3px;
+}
+
+@property --halo {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 58%;
+}
+
+@property --hx {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 62%;
+}
+
+@property --hy {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 30%;
+}
+
+.main-art {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 260px;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 35%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 35%, transparent 100%);
+}
+
+/* Base grid: small, static, neutral dots. */
+.main-art::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, var(--dot-color) 1.1px, transparent 1.8px) 0 0 / 14px 14px;
+}
+
+/* Halo layers: the brand gradient, visible only through dot-shaped holes that breathe, inside a soft
+   halo whose centre wanders. The dot mask is on the same 14px grid as the base layer, so dots never move;
+   only which ones are lit and how large they are changes. */
+.halo {
+  position: absolute;
+  inset: 0;
+  --dot-r: 1.3px;
+  --halo: 58%;
+  --hx: 62%;
+  --hy: 30%;
+  opacity: var(--glow-opacity);
+  -webkit-mask-image:
+    radial-gradient(circle at center, #000 var(--dot-r), transparent calc(var(--dot-r) + 0.7px)),
+    radial-gradient(ellipse 36% 85% at var(--hx) var(--hy), #000 0%, transparent var(--halo));
+  mask-image:
+    radial-gradient(circle at center, #000 var(--dot-r), transparent calc(var(--dot-r) + 0.7px)),
+    radial-gradient(ellipse 36% 85% at var(--hx) var(--hy), #000 0%, transparent var(--halo));
+  -webkit-mask-size: 14px 14px, 100% 100%;
+  mask-size: 14px 14px, 100% 100%;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
+.halo-a {
+  background: linear-gradient(110deg, #3f8cff 0%, #7b4dff 60%, #a35cff 100%);
+  animation:
+    dots-breathe 7s ease-in-out infinite,
+    halo-wander-a 48s ease-in-out infinite;
+}
+
+.halo-b {
+  background: linear-gradient(110deg, #8a5cff 0%, #c85cff 45%, #ff5fa8 100%);
+  animation:
+    dots-breathe 9s ease-in-out -4s infinite,
+    halo-wander-b 61s ease-in-out -20s infinite;
+}
+
+/* Follows the mouse (see App.tsx); tighter and brighter than the wandering ones. */
+.halo-pointer {
+  --dot-r: 2.2px;
+  --halo: 62%;
+  opacity: 0;
+  background: linear-gradient(110deg, #5aa0ff 0%, #9a6bff 50%, #ff6fb3 100%);
+  -webkit-mask-image:
+    radial-gradient(circle at center, #000 var(--dot-r), transparent calc(var(--dot-r) + 0.7px)),
+    radial-gradient(ellipse 22% 60% at var(--hx) var(--hy), #000 0%, transparent var(--halo));
+  mask-image:
+    radial-gradient(circle at center, #000 var(--dot-r), transparent calc(var(--dot-r) + 0.7px)),
+    radial-gradient(ellipse 22% 60% at var(--hx) var(--hy), #000 0%, transparent var(--halo));
+  transition: opacity 350ms ease;
+  animation: dots-breathe 4s ease-in-out infinite;
+}
+
+.halo-pointer.is-active {
+  opacity: var(--glow-opacity);
+}
+
+@keyframes dots-breathe {
+  0%,
+  100% {
+    --dot-r: 1.3px;
+    --halo: 58%;
+  }
+  50% {
+    --dot-r: 2.6px;
+    --halo: 70%;
+  }
+}
+
+@keyframes halo-wander-a {
+  0% {
+    --hx: 62%;
+    --hy: 30%;
+  }
+  20% {
+    --hx: 30%;
+    --hy: 60%;
+  }
+  40% {
+    --hx: 15%;
+    --hy: 25%;
+  }
+  60% {
+    --hx: 48%;
+    --hy: 75%;
+  }
+  80% {
+    --hx: 85%;
+    --hy: 55%;
+  }
+  100% {
+    --hx: 62%;
+    --hy: 30%;
+  }
+}
+
+@keyframes halo-wander-b {
+  0% {
+    --hx: 12%;
+    --hy: 70%;
+  }
+  25% {
+    --hx: 70%;
+    --hy: 20%;
+  }
+  50% {
+    --hx: 92%;
+    --hy: 65%;
+  }
+  75% {
+    --hx: 40%;
+    --hy: 40%;
+  }
+  100% {
+    --hx: 12%;
+    --hy: 70%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .halo {
+    animation: none;
+  }
+}
+
+:root {
+  --dot-color: rgba(32, 32, 32, 0.14);
+  --glow-opacity: 0.5;
+}
+
+:root[data-theme='dark'] {
+  --dot-color: rgba(255, 255, 255, 0.12);
+  --glow-opacity: 0.85;
 }
 
 .view-header {

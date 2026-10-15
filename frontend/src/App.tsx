@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { API_BASE_URL } from './api/client';
 import { subDays } from 'date-fns';
 import {
@@ -138,6 +138,37 @@ export default function App() {
 
   const closeDetail = useCallback(() => setOpenTaskId(null), []);
   const closeDialog = useCallback(() => setDialog(null), []);
+
+  // Header backdrop: a halo that follows the pointer while it is over the dotted area.
+  // Written straight to the element's CSS variables so mouse moves never re-render React.
+  const mainRef = useRef<HTMLElement>(null);
+  const pointerHaloRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const main = mainRef.current;
+    const halo = pointerHaloRef.current;
+    const art = halo?.parentElement;
+    if (!main || !halo || !art) return;
+    const hide = () => halo.classList.remove('is-active');
+    const onMove = (event: MouseEvent) => {
+      const rect = art.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      if (y < 0 || y > rect.height || x < 0 || x > rect.width) {
+        hide();
+        return;
+      }
+      halo.style.setProperty('--hx', `${(x / rect.width) * 100}%`);
+      halo.style.setProperty('--hy', `${(y / rect.height) * 100}%`);
+      halo.classList.add('is-active');
+    };
+    main.addEventListener('mousemove', onMove);
+    main.addEventListener('mouseleave', hide);
+    return () => {
+      main.removeEventListener('mousemove', onMove);
+      main.removeEventListener('mouseleave', hide);
+    };
+    // The art element is always rendered inside <main>, so the only remount is the compact/full switch.
+  }, [windowMode.compact]);
 
   const loading = projects.isLoading || sections.isLoading || labels.isLoading || tasks.isLoading;
   const loadError = projects.error ?? sections.error ?? labels.error ?? tasks.error;
@@ -287,7 +318,12 @@ export default function App() {
         onCompact={() => void windowMode.setCompact(true)}
       />
 
-      <main className="main">
+      <main className="main" ref={mainRef}>
+        <div className="main-art" aria-hidden="true">
+          <span className="halo halo-a" />
+          <span className="halo halo-b" />
+          <span className="halo halo-pointer" ref={pointerHaloRef} />
+        </div>
         {loadError ? (
           <div className="banner banner-error">
             <div>
