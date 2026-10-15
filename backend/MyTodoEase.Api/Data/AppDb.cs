@@ -61,11 +61,48 @@ public sealed partial class AppDb : IDisposable
         }
     }
 
+    /// <summary>Swaps the whole database for the given rows in one transaction (backup import).</summary>
+    public void ReplaceAll(
+        IEnumerable<Project> projects,
+        IEnumerable<Section> sections,
+        IEnumerable<Label> labels,
+        IEnumerable<TodoTask> tasks,
+        IEnumerable<Completion> completions)
+    {
+        _db.BeginTrans();
+        try
+        {
+            Projects.DeleteAll();
+            Sections.DeleteAll();
+            Labels.DeleteAll();
+            Tasks.DeleteAll();
+            Completions.DeleteAll();
+            Projects.InsertBulk(projects);
+            Sections.InsertBulk(sections);
+            Labels.InsertBulk(labels);
+            Tasks.InsertBulk(tasks);
+            Completions.InsertBulk(completions);
+            _db.Commit();
+        }
+        catch
+        {
+            _db.Rollback();
+            throw;
+        }
+        _db.Checkpoint();
+    }
+
     public static string NewId() => ObjectId.NewObjectId().ToString();
 
     public static bool IsValidId(string? id) => id is not null && IdPattern().IsMatch(id);
 
-    public void Dispose() => _db.Dispose();
+    /// <summary>Folds the write-ahead log into the data file. LiteDB writes asynchronously, so a process
+    /// killed without this can lose its last writes; the host disposes this on graceful shutdown.</summary>
+    public void Dispose()
+    {
+        _db.Checkpoint();
+        _db.Dispose();
+    }
 
     [GeneratedRegex("^[0-9a-f]{24}$")]
     private static partial Regex IdPattern();

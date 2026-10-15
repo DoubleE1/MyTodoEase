@@ -20,6 +20,7 @@ import { CalendarView } from './components/CalendarView';
 import { CompactView } from './components/CompactView';
 import { ConfirmDialog, LabelDialog, Modal, ProjectDialog, type ConfirmOptions } from './components/Dialogs';
 import { InsightsView } from './components/InsightsView';
+import { SettingsDialog } from './components/SettingsDialog';
 import { Sidebar } from './components/Sidebar';
 import { TaskDetail } from './components/TaskDetail';
 import { TaskEditor } from './components/TaskEditor';
@@ -35,6 +36,7 @@ type Dialog =
   | { kind: 'project'; project?: Project }
   | { kind: 'label'; label?: Label }
   | { kind: 'quick-add'; dueDate?: string }
+  | { kind: 'settings' }
   | null;
 
 /** Promise-based confirm so callers can `await confirm(...)` and the UI stays a plain modal. */
@@ -306,6 +308,15 @@ export default function App() {
         />
       )}
 
+      {dialog?.kind === 'settings' && (
+        <SettingsDialog
+          onClose={closeDialog}
+          themePreference={theme.preference}
+          onSetTheme={theme.setPreference}
+          confirm={confirm}
+        />
+      )}
+
       {openTaskId && (
         <TaskDetail
           taskId={openTaskId}
@@ -385,6 +396,7 @@ export default function App() {
         onDeleteLabel={(label) => void deleteLabel(label)}
         themePreference={theme.preference}
         onCycleTheme={theme.cycle}
+        onOpenSettings={() => setDialog({ kind: 'settings' })}
         showCompactButton={!windowMode.isDesktop}
         onCompact={() => void windowMode.setCompact(true)}
       />

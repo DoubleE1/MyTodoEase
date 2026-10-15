@@ -42,6 +42,7 @@ The API also works from a browser at http://localhost:5173 without Electron.
 - Insights page (click the dashboard): GitHub-style year heatmap of completions with a year switcher, streaks, best day, weekday pattern, and top projects. Completions are kept in a separate log so recurring tasks and later-deleted tasks still count
 - Light, dark, or follow-system theme (toggle at the bottom of the sidebar, remembered between launches)
 - Pin on top: keeps the window above other windows (desktop only, button in the title bar next to minimize)
+- Settings (sidebar footer): theme choice plus Data backup. **Export backup…** writes one JSON file with every project, section, label, task and completion; **Import backup…** replaces all data with such a file (after confirmation). Data lives only on this computer, so this is how you back up, move to another PC, or recover after a reinstall (`GET /api/backup`, `POST /api/backup/import`)
 - Dock (mini mode, Windows): a title bar button reserves the mini window as a Windows app bar on the right screen edge, like the taskbar, so maximized apps stop at its edge instead of covering it. While docked only Close is shown; dragging or snapping the window puts it back. Expanding to the full window releases the strip and going back to mini re-docks, until you undock explicitly. The dock state survives restarts. Uses the small .NET helper in `desktop/appbar` (built by `npm run build:appbar` as a self-contained exe)
 - Mini mode: shrinks the window to a small two-pane list. Today (with overdue) on top; below it a pane you choose (No date, Inbox, Upcoming, any project, any label, or hidden) with a draggable divider. Add, complete, edit, and delete work in both panes; the window size, pane choice, and split are remembered (title bar button; sidebar footer in the browser)
 - Quick add with natural-language parsing: `Pay rent tomorrow at 9am p1 #Home @finance every month`
@@ -68,6 +69,9 @@ Base URL `http://localhost:5080`. Swagger-style document at `/openapi/v1.json` i
 | POST | `/api/tasks/{id}/reopen` | |
 | POST | `/api/tasks/reorder` | `{ items: [{ id, order, sectionId?, parentId? }] }` |
 | GET | `/api/stats/completions?from=yyyy-MM-dd&to=yyyy-MM-dd` | Completion history (local calendar dates) plus the list of years with data |
+| GET | `/api/backup` | Whole database as one JSON document (`app`, `version`, `exportedAt`, collections) |
+| POST | `/api/backup/import` | Replace all data with a backup document; validates ids, drops dangling references, keeps one Inbox |
+| POST | `/api/shutdown` | Stop the API gracefully so LiteDB flushes its log (used by the desktop shell on quit) |
 
 Due dates are stored as plain `yyyy-MM-dd` / `HH:mm` strings (local calendar dates), never as UTC instants, so they do
 not shift across time zones.

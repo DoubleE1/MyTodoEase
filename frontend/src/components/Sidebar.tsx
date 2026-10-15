@@ -6,6 +6,7 @@ import {
   Hash,
   Inbox,
   Minimize2,
+  Settings,
   Monitor,
   Moon,
   Pencil,
@@ -44,6 +45,7 @@ interface SidebarProps {
   onDeleteLabel: (label: Label) => void;
   themePreference: ThemePreference;
   onCycleTheme: () => void;
+  onOpenSettings: () => void;
   /** In the browser there is no title bar, so Mini mode lives here instead. */
   showCompactButton: boolean;
   onCompact: () => void;
@@ -166,6 +168,7 @@ export function Sidebar({
   onDeleteLabel,
   themePreference,
   onCycleTheme,
+  onOpenSettings,
   showCompactButton,
   onCompact,
 }: SidebarProps) {
@@ -360,15 +363,9 @@ export function Sidebar({
       </CollapsibleSection>
 
       <div className="sidebar-footer">
-        <button
-          type="button"
-          className="footer-btn"
-          onClick={onCycleTheme}
-          title="Switch theme (light, dark, system)"
-          aria-label={`Theme: ${THEME_META[themePreference].label}. Click to switch.`}
-        >
-          {THEME_META[themePreference].icon}
-          <span>{THEME_META[themePreference].label}</span>
+        <button type="button" className="footer-btn" onClick={onOpenSettings} title="Settings" aria-label="Settings">
+          <Settings size={15} />
+          <span>Settings</span>
         </button>
         {showCompactButton && (
           <button
@@ -382,6 +379,15 @@ export function Sidebar({
             <span>Mini</span>
           </button>
         )}
+        <button
+          type="button"
+          className="footer-btn footer-btn-icon"
+          onClick={onCycleTheme}
+          title={`Theme: ${THEME_META[themePreference].label}. Click to switch.`}
+          aria-label={`Theme: ${THEME_META[themePreference].label}. Click to switch.`}
+        >
+          {THEME_META[themePreference].icon}
+        </button>
       </div>
     </aside>
   );

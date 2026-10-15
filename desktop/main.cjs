@@ -49,15 +49,28 @@ async function ensureApi() {
   return false;
 }
 
-function stopApi() {
-  if (apiProcess && !apiProcess.killed) {
+/**
+ * Stop the bundled API gracefully: ask it to shut down (so LiteDB flushes its write-ahead log),
+ * wait briefly for the process to exit, and only then fall back to killing it.
+ */
+async function stopApi() {
+  const proc = apiProcess;
+  apiProcess = null;
+  if (!proc || proc.exitCode !== null || proc.killed) return;
+  const exited = new Promise((resolve) => proc.once('exit', resolve));
+  try {
+    await fetch(`${API_URL}/api/shutdown`, { method: 'POST', signal: AbortSignal.timeout(1000) });
+  } catch {
+    // Not reachable: fall through to the timeout and kill below.
+  }
+  const result = await Promise.race([exited.then(() => 'exited'), new Promise((r) => setTimeout(() => r('timeout'), 5000))]);
+  if (result === 'timeout') {
     try {
-      apiProcess.kill();
+      proc.kill();
     } catch (error) {
       console.error('Could not stop the API process:', error);
     }
   }
-  apiProcess = null;
 }
 
 // Dev aid: MYTODOEASE_DEVTOOLS_PORT=9222 exposes the Chrome DevTools protocol for scripted testing.
@@ -469,4 +482,25 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('will-quit', stopApi);
+let apiStopped = false;
+app.on('will-quit', (event) => {
+  if (apiStopped) return;
+  // Hold the quit until the API has been asked to shut down and has exited (or timed out).
+  event.preventDefault();
+  stopApi().finally(() => {
+    apiStopped = true;
+    app.quit();
+  });
+});
+
+// Save text (a backup) where the user chooses. Returns the path, or null when they cancel.
+ipcMain.handle('file:save-text', async (_event, { defaultName, content }) => {
+  const { canceled, filePath } = await dialog.showSaveDialog(win ?? undefined, {
+    title: 'Save backup',
+    defaultPath: path.join(app.getPath('documents'), String(defaultName || 'backup.json')),
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+  });
+  if (canceled || !filePath) return null;
+  await fs.promises.writeFile(filePath, String(content), 'utf8');
+  return filePath;
+});

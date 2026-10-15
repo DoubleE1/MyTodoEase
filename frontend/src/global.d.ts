@@ -19,5 +19,7 @@ interface Window {
     /** Subscribe to state pushed by the shell; returns an unsubscribe function. */
     onWindowState?: (callback: (state: DesktopWindowState) => void) => () => void;
     setTitleBarTheme: (theme: 'light' | 'dark') => Promise<void>;
+    /** Native save dialog; resolves to the chosen path, or null when cancelled. */
+    saveTextFile?: (defaultName: string, content: string) => Promise<string | null>;
   };
 }

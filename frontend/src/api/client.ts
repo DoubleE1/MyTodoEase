@@ -1,5 +1,7 @@
 import type {
+  BackupDocument,
   CompletionsResponse,
+  ImportResult,
   Label,
   LabelInput,
   Project,
@@ -63,7 +65,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 const json = (body: unknown): RequestInit => ({ body: JSON.stringify(body) });
 
 export const api = {
-  health: () => request<{ status: string }>('/api/health'),
+  health: () => request<{ status: string; storage?: string }>('/api/health'),
+
+  backup: {
+    export: () => request<BackupDocument>('/api/backup'),
+    /** Replaces all data with the document's contents. */
+    import: (doc: unknown) => request<ImportResult>('/api/backup/import', { method: 'POST', ...json(doc) }),
+  },
 
   projects: {
     list: () => request<Project[]>('/api/projects'),

@@ -30,11 +30,20 @@ var db = app.Services.GetRequiredService<AppDb>();
 db.Initialize();
 app.Logger.LogInformation("Storage: {Path}", db.FilePath);
 
-app.MapGet("/api/health", () => Results.Ok(new { status = "ok", time = DateTime.UtcNow }));
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok", time = DateTime.UtcNow, storage = db.FilePath }));
+
+// The desktop shell calls this on quit so the host disposes AppDb and LiteDB flushes its log.
+// The API only listens on localhost, so this is reachable from this computer alone.
+app.MapPost("/api/shutdown", (IHostApplicationLifetime lifetime) =>
+{
+    lifetime.StopApplication();
+    return Results.Accepted();
+});
 app.MapProjects();
 app.MapSections();
 app.MapLabels();
 app.MapTasks();
 app.MapStats();
+app.MapBackup();
 
 app.Run();

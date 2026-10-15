@@ -103,3 +103,23 @@ export interface ReorderItem {
   sectionId?: string | null;
   parentId?: string | null;
 }
+
+/** Whole-database backup as produced by GET /api/backup. */
+export interface BackupDocument {
+  app: string;
+  version: number;
+  exportedAt: string;
+  projects: Project[];
+  sections: Section[];
+  labels: Label[];
+  tasks: Task[];
+  completions: unknown[];
+}
+
+export interface ImportResult {
+  projects: number;
+  sections: number;
+  labels: number;
+  tasks: number;
+  completions: number;
+}
