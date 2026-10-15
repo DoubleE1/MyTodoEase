@@ -1333,32 +1333,113 @@ ul {
   gap: 2px;
 }
 
-.compact-body {
+.compact-split {
   flex: 1;
-  overflow-y: auto;
-  padding: 4px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
-.compact-body .task-group {
+.compact-pane {
+  display: flex;
+  flex-direction: column;
+  flex-basis: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.compact-pane.is-hidden {
+  flex-basis: auto;
+}
+
+.compact-pane.is-hidden .pane-header {
+  border-top: 1px solid var(--border);
+}
+
+.pane-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 4px;
+  flex-shrink: 0;
+}
+
+.pane-header h2 {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pane-select {
+  max-width: 55%;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.pane-select:hover {
+  color: var(--text);
+}
+
+.pane-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 12px 4px;
+  min-height: 0;
+}
+
+.pane-body .task-group {
   margin-bottom: 8px;
 }
 
-.compact-body .task-row {
+.pane-body .task-row {
   padding: 7px 2px;
 }
 
-.compact-body .empty {
-  padding: 16px 0 8px 4px;
+.pane-body .empty {
+  padding: 12px 0 8px 4px;
 }
 
-.compact-footer {
-  padding: 4px 8px 8px;
-  border-top: 1px solid var(--border);
-  background: var(--bg);
+.pane-footer {
+  flex-shrink: 0;
+  padding: 2px 8px 6px;
 }
 
-.compact-footer .task-editor {
+.pane-footer .task-editor {
   margin: 4px 0 0;
+}
+
+.compact-divider {
+  flex-shrink: 0;
+  height: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: row-resize;
+  background: var(--bg-sidebar);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  touch-action: none;
+  user-select: none;
+}
+
+.compact-divider-grip {
+  width: 36px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--text-faint);
+}
+
+.compact-divider:hover .compact-divider-grip,
+.compact-divider:focus-visible .compact-divider-grip {
+  background: var(--accent);
+}
+
+.compact-divider:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .app-compact .banner,
