@@ -9,6 +9,7 @@ export const queryKeys = {
   labels: ['labels'] as const,
   tasks: ['tasks', 'active'] as const,
   completed: ['tasks', 'completed'] as const,
+  completions: ['completions'] as const,
 };
 
 export const useProjects = () => useQuery({ queryKey: queryKeys.projects, queryFn: api.projects.list });
@@ -17,6 +18,8 @@ export const useLabels = () => useQuery({ queryKey: queryKeys.labels, queryFn: a
 export const useActiveTasks = () => useQuery({ queryKey: queryKeys.tasks, queryFn: api.tasks.listActive });
 export const useCompletedTasks = (enabled: boolean) =>
   useQuery({ queryKey: queryKeys.completed, queryFn: () => api.tasks.listCompleted(), enabled });
+export const useCompletions = (from: string, to: string) =>
+  useQuery({ queryKey: [...queryKeys.completions, from, to], queryFn: () => api.stats.completions(from, to) });
 
 const onError = (error: unknown) => {
   showToast(error instanceof Error ? error.message : 'Something went wrong.', 'error');
@@ -27,6 +30,7 @@ export function useTaskMutations() {
   const invalidateTasks = () => {
     void qc.invalidateQueries({ queryKey: queryKeys.tasks });
     void qc.invalidateQueries({ queryKey: queryKeys.completed });
+    void qc.invalidateQueries({ queryKey: queryKeys.completions });
   };
 
   const create = useMutation({

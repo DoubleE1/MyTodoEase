@@ -23,9 +23,13 @@ and for notification jobs (email, Telegram).
 
 ```bash
 npm install
-npm run db        # MongoDB on localhost:27017
+npm run db        # MongoDB in Docker on localhost:27018 (skip if MongoDB already runs locally)
 npm run dev       # API (5080) + Vite (5173) + Electron window
 ```
+
+The API defaults to `mongodb://localhost:27017`, which is where a MongoDB installed as a Windows service listens.
+To use the Docker container instead, set `Mongo.ConnectionString` to `mongodb://localhost:27018` in
+`backend/MyTodoEase.Api/appsettings.json` (or an `appsettings.Development.json` override).
 
 Or run pieces individually: `npm run api`, `npm run web`, `npm run desktop`.
 The API also works from a browser at http://localhost:5173 without Electron.
@@ -37,6 +41,8 @@ The API also works from a browser at http://localhost:5173 without Electron.
 - Recurring tasks (daily, weekdays, weekly, monthly, yearly); completing one rolls it to the next date
 - Views: Inbox, Today (with overdue and "reschedule to today"), Upcoming (7 days + later), per project, per label, search, Completed
 - Calendar: month and week grids; drag a task to another day to reschedule it, drag undated tasks from the "No date" panel onto a day, "+" on a day to add a task there
+- Dashboard card in the sidebar: today's progress ring, a status line, last-7-days bars, streak, overdue shortcut
+- Insights page (click the dashboard): GitHub-style year heatmap of completions with a year switcher, streaks, best day, weekday pattern, and top projects. Completions are kept in a separate log so recurring tasks and later-deleted tasks still count
 - Light, dark, or follow-system theme (toggle at the bottom of the sidebar, remembered between launches)
 - Pin on top: keeps the window above other windows (desktop only, button in the title bar next to minimize)
 - Mini mode: shrinks the window to a small two-pane list. Today (with overdue) on top; below it a pane you choose (No date, Inbox, Upcoming, any project, any label, or hidden) with a draggable divider. Add, complete, edit, and delete work in both panes; the window size, pane choice, and split are remembered (title bar button; sidebar footer in the browser)
@@ -63,6 +69,7 @@ Base URL `http://localhost:5080`. Swagger-style document at `/openapi/v1.json` i
 | POST | `/api/tasks/{id}/complete` | Recurring tasks roll forward instead of closing |
 | POST | `/api/tasks/{id}/reopen` | |
 | POST | `/api/tasks/reorder` | `{ items: [{ id, order, sectionId?, parentId? }] }` |
+| GET | `/api/stats/completions?from=yyyy-MM-dd&to=yyyy-MM-dd` | Completion history (local calendar dates) plus the list of years with data |
 
 Due dates are stored as plain `yyyy-MM-dd` / `HH:mm` strings (local calendar dates), never as UTC instants, so they do
 not shift across time zones.

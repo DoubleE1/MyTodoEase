@@ -82,6 +82,20 @@ export interface LabelInput {
   order?: number;
 }
 
+/** One completion event from the history log (survives recurrence roll-forward and task deletion). */
+export interface CompletionItem {
+  taskId: string;
+  content: string;
+  projectId: string;
+  completedAt: string;
+}
+
+export interface CompletionsResponse {
+  /** Calendar years that have any history, oldest first. */
+  years: number[];
+  items: CompletionItem[];
+}
+
 export interface ReorderItem {
   id: string;
   order: number;

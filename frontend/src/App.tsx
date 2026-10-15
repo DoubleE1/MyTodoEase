@@ -2,9 +2,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { API_BASE_URL } from './api/client';
+import { subDays } from 'date-fns';
 import {
   useActiveTasks,
   useCompletedTasks,
+  useCompletions,
   useLabelMutations,
   useLabels,
   useProjectMutations,
@@ -17,13 +19,14 @@ import type { Label, Project, Task } from './api/types';
 import { CalendarView } from './components/CalendarView';
 import { CompactView } from './components/CompactView';
 import { ConfirmDialog, LabelDialog, Modal, ProjectDialog, type ConfirmOptions } from './components/Dialogs';
+import { InsightsView } from './components/InsightsView';
 import { Sidebar } from './components/Sidebar';
 import { TaskDetail } from './components/TaskDetail';
 import { TaskEditor } from './components/TaskEditor';
 import { TaskList } from './components/TaskList';
 import { TitleBar } from './components/TitleBar';
 import { Toasts } from './components/Toasts';
-import { todayStr } from './lib/dates';
+import { toDateStr, todayStr } from './lib/dates';
 import { useWindowMode } from './lib/desktop';
 import { useTheme } from './lib/theme';
 import type { View } from './lib/views';
@@ -69,6 +72,8 @@ export default function App() {
   const windowMode = useWindowMode();
 
   const completed = useCompletedTasks(view.kind === 'completed' || openTaskId !== null);
+  // Sidebar dashboard: recent completion history (long enough for any realistic streak).
+  const recentCompletions = useCompletions(toDateStr(subDays(new Date(), 400)), todayStr());
   const taskMut = useTaskMutations();
   const projectMut = useProjectMutations();
   const labelMut = useLabelMutations();
@@ -266,6 +271,7 @@ export default function App() {
         projects={projects.data ?? []}
         labels={labels.data ?? []}
         tasks={tasks.data ?? []}
+        completions={recentCompletions.data?.items ?? []}
         search={search}
         onSearch={setSearch}
         onAddTask={() => setDialog({ kind: 'quick-add' })}
@@ -297,6 +303,8 @@ export default function App() {
           </div>
         ) : loading ? (
           <div className="loading">Loading…</div>
+        ) : effectiveView.kind === 'insights' ? (
+          <InsightsView projects={projects.data ?? []} />
         ) : effectiveView.kind === 'calendar' ? (
           <CalendarView
             tasks={tasks.data ?? []}

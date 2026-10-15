@@ -1,4 +1,5 @@
 import type {
+  CompletionsResponse,
   Label,
   LabelInput,
   Project,
@@ -89,12 +90,18 @@ export const api = {
 
   tasks: {
     listActive: () => request<Task[]>('/api/tasks'),
-    listCompleted: (limit = 200) => request<Task[]>(`/api/tasks?completed=true&limit=${limit}`),
+    listCompleted: (limit = 500) => request<Task[]>(`/api/tasks?completed=true&limit=${limit}`),
     create: (input: TaskInput) => request<Task>('/api/tasks', { method: 'POST', ...json(input) }),
     update: (id: string, input: TaskInput) => request<Task>(`/api/tasks/${id}`, { method: 'PUT', ...json(input) }),
     remove: (id: string) => request<void>(`/api/tasks/${id}`, { method: 'DELETE' }),
     complete: (id: string) => request<Task>(`/api/tasks/${id}/complete`, { method: 'POST' }),
     reopen: (id: string) => request<Task>(`/api/tasks/${id}/reopen`, { method: 'POST' }),
     reorder: (items: ReorderItem[]) => request<void>('/api/tasks/reorder', { method: 'POST', ...json({ items }) }),
+  },
+
+  stats: {
+    /** Completion history between two local calendar dates (yyyy-MM-dd, inclusive). */
+    completions: (from: string, to: string) =>
+      request<CompletionsResponse>(`/api/stats/completions?from=${from}&to=${to}`),
   },
 };

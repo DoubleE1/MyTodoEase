@@ -33,5 +33,6 @@ app.MapProjects();
 app.MapSections();
 app.MapLabels();
 app.MapTasks();
+app.MapStats();
 
 app.Run();

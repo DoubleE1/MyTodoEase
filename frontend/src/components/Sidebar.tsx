@@ -18,11 +18,12 @@ import {
   X,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import type { Label, Project, Task } from '../api/types';
+import type { CompletionItem, Label, Project, Task } from '../api/types';
 import { colorHex } from '../lib/colors';
 import { todayStr } from '../lib/dates';
 import type { ThemePreference } from '../lib/theme';
 import { viewEquals, type View } from '../lib/views';
+import { Dashboard } from './Dashboard';
 
 interface SidebarProps {
   view: View;
@@ -30,6 +31,7 @@ interface SidebarProps {
   projects: Project[];
   labels: Label[];
   tasks: Task[];
+  completions: CompletionItem[];
   search: string;
   onSearch: (query: string) => void;
   onAddTask: () => void;
@@ -152,6 +154,7 @@ export function Sidebar({
   projects,
   labels,
   tasks,
+  completions,
   search,
   onSearch,
   onAddTask,
@@ -240,6 +243,13 @@ export function Sidebar({
           )}
         </div>
       </div>
+
+      <Dashboard
+        tasks={tasks}
+        completions={completions}
+        active={isActive({ kind: 'insights' })}
+        onSelectView={onSelectView}
+      />
 
       <nav className="sidebar-nav">
         <NavItem

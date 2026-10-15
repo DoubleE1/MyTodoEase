@@ -6,6 +6,7 @@ export type View =
   | { kind: 'today' }
   | { kind: 'upcoming' }
   | { kind: 'calendar' }
+  | { kind: 'insights' }
   | { kind: 'completed' }
   | { kind: 'project'; projectId: string }
   | { kind: 'label'; labelId: string }
@@ -29,6 +30,8 @@ export function viewTitle(view: View, projects: Project[], labels: Label[]): str
       return 'Upcoming';
     case 'calendar':
       return 'Calendar';
+    case 'insights':
+      return 'Insights';
     case 'completed':
       return 'Completed';
     case 'project':

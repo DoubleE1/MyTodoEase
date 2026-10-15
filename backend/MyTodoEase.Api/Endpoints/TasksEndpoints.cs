@@ -86,8 +86,9 @@ public static class TasksEndpoints
             if (task is null) return Results.NotFound();
 
             var now = DateTime.UtcNow;
+            Completion Log(TodoTask t) => new() { TaskId = t.Id, Content = t.Content, ProjectId = t.ProjectId, CompletedAt = now };
 
-            // Recurring tasks are not closed; they roll forward to the next occurrence.
+            // Recurring tasks are not closed; they roll forward to the next occurrence, but the completion still counts.
             if (task.Recurrence != Recurrence.None && TryParseDate(task.DueDate, out var due))
             {
                 var next = RecurrenceService.Next(due, task.Recurrence, DateOnly.FromDateTime(DateTime.Now));
@@ -97,6 +98,7 @@ public static class TasksEndpoints
                         .Set(t => t.DueDate, next.ToString(DateFormat, CultureInfo.InvariantCulture))
                         .Set(t => t.UpdatedAt, now),
                     new FindOneAndUpdateOptions<TodoTask> { ReturnDocument = ReturnDocument.After });
+                await db.Completions.InsertOneAsync(Log(task));
                 return Results.Ok(rolled);
             }
 
@@ -104,7 +106,12 @@ public static class TasksEndpoints
                 .Set(t => t.IsCompleted, true)
                 .Set(t => t.CompletedAt, now)
                 .Set(t => t.UpdatedAt, now);
+            var openChildren = await db.Tasks.Find(t => t.ParentId == id && !t.IsCompleted).ToListAsync();
             await db.Tasks.UpdateManyAsync(t => t.Id == id || t.ParentId == id, update);
+
+            var logs = new List<Completion> { Log(task) };
+            logs.AddRange(openChildren.Select(Log));
+            await db.Completions.InsertManyAsync(logs);
             return Results.Ok(await db.Tasks.Find(t => t.Id == id).FirstOrDefaultAsync());
         });
 
@@ -118,6 +125,10 @@ public static class TasksEndpoints
             var task = await db.Tasks.FindOneAndUpdateAsync(
                 t => t.Id == id, update, new FindOneAndUpdateOptions<TodoTask> { ReturnDocument = ReturnDocument.After });
             if (task is null) return Results.NotFound();
+
+            // Undo the latest completion log entry so history matches what the user sees.
+            var latest = await db.Completions.Find(c => c.TaskId == id).SortByDescending(c => c.CompletedAt).Limit(1).FirstOrDefaultAsync();
+            if (latest is not null) await db.Completions.DeleteOneAsync(c => c.Id == latest.Id);
 
             // A reopened subtask needs its parent visible again.
             if (task.ParentId is not null)
