@@ -14,8 +14,11 @@
     "web": "npm run dev -w frontend",
     "desktop": "npm run dev -w desktop",
     "dev": "concurrently -k -n api,web,desktop -c blue,green,magenta \"npm run api\" \"npm run web\" \"npm run desktop\"",
-    "build:appbar": "dotnet publish desktop/appbar -c Release -o desktop/build/appbar",
-    "build": "npm run build:appbar && npm run build -w frontend && npm run build -w desktop"
+    "build:appbar": "dotnet publish desktop/appbar/MyTodoEase.AppBar.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o desktop/build/appbar",
+    "build:api": "dotnet publish backend/MyTodoEase.Api/MyTodoEase.Api.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o desktop/build/api",
+    "build:web": "npm run build -w frontend",
+    "build": "npm run build:api && npm run build:appbar && npm run build:web && npm run build -w desktop",
+    "dist": "npm run build"
   },
   "devDependencies": {
     "concurrently": "^9.2.5"

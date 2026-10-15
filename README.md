@@ -45,7 +45,7 @@ The API also works from a browser at http://localhost:5173 without Electron.
 - Insights page (click the dashboard): GitHub-style year heatmap of completions with a year switcher, streaks, best day, weekday pattern, and top projects. Completions are kept in a separate log so recurring tasks and later-deleted tasks still count
 - Light, dark, or follow-system theme (toggle at the bottom of the sidebar, remembered between launches)
 - Pin on top: keeps the window above other windows (desktop only, button in the title bar next to minimize)
-- Dock (mini mode, Windows): a title bar button reserves the mini window as a Windows app bar on the right screen edge, like the taskbar, so maximized apps stop at its edge instead of covering it. While docked only Close is shown; dragging or snapping the window puts it back. Expanding to the full window releases the strip and going back to mini re-docks, until you undock explicitly. The dock state survives restarts. Uses the small .NET helper in `desktop/appbar` (built by `npm run build:appbar`, needs the .NET 10 runtime)
+- Dock (mini mode, Windows): a title bar button reserves the mini window as a Windows app bar on the right screen edge, like the taskbar, so maximized apps stop at its edge instead of covering it. While docked only Close is shown; dragging or snapping the window puts it back. Expanding to the full window releases the strip and going back to mini re-docks, until you undock explicitly. The dock state survives restarts. Uses the small .NET helper in `desktop/appbar` (built by `npm run build:appbar` as a self-contained exe)
 - Mini mode: shrinks the window to a small two-pane list. Today (with overdue) on top; below it a pane you choose (No date, Inbox, Upcoming, any project, any label, or hidden) with a draggable divider. Add, complete, edit, and delete work in both panes; the window size, pane choice, and split are remembered (title bar button; sidebar footer in the browser)
 - Quick add with natural-language parsing: `Pay rent tomorrow at 9am p1 #Home @finance every month`
 - Drag and drop (project views): grab the handle at the left of a row to reorder tasks or move them between sections; works with the keyboard too (focus the handle, Space to pick up, arrows to move, Space to drop)
@@ -93,8 +93,16 @@ alpha mask (radius about 23% of the side), and export 512px PNGs plus an ICO wit
 npm run build
 ```
 
-Vite builds the UI into `desktop/renderer/`, then electron-builder produces an NSIS installer in `release/`.
-The installed app still needs the API and MongoDB running; bundling them is a later step.
+This publishes the API (`desktop/build/api`) and the app-bar helper (`desktop/build/appbar`) as self-contained
+Windows executables (no .NET runtime needed on the target PC), builds the UI into `desktop/renderer/`, and runs
+electron-builder, which writes `release/MyTodoEase-Setup-<version>.exe` (NSIS, per-user, choosable install folder,
+desktop + Start Menu shortcuts) plus the unpacked app in `release/win-unpacked/`.
+
+The installed `MyTodoEase.exe` starts the bundled API on `http://localhost:5080` (unless something already answers
+there), waits for it to become healthy, and stops it on exit. **MongoDB is not bundled**: the target PC needs MongoDB
+listening on `mongodb://localhost:27017` (for example the MongoDB Community Server Windows service). If the API
+cannot start, the app shows a dialog saying so and keeps retrying in the window. Override the API address with the
+`MYTODOEASE_API_URL` environment variable.
 
 ## Not yet
 

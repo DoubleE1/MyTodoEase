@@ -30,3 +30,8 @@ Thumbs.db
 
 # Built app-bar helper (npm run build:appbar)
 desktop/build/appbar/
+
+# Published API for packaging (npm run build:api)
+desktop/build/api/
+
+desktop/renderer/

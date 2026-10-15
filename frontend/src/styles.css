@@ -363,12 +363,10 @@ ul {
 
 /* Click ripples: rings of lit dots spreading from the click point like water. Each ring (added by
    App.tsx) has its own speed, thickness, maximum radius and a slow drift of its centre. */
-/* Only the progress number animates (keyframes cannot interpolate towards var() values);
-   radius and drift are computed from it. */
+/* App.tsx drives --p (0 to 1) and opacity per frame; radius and drift are computed from --p. */
 @property --p { syntax: '<number>'; inherits: false; initial-value: 0; }
 @property --dx { syntax: '<length>'; inherits: false; initial-value: 0px; }
 @property --dy { syntax: '<length>'; inherits: false; initial-value: 0px; }
-@property --rmax { syntax: '<length>'; inherits: false; initial-value: 500px; }
 @property --thick { syntax: '<length>'; inherits: false; initial-value: 26px; }
 
 .ripple-layer {
@@ -380,6 +378,7 @@ ul {
 .ripple-ring {
   --dot-r: 2.4px;
   --p: 0;
+  --rmax: 520px; /* same reach for every wave, so they all travel at the same speed */
   /* Derived from progress: radius grows to --rmax, centre drifts to (--dx, --dy). */
   --r: calc(10px + (var(--rmax) - 10px) * var(--p));
   --cx: calc(var(--dx) * var(--p));
@@ -408,29 +407,10 @@ ul {
   mask-size: 14px 14px, 100% 100%;
   -webkit-mask-composite: source-in;
   mask-composite: intersect;
-  animation-name: dot-ripple;
-  animation-duration: 1800ms;
-  animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); /* fast start, long gentle tail */
-  animation-fill-mode: both;
-}
-
-@keyframes dot-ripple {
-  0% {
-    --p: 0;
-    opacity: var(--glow-opacity);
-  }
-  55% {
-    opacity: calc(var(--glow-opacity) * 0.5);
-  }
-  100% {
-    --p: 1;
-    opacity: 0;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .ripple-ring {
-    animation: none;
     display: none;
   }
 }

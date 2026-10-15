@@ -1,11 +1,64 @@
-const { app, BrowserWindow, ipcMain, nativeTheme, screen, shell } = require('electron');
-const { execFile, execFileSync } = require('node:child_process');
+const { app, BrowserWindow, dialog, ipcMain, nativeTheme, screen, shell } = require('electron');
+const { execFile, execFileSync, spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
+// Bundled native pieces live under desktop/build in development and under resources/ when packaged.
+const resourcesDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, 'build');
+
 // Windows "app bar" helper (desktop/appbar): reserves a strip of the screen for the mini window so
 // maximized apps stop at its edge instead of covering it. Built by `npm run build:appbar`.
-const appBarExe = path.join(__dirname, 'build', 'appbar', 'MyTodoEase.AppBar.exe');
+const appBarExe = path.join(resourcesDir, 'appbar', 'MyTodoEase.AppBar.exe');
+
+// The ASP.NET Core API, published self-contained by `npm run build:api`. In development it is run
+// separately (`npm run api`); the packaged app starts and stops it itself.
+const apiExe = path.join(resourcesDir, 'api', 'MyTodoEase.Api.exe');
+const API_URL = process.env.MYTODOEASE_API_URL || 'http://localhost:5080';
+let apiProcess = null;
+
+async function apiHealthy() {
+  try {
+    const response = await fetch(`${API_URL}/api/health`, { signal: AbortSignal.timeout(1500) });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Start the bundled API unless one is already answering on the port; resolves once it is healthy. */
+async function ensureApi() {
+  if (await apiHealthy()) return true;
+  if (!fs.existsSync(apiExe)) {
+    console.error('API executable missing:', apiExe);
+    return false;
+  }
+  apiProcess = spawn(apiExe, [], {
+    cwd: path.dirname(apiExe),
+    env: { ...process.env, ASPNETCORE_URLS: API_URL, ASPNETCORE_ENVIRONMENT: 'Production' },
+    windowsHide: true,
+    stdio: 'ignore',
+  });
+  apiProcess.on('exit', (code) => {
+    console.error('API process exited with code', code);
+    apiProcess = null;
+  });
+  for (let attempt = 0; attempt < 80; attempt++) {
+    if (await apiHealthy()) return true;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return false;
+}
+
+function stopApi() {
+  if (apiProcess && !apiProcess.killed) {
+    try {
+      apiProcess.kill();
+    } catch (error) {
+      console.error('Could not stop the API process:', error);
+    }
+  }
+  apiProcess = null;
+}
 
 // Dev aid: MYTODOEASE_DEVTOOLS_PORT=9222 exposes the Chrome DevTools protocol for scripted testing.
 if (process.env.MYTODOEASE_DEVTOOLS_PORT) {
@@ -395,7 +448,17 @@ ipcMain.handle('window:set-title-bar-theme', (_event, theme) => {
   }
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  if (app.isPackaged) {
+    const ok = await ensureApi();
+    if (!ok) {
+      dialog.showErrorBox(
+        'MyTodoEase could not start its service',
+        `The task service did not respond at ${API_URL}.\n\nMyTodoEase needs MongoDB running on this computer (mongodb://localhost:27017). ` +
+          'Start MongoDB and open the app again; the window will keep retrying meanwhile.',
+      );
+    }
+  }
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -405,3 +468,5 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
+
+app.on('will-quit', stopApi);

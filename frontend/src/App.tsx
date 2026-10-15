@@ -170,31 +170,54 @@ export default function App() {
       halo.classList.add('is-active');
     };
 
-    // Click: 2 to 4 rings of lit dots spread from the point like water ripples. Each wave starts a
-    // little later, moves at its own pace and thickness, and drifts slightly in a random direction.
-    // Meanwhile the pointer halo dips out and eases back in.
+    // Click: two rings of lit dots spread from the point like water ripples, both at the same
+    // speed, each starting a little later with its own thickness and a slight random drift.
+    // Driven by requestAnimationFrame: CSS animations on freshly inserted mask layers stayed
+    // pending in Chromium and never started. Meanwhile the pointer halo dips out and eases back in.
     let undimTimer: number | undefined;
+    let frameHandle: number | undefined;
     const rand = (min: number, max: number) => min + Math.random() * (max - min);
+    const RIPPLE_MS = 1800;
+    const live: { el: HTMLSpanElement; start: number }[] = [];
+    const glowOpacity = () => parseFloat(getComputedStyle(art).getPropertyValue('--glow-opacity')) || 0.8;
+
+    const tick = (now: number) => {
+      const glow = glowOpacity();
+      for (let i = live.length - 1; i >= 0; i--) {
+        const { el, start } = live[i];
+        const t = (now - start) / RIPPLE_MS;
+        if (t >= 1) {
+          el.remove();
+          live.splice(i, 1);
+          continue;
+        }
+        if (t < 0) continue; // not started yet (staggered wave)
+        const p = 1 - Math.pow(1 - t, 2.4); // fast start, long gentle tail
+        el.style.setProperty('--p', p.toFixed(4));
+        el.style.opacity = (glow * Math.pow(1 - p, 1.3)).toFixed(3);
+      }
+      frameHandle = live.length ? requestAnimationFrame(tick) : undefined;
+    };
+
     const onDown = (event: MouseEvent) => {
       const at = locate(event);
       if (!at.inside || event.button !== 0) return;
-      const waves = 2 + Math.floor(Math.random() * 3);
+      const now = performance.now();
+      const waves = 2;
       for (let i = 0; i < waves; i++) {
-        const ring = document.createElement('span');
-        ring.className = 'halo ripple-ring';
-        ring.style.setProperty('--hx', at.hx);
-        ring.style.setProperty('--hy', at.hy);
-        ring.style.setProperty('--dx', `${rand(-70, 70).toFixed(0)}px`);
-        ring.style.setProperty('--dy', `${rand(-45, 45).toFixed(0)}px`);
-        ring.style.setProperty('--rmax', `${rand(360, 640).toFixed(0)}px`);
-        ring.style.setProperty('--thick', `${rand(16, 40).toFixed(0)}px`);
-        ring.style.animationDuration = `${rand(1400, 2600).toFixed(0)}ms`;
-        ring.style.animationDelay = i === 0 ? '0ms' : `${rand(120, 650).toFixed(0)}ms`;
-        const remove = () => ring.remove();
-        ring.addEventListener('animationend', remove);
-        window.setTimeout(remove, 3600); // fallback if animationend never fires
-        ripple.appendChild(ring);
+        const el = document.createElement('span');
+        el.className = 'halo ripple-ring';
+        el.style.setProperty('--hx', at.hx);
+        el.style.setProperty('--hy', at.hy);
+        el.style.setProperty('--dx', `${rand(-70, 70).toFixed(0)}px`);
+        el.style.setProperty('--dy', `${rand(-45, 45).toFixed(0)}px`);
+        el.style.setProperty('--thick', `${rand(16, 36).toFixed(0)}px`);
+        el.style.setProperty('--p', '0');
+        el.style.opacity = '0';
+        ripple.appendChild(el);
+        live.push({ el, start: now + (i === 0 ? 0 : rand(160, 520)) });
       }
+      if (frameHandle === undefined) frameHandle = requestAnimationFrame(tick);
       halo.classList.add('is-dimmed');
       window.clearTimeout(undimTimer);
       undimTimer = window.setTimeout(() => halo.classList.remove('is-dimmed'), 600);
@@ -208,6 +231,8 @@ export default function App() {
       main.removeEventListener('mouseleave', hide);
       main.removeEventListener('mousedown', onDown);
       window.clearTimeout(undimTimer);
+      if (frameHandle !== undefined) cancelAnimationFrame(frameHandle);
+      live.length = 0;
       ripple.replaceChildren();
     };
     // The art element is always rendered inside <main>, so the only remount is the compact/full switch.

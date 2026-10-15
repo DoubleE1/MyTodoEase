@@ -4,6 +4,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "MyTodoEase desktop shell",
+  "author": "MyTodoEase",
   "main": "main.cjs",
   "scripts": {
     "dev": "wait-on http-get://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
@@ -12,18 +13,44 @@
   },
   "build": {
     "appId": "com.mytodoease.desktop",
+    "electronVersion": "41.7.1",
     "productName": "MyTodoEase",
     "directories": {
-      "output": "../release"
+      "output": "../release",
+      "buildResources": "build"
     },
     "files": [
       "main.cjs",
       "preload.cjs",
       "renderer/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "build/api",
+        "to": "api",
+        "filter": ["**/*", "!*.pdb", "!appsettings.Development.json"]
+      },
+      {
+        "from": "build/appbar",
+        "to": "appbar",
+        "filter": ["**/*", "!*.pdb"]
+      }
+    ],
     "win": {
-      "target": "nsis",
-      "icon": "build/icon.ico"
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build/icon.ico",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MyTodoEase",
+      "runAfterFinish": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
     }
   },
   "devDependencies": {
