@@ -14,6 +14,7 @@ import {
   useTaskMutations,
 } from './api/hooks';
 import type { Label, Project, Task } from './api/types';
+import { CalendarView } from './components/CalendarView';
 import { ConfirmDialog, LabelDialog, Modal, ProjectDialog, type ConfirmOptions } from './components/Dialogs';
 import { Sidebar } from './components/Sidebar';
 import { TaskDetail } from './components/TaskDetail';
@@ -21,12 +22,13 @@ import { TaskEditor } from './components/TaskEditor';
 import { TaskList } from './components/TaskList';
 import { Toasts } from './components/Toasts';
 import { todayStr } from './lib/dates';
+import { useTheme } from './lib/theme';
 import type { View } from './lib/views';
 
 type Dialog =
   | { kind: 'project'; project?: Project }
   | { kind: 'label'; label?: Label }
-  | { kind: 'quick-add' }
+  | { kind: 'quick-add'; dueDate?: string }
   | null;
 
 /** Promise-based confirm so callers can `await confirm(...)` and the UI stays a plain modal. */
@@ -60,6 +62,7 @@ export default function App() {
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const { confirm, element: confirmElement } = useConfirm();
+  const theme = useTheme();
 
   const completed = useCompletedTasks(view.kind === 'completed' || openTaskId !== null);
   const taskMut = useTaskMutations();
@@ -133,7 +136,8 @@ export default function App() {
 
   const quickAddDefaults = {
     projectId: view.kind === 'project' ? view.projectId : inbox?.id,
-    dueDate: view.kind === 'today' ? todayStr() : undefined,
+    dueDate:
+      dialog?.kind === 'quick-add' && dialog.dueDate ? dialog.dueDate : view.kind === 'today' ? todayStr() : undefined,
     labelIds: view.kind === 'label' ? [view.labelId] : undefined,
   };
 
@@ -157,6 +161,8 @@ export default function App() {
         onAddLabel={() => setDialog({ kind: 'label' })}
         onEditLabel={(label) => setDialog({ kind: 'label', label })}
         onDeleteLabel={(label) => void deleteLabel(label)}
+        themePreference={theme.preference}
+        onCycleTheme={theme.cycle}
       />
 
       <main className="main">
@@ -175,6 +181,13 @@ export default function App() {
           </div>
         ) : loading ? (
           <div className="loading">Loading…</div>
+        ) : effectiveView.kind === 'calendar' ? (
+          <CalendarView
+            tasks={tasks.data ?? []}
+            projects={projects.data ?? []}
+            onOpenTask={setOpenTaskId}
+            onAddTask={(dueDate) => setDialog({ kind: 'quick-add', dueDate })}
+          />
         ) : (
           <TaskList
             view={effectiveView}

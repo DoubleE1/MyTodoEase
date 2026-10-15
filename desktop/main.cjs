@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, nativeTheme, shell } = require('electron');
 const path = require('node:path');
 
 // Set by `npm run dev` so the window loads the Vite dev server with hot reload.
@@ -13,7 +13,8 @@ function createWindow() {
     minHeight: 600,
     title: 'MyTodoEase',
     autoHideMenuBar: true,
-    backgroundColor: '#ffffff',
+    // Match the page's dark/light background so there is no white flash before React paints.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1f1f1f' : '#ffffff',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,

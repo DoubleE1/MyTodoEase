@@ -1,12 +1,16 @@
 import {
   CalendarDays,
+  CalendarRange,
   CheckCircle2,
   Hash,
   Inbox,
+  Monitor,
+  Moon,
   Pencil,
   Plus,
   Search,
   Star,
+  Sun,
   Tag,
   Trash2,
   X,
@@ -15,6 +19,7 @@ import type { ReactNode } from 'react';
 import type { Label, Project, Task } from '../api/types';
 import { colorHex } from '../lib/colors';
 import { todayStr } from '../lib/dates';
+import type { ThemePreference } from '../lib/theme';
 import { viewEquals, type View } from '../lib/views';
 
 interface SidebarProps {
@@ -32,7 +37,15 @@ interface SidebarProps {
   onAddLabel: () => void;
   onEditLabel: (label: Label) => void;
   onDeleteLabel: (label: Label) => void;
+  themePreference: ThemePreference;
+  onCycleTheme: () => void;
 }
+
+const THEME_META: Record<ThemePreference, { label: string; icon: ReactNode }> = {
+  light: { label: 'Light theme', icon: <Sun size={15} /> },
+  dark: { label: 'Dark theme', icon: <Moon size={15} /> },
+  system: { label: 'Follow system theme', icon: <Monitor size={15} /> },
+};
 
 function NavItem({
   icon,
@@ -85,6 +98,8 @@ export function Sidebar({
   onAddLabel,
   onEditLabel,
   onDeleteLabel,
+  themePreference,
+  onCycleTheme,
 }: SidebarProps) {
   const today = todayStr();
   const inbox = projects.find((p) => p.isInbox);
@@ -183,6 +198,12 @@ export function Sidebar({
           onClick={() => onSelectView({ kind: 'upcoming' })}
         />
         <NavItem
+          icon={<CalendarRange size={18} />}
+          label="Calendar"
+          active={isActive({ kind: 'calendar' })}
+          onClick={() => onSelectView({ kind: 'calendar' })}
+        />
+        <NavItem
           icon={<CheckCircle2 size={18} />}
           label="Completed"
           active={isActive({ kind: 'completed' })}
@@ -262,6 +283,19 @@ export function Sidebar({
           />
         ))}
       </section>
+
+      <div className="sidebar-footer">
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={onCycleTheme}
+          title="Switch theme (light, dark, system)"
+          aria-label={`${THEME_META[themePreference].label}. Click to switch.`}
+        >
+          {THEME_META[themePreference].icon}
+          <span>{THEME_META[themePreference].label}</span>
+        </button>
+      </div>
     </aside>
   );
 }
