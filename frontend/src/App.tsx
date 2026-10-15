@@ -170,36 +170,45 @@ export default function App() {
       halo.classList.add('is-active');
     };
 
-    // Click: a ring of lit dots expands from the point and fades; the pointer halo dips out and eases back in.
+    // Click: 2 to 4 rings of lit dots spread from the point like water ripples. Each wave starts a
+    // little later, moves at its own pace and thickness, and drifts slightly in a random direction.
+    // Meanwhile the pointer halo dips out and eases back in.
     let undimTimer: number | undefined;
-    let rippleTimer: number | undefined;
-    const onRippleEnd = () => ripple.classList.remove('is-rippling');
+    const rand = (min: number, max: number) => min + Math.random() * (max - min);
     const onDown = (event: MouseEvent) => {
       const at = locate(event);
       if (!at.inside || event.button !== 0) return;
-      ripple.style.setProperty('--hx', at.hx);
-      ripple.style.setProperty('--hy', at.hy);
-      ripple.classList.remove('is-rippling');
-      void ripple.offsetWidth; // restart the animation on rapid clicks
-      ripple.classList.add('is-rippling');
-      window.clearTimeout(rippleTimer);
-      rippleTimer = window.setTimeout(onRippleEnd, 1300); // fallback if animationend never fires
+      const waves = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < waves; i++) {
+        const ring = document.createElement('span');
+        ring.className = 'halo ripple-ring';
+        ring.style.setProperty('--hx', at.hx);
+        ring.style.setProperty('--hy', at.hy);
+        ring.style.setProperty('--dx', `${rand(-70, 70).toFixed(0)}px`);
+        ring.style.setProperty('--dy', `${rand(-45, 45).toFixed(0)}px`);
+        ring.style.setProperty('--rmax', `${rand(360, 640).toFixed(0)}px`);
+        ring.style.setProperty('--thick', `${rand(16, 40).toFixed(0)}px`);
+        ring.style.animationDuration = `${rand(1400, 2600).toFixed(0)}ms`;
+        ring.style.animationDelay = i === 0 ? '0ms' : `${rand(120, 650).toFixed(0)}ms`;
+        const remove = () => ring.remove();
+        ring.addEventListener('animationend', remove);
+        window.setTimeout(remove, 3600); // fallback if animationend never fires
+        ripple.appendChild(ring);
+      }
       halo.classList.add('is-dimmed');
       window.clearTimeout(undimTimer);
-      undimTimer = window.setTimeout(() => halo.classList.remove('is-dimmed'), 450);
+      undimTimer = window.setTimeout(() => halo.classList.remove('is-dimmed'), 600);
     };
 
     main.addEventListener('mousemove', onMove);
     main.addEventListener('mouseleave', hide);
     main.addEventListener('mousedown', onDown);
-    ripple.addEventListener('animationend', onRippleEnd);
     return () => {
       main.removeEventListener('mousemove', onMove);
       main.removeEventListener('mouseleave', hide);
       main.removeEventListener('mousedown', onDown);
-      ripple.removeEventListener('animationend', onRippleEnd);
       window.clearTimeout(undimTimer);
-      window.clearTimeout(rippleTimer);
+      ripple.replaceChildren();
     };
     // The art element is always rendered inside <main>, so the only remount is the compact/full switch.
   }, [windowMode.compact]);
@@ -360,7 +369,7 @@ export default function App() {
           <span className="halo halo-a" />
           <span className="halo halo-b" />
           <span className="halo halo-pointer" ref={pointerHaloRef} />
-          <span className="halo halo-ripple" ref={rippleRef} />
+          <span className="ripple-layer" ref={rippleRef} />
         </div>
         {loadError ? (
           <div className="banner banner-error">

@@ -361,51 +361,79 @@ ul {
   transition: opacity 160ms ease; /* quick dip when the ripple starts */
 }
 
-/* Click ripple: a ring of lit dots expanding from the click point, fading as it grows. */
-@property --r {
-  syntax: '<length>';
-  inherits: false;
-  initial-value: 0px;
+/* Click ripples: rings of lit dots spreading from the click point like water. Each ring (added by
+   App.tsx) has its own speed, thickness, maximum radius and a slow drift of its centre. */
+@property --r { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --cx { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --cy { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --dx { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --dy { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --rmax { syntax: '<length>'; inherits: false; initial-value: 500px; }
+@property --thick { syntax: '<length>'; inherits: false; initial-value: 26px; }
+
+.ripple-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
-.halo-ripple {
+.ripple-ring {
   --dot-r: 2.4px;
   --r: 0px;
+  --cx: 0px;
+  --cy: 0px;
   opacity: 0;
   background: linear-gradient(110deg, #5aa0ff 0%, #9a6bff 50%, #ff6fb3 100%);
   -webkit-mask-image:
     radial-gradient(circle at center, #000 var(--dot-r), transparent calc(var(--dot-r) + 0.7px)),
-    radial-gradient(circle at var(--hx) var(--hy), transparent calc(var(--r) - 70px), #000 calc(var(--r) - 28px), #000 var(--r), transparent calc(var(--r) + 26px));
+    radial-gradient(
+      circle at calc(var(--hx) + var(--cx)) calc(var(--hy) + var(--cy)),
+      transparent calc(var(--r) - var(--thick) * 2.2),
+      #000 calc(var(--r) - var(--thick)),
+      #000 var(--r),
+      transparent calc(var(--r) + var(--thick) * 0.8)
+    );
   mask-image:
     radial-gradient(circle at center, #000 var(--dot-r), transparent calc(var(--dot-r) + 0.7px)),
-    radial-gradient(circle at var(--hx) var(--hy), transparent calc(var(--r) - 70px), #000 calc(var(--r) - 28px), #000 var(--r), transparent calc(var(--r) + 26px));
+    radial-gradient(
+      circle at calc(var(--hx) + var(--cx)) calc(var(--hy) + var(--cy)),
+      transparent calc(var(--r) - var(--thick) * 2.2),
+      #000 calc(var(--r) - var(--thick)),
+      #000 var(--r),
+      transparent calc(var(--r) + var(--thick) * 0.8)
+    );
   -webkit-mask-size: 14px 14px, 100% 100%;
   mask-size: 14px 14px, 100% 100%;
   -webkit-mask-composite: source-in;
   mask-composite: intersect;
-}
-
-.halo-ripple.is-rippling {
-  animation: dot-ripple 1100ms ease-out forwards;
+  animation-name: dot-ripple;
+  animation-duration: 1800ms;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); /* fast start, long gentle tail */
+  animation-fill-mode: both;
 }
 
 @keyframes dot-ripple {
   0% {
-    --r: 12px;
+    --r: 10px;
+    --cx: 0px;
+    --cy: 0px;
     opacity: var(--glow-opacity);
   }
-  60% {
-    opacity: calc(var(--glow-opacity) * 0.55);
+  55% {
+    opacity: calc(var(--glow-opacity) * 0.5);
   }
   100% {
-    --r: 560px;
+    --r: var(--rmax);
+    --cx: var(--dx);
+    --cy: var(--dy);
     opacity: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .halo-ripple.is-rippling {
+  .ripple-ring {
     animation: none;
+    display: none;
   }
 }
 
