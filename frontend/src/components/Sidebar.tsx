@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Hash,
   Inbox,
+  Minimize2,
   Monitor,
   Moon,
   Pencil,
@@ -39,12 +40,15 @@ interface SidebarProps {
   onDeleteLabel: (label: Label) => void;
   themePreference: ThemePreference;
   onCycleTheme: () => void;
+  /** In the browser there is no title bar, so Mini mode lives here instead. */
+  showCompactButton: boolean;
+  onCompact: () => void;
 }
 
 const THEME_META: Record<ThemePreference, { label: string; icon: ReactNode }> = {
-  light: { label: 'Light theme', icon: <Sun size={15} /> },
-  dark: { label: 'Dark theme', icon: <Moon size={15} /> },
-  system: { label: 'Follow system theme', icon: <Monitor size={15} /> },
+  light: { label: 'Light', icon: <Sun size={15} /> },
+  dark: { label: 'Dark', icon: <Moon size={15} /> },
+  system: { label: 'System', icon: <Monitor size={15} /> },
 };
 
 function NavItem({
@@ -100,6 +104,8 @@ export function Sidebar({
   onDeleteLabel,
   themePreference,
   onCycleTheme,
+  showCompactButton,
+  onCompact,
 }: SidebarProps) {
   const today = todayStr();
   const inbox = projects.find((p) => p.isInbox);
@@ -287,14 +293,26 @@ export function Sidebar({
       <div className="sidebar-footer">
         <button
           type="button"
-          className="theme-toggle"
+          className="footer-btn"
           onClick={onCycleTheme}
           title="Switch theme (light, dark, system)"
-          aria-label={`${THEME_META[themePreference].label}. Click to switch.`}
+          aria-label={`Theme: ${THEME_META[themePreference].label}. Click to switch.`}
         >
           {THEME_META[themePreference].icon}
           <span>{THEME_META[themePreference].label}</span>
         </button>
+        {showCompactButton && (
+          <button
+            type="button"
+            className="footer-btn"
+            onClick={onCompact}
+            title="Mini mode: only today's tasks"
+            aria-label="Switch to mini mode"
+          >
+            <Minimize2 size={15} />
+            <span>Mini</span>
+          </button>
+        )}
       </div>
     </aside>
   );

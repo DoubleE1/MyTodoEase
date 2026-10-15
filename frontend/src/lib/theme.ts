@@ -29,6 +29,8 @@ export function useTheme() {
     const apply = () => {
       const resolved = preference === 'system' ? (systemPrefersDark() ? 'dark' : 'light') : preference;
       document.documentElement.dataset.theme = resolved;
+      // The Electron shell draws the native window buttons; keep their colors in step.
+      window.mytodoease?.setTitleBarTheme?.(resolved).catch(() => {});
     };
     apply();
     try {

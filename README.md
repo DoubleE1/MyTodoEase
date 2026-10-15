@@ -38,6 +38,8 @@ The API also works from a browser at http://localhost:5173 without Electron.
 - Views: Inbox, Today (with overdue and "reschedule to today"), Upcoming (7 days + later), per project, per label, search, Completed
 - Calendar: month and week grids; drag a task to another day to reschedule it, drag undated tasks from the "No date" panel onto a day, "+" on a day to add a task there
 - Light, dark, or follow-system theme (toggle at the bottom of the sidebar, remembered between launches)
+- Pin on top: keeps the window above other windows (desktop only, button in the title bar next to minimize)
+- Mini mode: shrinks the window to a small Today-only list where you can still add, complete, edit, and delete tasks; the window remembers its size and position for each mode (title bar button; sidebar footer in the browser)
 - Quick add with natural-language parsing: `Pay rent tomorrow at 9am p1 #Home @finance every month`
 - Drag and drop (project views): grab the handle at the left of a row to reorder tasks or move them between sections; works with the keyboard too (focus the handle, Space to pick up, arrows to move, Space to drop)
 - Keyboard: `q` opens quick add, `Enter` adds, `Esc` cancels
