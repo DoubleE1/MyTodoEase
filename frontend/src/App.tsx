@@ -185,8 +185,11 @@ export default function App() {
     <TitleBar
       compact={windowMode.compact}
       alwaysOnTop={windowMode.alwaysOnTop}
+      docked={windowMode.docked}
+      canDock={windowMode.canDock}
       onTogglePin={() => void windowMode.setAlwaysOnTop(!windowMode.alwaysOnTop)}
       onToggleCompact={() => void windowMode.setCompact(!windowMode.compact)}
+      onToggleDock={() => void windowMode.setDocked(!windowMode.docked)}
     />
   ) : null;
   const shellClass = windowMode.isDesktop ? 'has-titlebar' : '';

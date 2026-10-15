@@ -27,3 +27,6 @@ Thumbs.db
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Built app-bar helper (npm run build:appbar)
+desktop/build/appbar/

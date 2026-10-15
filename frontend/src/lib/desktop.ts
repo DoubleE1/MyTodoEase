@@ -20,19 +20,36 @@ export function useWindowMode() {
   const isDesktop = !!desktop;
   const [compact, setCompactState] = useState<boolean>(() => (isDesktop ? false : readStoredCompact()));
   const [alwaysOnTop, setAlwaysOnTopState] = useState(false);
+  const [docked, setDockedState] = useState(false);
+  const [canDock, setCanDock] = useState(false);
 
   useEffect(() => {
     if (!desktop) return;
+    const apply = (state: DesktopWindowState) => {
+      setCompactState(state.compact);
+      setAlwaysOnTopState(state.alwaysOnTop);
+      setDockedState(Boolean(state.docked));
+      setCanDock(Boolean(state.canDock));
+    };
     desktop
       .getWindowState()
-      .then((state) => {
-        setCompactState(state.compact);
-        setAlwaysOnTopState(state.alwaysOnTop);
-      })
+      .then(apply)
       .catch(() => {
         // Older shell without the IPC handlers: stay in normal mode.
       });
+    // The shell can change state on its own (dock on startup, leaving mini mode releases the dock).
+    return desktop.onWindowState?.(apply);
   }, [desktop]);
+
+  const setDocked = useCallback(
+    async (flag: boolean) => {
+      if (!desktop?.setDocked) return;
+      const applied = await desktop.setDocked(flag).catch(() => docked);
+      setDockedState(applied);
+      if (applied) setCompactState(true); // docking implies mini mode
+    },
+    [desktop, docked],
+  );
 
   const setCompact = useCallback(
     async (flag: boolean) => {
@@ -40,6 +57,7 @@ export function useWindowMode() {
       if (desktop) {
         const applied = await desktop.setCompact(flag).catch(() => flag);
         setCompactState(applied);
+        if (!applied) setDockedState(false); // leaving mini mode releases the dock
       } else {
         try {
           window.localStorage.setItem(COMPACT_KEY, String(flag));
@@ -60,5 +78,5 @@ export function useWindowMode() {
     [desktop, alwaysOnTop],
   );
 
-  return { isDesktop, compact, alwaysOnTop, setCompact, setAlwaysOnTop };
+  return { isDesktop, compact, alwaysOnTop, docked, canDock, setCompact, setAlwaysOnTop, setDocked };
 }

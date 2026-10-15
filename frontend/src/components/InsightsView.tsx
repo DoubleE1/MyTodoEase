@@ -86,7 +86,7 @@ export function InsightsView({ projects }: InsightsViewProps) {
       <section className="heatmap-card" aria-label={`Completions in ${year}`}>
         <div className="heatmap-scroll">
           <div className="heatmap">
-            <div className="heatmap-months" style={{ gridTemplateColumns: `repeat(${stats.weeks}, var(--cell))` }}>
+            <div className="heatmap-months" style={{ gridTemplateColumns: `repeat(${stats.weeks}, minmax(0, 1fr))` }}>
               {stats.monthLabels.map((m) => (
                 <span key={m.label + m.column} style={{ gridColumnStart: m.column + 1 }}>
                   {m.label}
@@ -101,7 +101,7 @@ export function InsightsView({ projects }: InsightsViewProps) {
                   </span>
                 ))}
               </div>
-              <div className="heatmap-grid" style={{ gridTemplateColumns: `repeat(${stats.weeks}, var(--cell))` }}>
+              <div className="heatmap-grid" style={{ gridTemplateColumns: `repeat(${stats.weeks}, minmax(0, 1fr))` }}>
                 {stats.cells.map((cell) =>
                   cell.inYear ? (
                     <div

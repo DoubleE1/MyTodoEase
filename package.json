@@ -14,7 +14,8 @@
     "web": "npm run dev -w frontend",
     "desktop": "npm run dev -w desktop",
     "dev": "concurrently -k -n api,web,desktop -c blue,green,magenta \"npm run api\" \"npm run web\" \"npm run desktop\"",
-    "build": "npm run build -w frontend && npm run build -w desktop"
+    "build:appbar": "dotnet publish desktop/appbar -c Release -o desktop/build/appbar",
+    "build": "npm run build:appbar && npm run build -w frontend && npm run build -w desktop"
   },
   "devDependencies": {
     "concurrently": "^9.2.5"

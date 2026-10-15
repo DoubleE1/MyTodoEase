@@ -2,6 +2,10 @@
 interface DesktopWindowState {
   alwaysOnTop: boolean;
   compact: boolean;
+  /** Mini window reserved as a Windows app bar on the right edge. */
+  docked: boolean;
+  /** Whether docking is available (Windows with the helper built). */
+  canDock: boolean;
 }
 
 interface Window {
@@ -11,6 +15,9 @@ interface Window {
     getWindowState: () => Promise<DesktopWindowState>;
     setAlwaysOnTop: (flag: boolean) => Promise<boolean>;
     setCompact: (flag: boolean) => Promise<boolean>;
+    setDocked: (flag: boolean) => Promise<boolean>;
+    /** Subscribe to state pushed by the shell; returns an unsubscribe function. */
+    onWindowState?: (callback: (state: DesktopWindowState) => void) => () => void;
     setTitleBarTheme: (theme: 'light' | 'dark') => Promise<void>;
   };
 }

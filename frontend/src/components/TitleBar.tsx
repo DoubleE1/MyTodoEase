@@ -1,11 +1,15 @@
-import { Maximize2, Minimize2, Pin, PinOff } from 'lucide-react';
+import { Maximize2, Minimize2, PanelRight, PanelRightClose, Pin, PinOff } from 'lucide-react';
 import { Logo } from './Logo';
 
 interface TitleBarProps {
   compact: boolean;
   alwaysOnTop: boolean;
+  /** Mini window reserved on the right screen edge so other windows stop at it. */
+  docked: boolean;
+  canDock: boolean;
   onTogglePin: () => void;
   onToggleCompact: () => void;
+  onToggleDock: () => void;
 }
 
 /**
@@ -13,17 +17,40 @@ interface TitleBarProps {
  * The OS still draws minimize / maximize / close at the right; this bar fills the space
  * to their left, is draggable, and hosts the Pin and Mini buttons next to them.
  */
-export function TitleBar({ compact, alwaysOnTop, onTogglePin, onToggleCompact }: TitleBarProps) {
+export function TitleBar({
+  compact,
+  alwaysOnTop,
+  docked,
+  canDock,
+  onTogglePin,
+  onToggleCompact,
+  onToggleDock,
+}: TitleBarProps) {
   return (
     <div className="titlebar">
       <span className="titlebar-brand">
         <Logo size={16} />
         <span>
           MyTodo<strong>Ease</strong>
-          {compact ? ' · Today' : ''}
         </span>
       </span>
       <span className="spacer" />
+      {compact && canDock && (
+        <button
+          type="button"
+          className={`titlebar-btn ${docked ? 'is-active' : ''}`}
+          onClick={onToggleDock}
+          title={
+            docked
+              ? 'Undock from the right edge'
+              : 'Dock to the right edge: other windows stop at it when maximized'
+          }
+          aria-label={docked ? 'Undock from the right edge' : 'Dock to the right edge'}
+          aria-pressed={docked}
+        >
+          {docked ? <PanelRightClose size={14} /> : <PanelRight size={14} />}
+        </button>
+      )}
       <button
         type="button"
         className={`titlebar-btn ${alwaysOnTop ? 'is-active' : ''}`}

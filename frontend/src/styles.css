@@ -154,7 +154,7 @@ ul {
 .main {
   flex: 1;
   overflow-y: auto;
-  padding: 28px 40px 60px;
+  padding: 28px 40px 28px;
   position: relative;
 }
 
@@ -167,7 +167,8 @@ ul {
 .view {
   max-width: 800px;
   margin: 0 auto;
-  min-height: calc(100vh - 170px);
+  /* Fill the pane exactly: viewport minus the title bar and the equal 28px gaps above and below. */
+  min-height: calc(100vh - env(titlebar-area-height, 0px) - 56px);
   padding: 28px 32px 32px;
   border-radius: 18px;
   background: var(--glass-bg);
@@ -178,13 +179,13 @@ ul {
 }
 
 :root {
-  --glass-bg: rgba(255, 255, 255, 0.62);
+  --glass-bg: rgba(255, 255, 255, 0.4);
   --glass-border: rgba(255, 255, 255, 0.75);
   --glass-shadow: 0 10px 40px rgba(60, 40, 120, 0.08);
 }
 
 :root[data-theme='dark'] {
-  --glass-bg: rgba(38, 38, 44, 0.55);
+  --glass-bg: rgba(38, 38, 44, 0.4);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
 }
@@ -274,20 +275,76 @@ ul {
     halo-wander-b 61s ease-in-out -20s infinite;
 }
 
-/* Follows the mouse (see App.tsx); tighter and brighter than the wandering ones. */
+/* Follows the mouse (see App.tsx). Not a plain circle: four soft lobes around the pointer, each pulsing
+   and drifting on its own rhythm, so the lit region's edge ripples like a wavy blob. */
+@property --ox1 { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --oy1 { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --ox2 { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --oy2 { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --ox3 { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --oy3 { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --ox4 { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --oy4 { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --lobe { syntax: '<length>'; inherits: false; initial-value: 120px; }
+
 .halo-pointer {
   --dot-r: 2.2px;
-  --halo: 62%;
+  --lobe: 80px;
   opacity: 0;
   background: linear-gradient(110deg, #5aa0ff 0%, #9a6bff 50%, #ff6fb3 100%);
   -webkit-mask-image:
     radial-gradient(circle at center, #000 var(--dot-r), transparent calc(var(--dot-r) + 0.7px)),
-    radial-gradient(ellipse 22% 60% at var(--hx) var(--hy), #000 0%, transparent var(--halo));
+    radial-gradient(circle var(--lobe) at calc(var(--hx) + var(--ox1)) calc(var(--hy) + var(--oy1)), #000 0%, transparent 100%),
+    radial-gradient(circle calc(var(--lobe) * 0.85) at calc(var(--hx) + var(--ox2)) calc(var(--hy) + var(--oy2)), #000 0%, transparent 100%),
+    radial-gradient(circle calc(var(--lobe) * 0.9) at calc(var(--hx) + var(--ox3)) calc(var(--hy) + var(--oy3)), #000 0%, transparent 100%),
+    radial-gradient(circle calc(var(--lobe) * 0.75) at calc(var(--hx) + var(--ox4)) calc(var(--hy) + var(--oy4)), #000 0%, transparent 100%);
   mask-image:
     radial-gradient(circle at center, #000 var(--dot-r), transparent calc(var(--dot-r) + 0.7px)),
-    radial-gradient(ellipse 22% 60% at var(--hx) var(--hy), #000 0%, transparent var(--halo));
+    radial-gradient(circle var(--lobe) at calc(var(--hx) + var(--ox1)) calc(var(--hy) + var(--oy1)), #000 0%, transparent 100%),
+    radial-gradient(circle calc(var(--lobe) * 0.85) at calc(var(--hx) + var(--ox2)) calc(var(--hy) + var(--oy2)), #000 0%, transparent 100%),
+    radial-gradient(circle calc(var(--lobe) * 0.9) at calc(var(--hx) + var(--ox3)) calc(var(--hy) + var(--oy3)), #000 0%, transparent 100%),
+    radial-gradient(circle calc(var(--lobe) * 0.75) at calc(var(--hx) + var(--ox4)) calc(var(--hy) + var(--oy4)), #000 0%, transparent 100%);
+  -webkit-mask-size: 14px 14px, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  mask-size: 14px 14px, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  /* Dots intersect the union of the four lobes. */
+  -webkit-mask-composite: source-in, source-over, source-over, source-over;
+  mask-composite: intersect, add, add, add;
   transition: opacity 350ms ease;
-  animation: dots-breathe 4s ease-in-out infinite;
+  animation:
+    pointer-breathe 4s ease-in-out infinite,
+    lobe-1 3.1s ease-in-out infinite alternate,
+    lobe-2 4.3s ease-in-out -1s infinite alternate,
+    lobe-3 5.2s ease-in-out -2.5s infinite alternate,
+    lobe-4 3.7s ease-in-out -0.7s infinite alternate;
+}
+
+@keyframes pointer-breathe {
+  0%, 100% { --dot-r: 1.6px; --lobe: 75px; }
+  50% { --dot-r: 2.6px; --lobe: 92px; }
+}
+
+@keyframes lobe-1 {
+  0% { --ox1: -31px; --oy1: -12px; }
+  50% { --ox1: -20px; --oy1: 18px; }
+  100% { --ox1: -35px; --oy1: 5px; }
+}
+
+@keyframes lobe-2 {
+  0% { --ox2: 27px; --oy2: -20px; }
+  50% { --ox2: 39px; --oy2: 4px; }
+  100% { --ox2: 22px; --oy2: -30px; }
+}
+
+@keyframes lobe-3 {
+  0% { --ox3: 7px; --oy3: 30px; }
+  50% { --ox3: -15px; --oy3: 35px; }
+  100% { --ox3: 20px; --oy3: 23px; }
+}
+
+@keyframes lobe-4 {
+  0% { --ox4: 9px; --oy4: -34px; }
+  50% { --ox4: -18px; --oy4: -27px; }
+  100% { --ox4: 24px; --oy4: -24px; }
 }
 
 .halo-pointer.is-active {
@@ -537,7 +594,7 @@ ul {
 /* Insights page */
 
 .view-insights {
-  max-width: 960px;
+  max-width: 1280px;
 }
 
 .insights-header {
@@ -548,8 +605,9 @@ ul {
   flex-wrap: wrap;
 }
 
+/* The heatmap is fluid: 53 columns share the card width, cells stay square. It only scrolls
+   sideways when the card is narrower than the minimum readable width. */
 .heatmap-card {
-  --cell: 13px;
   --cell-gap: 3px;
   padding: 16px;
   border: 1px solid var(--border);
@@ -564,10 +622,10 @@ ul {
 }
 
 .heatmap {
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 100%;
+  min-width: 620px;
 }
 
 .heatmap-months {
@@ -586,18 +644,23 @@ ul {
 }
 
 .heatmap-body {
-  display: flex;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
   gap: 8px;
 }
 
 .heatmap-weekdays {
   display: grid;
-  grid-template-rows: repeat(7, var(--cell));
+  grid-template-rows: repeat(7, minmax(0, 1fr));
   row-gap: var(--cell-gap);
-  width: 32px;
   font-size: 10px;
   color: var(--text-muted);
-  line-height: var(--cell);
+  align-self: stretch;
+}
+
+.heatmap-weekdays span {
+  display: flex;
+  align-items: center;
 }
 
 .heatmap-weekdays .is-hidden {
@@ -606,13 +669,13 @@ ul {
 
 .heatmap-grid {
   display: grid;
-  grid-template-rows: repeat(7, var(--cell));
+  grid-template-rows: repeat(7, auto);
   gap: var(--cell-gap);
 }
 
 .heat-cell {
-  width: var(--cell);
-  height: var(--cell);
+  width: 100%;
+  aspect-ratio: 1;
   border-radius: 3px;
   background: var(--border);
 }
@@ -2016,6 +2079,9 @@ ul {
   font-size: 12px;
   font-weight: 600;
   color: var(--accent-text);
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .titlebar-btn {
