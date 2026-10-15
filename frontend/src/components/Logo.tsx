@@ -1,9 +1,10 @@
-import logoUrl from '../assets/logo.svg';
+import logoUrl from '../assets/logo.png';
 
 /**
- * MyTodoEase mark: a deep-space tile with a neon rim and three list rows drawn as glowing
- * four-point stars with comet trails. The artwork lives in src/assets/logo.svg (single source);
- * public/logo.svg (favicon) and desktop/build/icon.* (installer) are generated from it.
+ * MyTodoEase mark: the provided artwork (deep-space tile with neon rim and three glowing star
+ * rows), cropped to the tile with transparent rounded corners. src/assets/logo.png is the in-app
+ * copy; public/logo.png (favicon) and desktop/build/icon.* (window and installer) come from the
+ * same crop.
  */
 export function Logo({ size = 20, title = 'MyTodoEase' }: { size?: number; title?: string }) {
   return <img src={logoUrl} width={size} height={size} alt={title} className="logo" draggable={false} />;

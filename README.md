@@ -75,6 +75,13 @@ Base URL `http://localhost:5080`. Swagger-style document at `/openapi/v1.json` i
 Due dates are stored as plain `yyyy-MM-dd` / `HH:mm` strings (local calendar dates), never as UTC instants, so they do
 not shift across time zones.
 
+## Logo and icons
+
+The source artwork is `desktop/build/source-icon.webp`. The in-app logo (`frontend/src/assets/logo.png`), favicon
+(`frontend/public/logo.png`), and the Windows icon (`desktop/build/icon.png`, `icon.ico`) are that image cropped to the
+tile with transparent rounded corners. To regenerate after replacing the artwork, crop the tile, apply a rounded-rect
+alpha mask (radius about 23% of the side), and export 512px PNGs plus an ICO with 16 to 256px entries.
+
 ## Configuration
 
 - API: `backend/MyTodoEase.Api/appsettings.json` → `Mongo.ConnectionString`, `Mongo.Database`
