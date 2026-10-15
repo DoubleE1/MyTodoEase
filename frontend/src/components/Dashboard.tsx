@@ -99,12 +99,20 @@ export function Dashboard({ tasks, completions, active, onSelectView }: Dashboar
           aria-label={total === 0 ? 'Nothing due today' : `${stats.doneToday} of ${total} done today, ${percent} percent`}
         >
           <svg viewBox="0 0 48 48" width="48" height="48">
+            <defs>
+              <linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor="#3f8cff" />
+                <stop offset="0.55" stopColor="#7b4dff" />
+                <stop offset="1" stopColor="#ff5fa8" />
+              </linearGradient>
+            </defs>
             <circle className="ring-track" cx="24" cy="24" r={radius} />
             <circle
               className="ring-value"
               cx="24"
               cy="24"
               r={radius}
+              stroke="url(#ring-grad)"
               strokeDasharray={`${dash} ${circumference - dash}`}
               strokeDashoffset={circumference / 4}
             />

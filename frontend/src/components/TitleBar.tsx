@@ -1,4 +1,5 @@
-import { CheckCircle2, Maximize2, Minimize2, Pin, PinOff } from 'lucide-react';
+import { Maximize2, Minimize2, Pin, PinOff } from 'lucide-react';
+import { Logo } from './Logo';
 
 interface TitleBarProps {
   compact: boolean;
@@ -16,8 +17,11 @@ export function TitleBar({ compact, alwaysOnTop, onTogglePin, onToggleCompact }:
   return (
     <div className="titlebar">
       <span className="titlebar-brand">
-        <CheckCircle2 size={14} />
-        <span>MyTodoEase{compact ? ' · Today' : ''}</span>
+        <Logo size={16} />
+        <span>
+          MyTodo<strong>Ease</strong>
+          {compact ? ' · Today' : ''}
+        </span>
       </span>
       <span className="spacer" />
       <button

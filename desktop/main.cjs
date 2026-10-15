@@ -82,6 +82,7 @@ function createWindow() {
     minWidth: minimum.width,
     minHeight: minimum.height,
     title: 'MyTodoEase',
+    icon: path.join(__dirname, 'build', 'icon.ico'),
     autoHideMenuBar: true,
     alwaysOnTop: settings.alwaysOnTop,
     // Window Controls Overlay: the page draws the title bar (see TitleBar.tsx); the OS keeps its buttons.

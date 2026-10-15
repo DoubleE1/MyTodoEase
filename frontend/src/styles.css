@@ -2,19 +2,21 @@
   --bg: #ffffff;
   --bg-sidebar: #fcfaf8;
   --bg-hover: #f3f1ee;
-  --bg-active: #ffefe5;
+  --bg-active: #ecebff;
   --border: #e6e3df;
   --text: #202020;
   --text-muted: #808080;
   --text-faint: #b0b0b0;
-  --accent: #dc4c3e;
-  --accent-hover: #c3392c;
-  --accent-text: #d1453b;
+  /* Brand: blue → violet → pink. Solid accent is the violet midpoint; the gradient is for brand moments. */
+  --accent: #6d5dfc;
+  --accent-hover: #5a4ae6;
+  --accent-text: #5b4be0;
+  --accent-gradient: linear-gradient(135deg, #3f8cff, #7b4dff 55%, #ff5fa8);
   --danger: #d1453b;
   --tone-overdue: #d1453b;
   --tone-today: #058527;
   --tone-tomorrow: #ad6200;
-  --tone-week: #692fc2;
+  --tone-week: #0b7285;
   --tone-future: #808080;
   --radius: 8px;
   --shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
@@ -34,20 +36,21 @@
   --bg-sidebar: #282828;
   --bg-hover: #353535;
   --bg-hover-strong: #424242;
-  --bg-active: #3d2a27;
+  --bg-active: #2c2850;
   --bg-overlay: rgba(0, 0, 0, 0.6);
   --border: #3a3a3a;
   --text: #e8e8e8;
   --text-muted: #9c9c9c;
   --text-faint: #6c6c6c;
-  --accent: #e5503f;
-  --accent-hover: #f0675a;
-  --accent-text: #ff7a6e;
+  --accent: #7b6cff;
+  --accent-hover: #8f82ff;
+  --accent-text: #a79bff;
+  --accent-gradient: linear-gradient(135deg, #4f96ff, #8a5cff 55%, #ff6fb3);
   --danger: #ff7a6e;
   --tone-overdue: #ff7a6e;
   --tone-today: #5cc472;
   --tone-tomorrow: #f0b24a;
-  --tone-week: #b79bf5;
+  --tone-week: #4cc3d9;
   --tone-future: #9c9c9c;
   --banner-error-bg: #4a1f1a;
   --banner-error-text: #ffb4ab;
@@ -189,10 +192,38 @@ ul {
 }
 
 .brand {
-  font-weight: 700;
-  font-size: 16px;
-  color: var(--accent-text);
   padding: 4px 6px 14px;
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wordmark-text {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--text);
+}
+
+.wordmark-text strong,
+.titlebar-brand strong {
+  font-weight: 800;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.titlebar-brand {
+  color: var(--text-muted);
+}
+
+.logo {
+  flex-shrink: 0;
+  display: block;
 }
 
 .add-task-primary {
@@ -211,7 +242,7 @@ ul {
 }
 
 .add-task-primary svg {
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   border-radius: 50%;
   padding: 2px;
@@ -587,14 +618,13 @@ ul {
 
 .ring-value {
   fill: none;
-  stroke: var(--accent);
   stroke-width: 5;
   stroke-linecap: round;
   transition: stroke-dasharray 500ms ease;
 }
 
 .ring.is-complete .ring-value {
-  stroke: var(--tone-today);
+  stroke: var(--tone-today) !important;
 }
 
 .ring-text {
@@ -707,7 +737,7 @@ ul {
 
 .stat-chip.is-hot {
   color: #fff;
-  background: linear-gradient(90deg, #ff7a3d, #e5503f);
+  background: var(--accent-gradient);
 }
 
 .stat-chip.is-overdue {
@@ -1736,6 +1766,20 @@ ul {
 
 .app.has-titlebar {
   padding-top: env(titlebar-area-height, 36px);
+}
+
+/* Full-width strip behind the title bar so background and bottom border continue under the native buttons. */
+.app.has-titlebar::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(titlebar-area-height, 36px);
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  z-index: 89;
+  pointer-events: none;
 }
 
 .titlebar {

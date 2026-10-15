@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 64" width="300" height="64" role="img" aria-label="MyTodoEase">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3f8cff"/>
+      <stop offset="0.5" stop-color="#7b4dff"/>
+      <stop offset="1" stop-color="#ff5fa8"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3f8cff"/>
+      <stop offset="0.55" stop-color="#7b4dff"/>
+      <stop offset="1" stop-color="#ff5fa8"/>
+    </linearGradient>
+    <radialGradient id="glass" cx="0.25" cy="0.15" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="trail1" gradientUnits="userSpaceOnUse" x1="22" y1="0" x2="53" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#tile)"/>
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#glass)"/>
+  <rect x="2.5" y="2.5" width="59" height="59" rx="14.5" fill="none" stroke="#ffffff" stroke-opacity="0.35"/>
+  <g fill="#ffffff">
+    <circle cx="45" cy="13" r="1.1" opacity="0.9"/>
+    <circle cx="53" cy="24" r="0.8" opacity="0.7"/>
+    <circle cx="39" cy="39" r="0.7" opacity="0.6"/>
+    <circle cx="49" cy="50" r="0.9" opacity="0.75"/>
+    <circle cx="27" cy="53" r="0.7" opacity="0.6"/>
+    <circle cx="12" cy="11" r="0.7" opacity="0.5"/>
+  </g>
+  <path d="M22 17.4 C34 16.4, 44 15, 53 12.5 C44 16.8, 34 19.2, 22 20.6 Z" fill="url(#trail1)"/>
+  <path d="M22 30.4 C34 29.4, 44 28, 53 25.5 C44 29.8, 34 32.2, 22 33.6 Z" fill="url(#trail1)"/>
+  <path d="M22 43.4 C34 42.4, 44 41, 53 38.5 C44 42.8, 34 45.2, 22 46.6 Z" fill="url(#trail1)"/>
+  <g fill="#ffffff">
+    <path transform="translate(17 19) scale(0.62)" d="M0 -8 C0.9 -2.6, 2.6 -0.9, 8 0 C2.6 0.9, 0.9 2.6, 0 8 C-0.9 2.6, -2.6 0.9, -8 0 C-2.6 -0.9, -0.9 -2.6, 0 -8 Z"/>
+    <path transform="translate(17 32) scale(0.62)" d="M0 -8 C0.9 -2.6, 2.6 -0.9, 8 0 C2.6 0.9, 0.9 2.6, 0 8 C-0.9 2.6, -2.6 0.9, -8 0 C-2.6 -0.9, -0.9 -2.6, 0 -8 Z"/>
+    <path transform="translate(17 45) scale(0.62)" d="M0 -8 C0.9 -2.6, 2.6 -0.9, 8 0 C2.6 0.9, 0.9 2.6, 0 8 C-0.9 2.6, -2.6 0.9, -8 0 C-2.6 -0.9, -0.9 -2.6, 0 -8 Z"/>
+  </g>
+  <text x="78" y="43" font-family="Segoe UI, system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="30" font-weight="600" fill="#202020" letter-spacing="-0.5">MyTodo<tspan fill="url(#brand)" font-weight="800">Ease</tspan></text>
+</svg>

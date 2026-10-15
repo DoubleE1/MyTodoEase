@@ -24,6 +24,7 @@ import { todayStr } from '../lib/dates';
 import type { ThemePreference } from '../lib/theme';
 import { viewEquals, type View } from '../lib/views';
 import { Dashboard } from './Dashboard';
+import { Wordmark } from './Logo';
 
 interface SidebarProps {
   view: View;
@@ -223,7 +224,9 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
-        <div className="brand">MyTodoEase</div>
+        <div className="brand">
+          <Wordmark size={26} />
+        </div>
         <button type="button" className="add-task-primary" onClick={onAddTask} title="Add task (q)">
           <Plus size={18} />
           <span>Add task</span>
