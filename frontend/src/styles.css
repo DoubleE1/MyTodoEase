@@ -66,6 +66,8 @@ body,
 #root {
   height: 100%;
   margin: 0;
+  /* The sidebar, main pane, and modals scroll themselves; the document never should. */
+  overflow: hidden;
 }
 
 body {
@@ -781,6 +783,16 @@ ul {
   right: 0;
 }
 
+.popover-up {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.popover {
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+}
+
 .picker-scroll {
   max-height: 320px;
   overflow-y: auto;
@@ -803,14 +815,23 @@ ul {
   font-size: 13px;
 }
 
-.picker-row > span:first-of-type {
+.picker-row .row-label {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .picker-row .muted,
 .picker-row .row-check {
   flex: 0 0 auto;
   margin-left: auto;
+}
+
+.picker-row .dot,
+.picker-row svg {
+  flex: 0 0 auto;
 }
 
 .picker-row:hover {

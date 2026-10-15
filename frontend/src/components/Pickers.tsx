@@ -63,7 +63,7 @@ export function DuePicker({ value, onChange }: { value: DueValue; onChange: (val
                   close();
                 }}
               >
-                <span>{q.label}</span>
+                <span className="row-label">{q.label}</span>
                 <span className="muted">{weekdayShort(q.date)}</span>
               </button>
             ))}
@@ -77,7 +77,7 @@ export function DuePicker({ value, onChange }: { value: DueValue; onChange: (val
                 }}
               >
                 <X size={14} />
-                <span>No date</span>
+                <span className="row-label">No date</span>
               </button>
             )}
           </div>
@@ -151,7 +151,7 @@ export function PriorityPicker({ value, onChange }: { value: Priority; onChange:
               }}
             >
               {flag(p)}
-              <span>{PRIORITY_META[p].label}</span>
+              <span className="row-label">{PRIORITY_META[p].label}</span>
               {p === value && <Check size={14} className="row-check" />}
             </button>
           ))}
@@ -201,7 +201,7 @@ export function LabelPicker({
             {filtered.map((l) => (
               <button key={l.id} type="button" className="picker-row" onClick={() => toggle(l.id)}>
                 <span className="dot" style={{ background: colorHex(l.color) }} />
-                <span>{l.name}</span>
+                <span className="row-label">{l.name}</span>
                 {selected.includes(l.id) && <Check size={14} className="row-check" />}
               </button>
             ))}
@@ -216,7 +216,7 @@ export function LabelPicker({
                 }}
               >
                 <Plus size={14} />
-                <span>Create “{query.trim()}”</span>
+                <span className="row-label">Create “{query.trim()}”</span>
               </button>
             )}
             {filtered.length === 0 && !canCreate && <div className="picker-empty muted">No labels yet</div>}
@@ -273,7 +273,7 @@ export function ProjectPicker({
                 }}
               >
                 <ProjectIcon project={p} />
-                <span>{p.name}</span>
+                <span className="row-label">{p.name}</span>
               </button>
               {sections
                 .filter((s) => s.projectId === p.id)
@@ -288,7 +288,7 @@ export function ProjectPicker({
                     }}
                   >
                     <Hash size={12} />
-                    <span>{s.name}</span>
+                    <span className="row-label">{s.name}</span>
                   </button>
                 ))}
             </div>
