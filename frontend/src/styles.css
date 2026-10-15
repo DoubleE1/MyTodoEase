@@ -363,9 +363,9 @@ ul {
 
 /* Click ripples: rings of lit dots spreading from the click point like water. Each ring (added by
    App.tsx) has its own speed, thickness, maximum radius and a slow drift of its centre. */
-@property --r { syntax: '<length>'; inherits: false; initial-value: 0px; }
-@property --cx { syntax: '<length>'; inherits: false; initial-value: 0px; }
-@property --cy { syntax: '<length>'; inherits: false; initial-value: 0px; }
+/* Only the progress number animates (keyframes cannot interpolate towards var() values);
+   radius and drift are computed from it. */
+@property --p { syntax: '<number>'; inherits: false; initial-value: 0; }
 @property --dx { syntax: '<length>'; inherits: false; initial-value: 0px; }
 @property --dy { syntax: '<length>'; inherits: false; initial-value: 0px; }
 @property --rmax { syntax: '<length>'; inherits: false; initial-value: 500px; }
@@ -379,9 +379,11 @@ ul {
 
 .ripple-ring {
   --dot-r: 2.4px;
-  --r: 0px;
-  --cx: 0px;
-  --cy: 0px;
+  --p: 0;
+  /* Derived from progress: radius grows to --rmax, centre drifts to (--dx, --dy). */
+  --r: calc(10px + (var(--rmax) - 10px) * var(--p));
+  --cx: calc(var(--dx) * var(--p));
+  --cy: calc(var(--dy) * var(--p));
   opacity: 0;
   background: linear-gradient(110deg, #5aa0ff 0%, #9a6bff 50%, #ff6fb3 100%);
   -webkit-mask-image:
@@ -414,18 +416,14 @@ ul {
 
 @keyframes dot-ripple {
   0% {
-    --r: 10px;
-    --cx: 0px;
-    --cy: 0px;
+    --p: 0;
     opacity: var(--glow-opacity);
   }
   55% {
     opacity: calc(var(--glow-opacity) * 0.5);
   }
   100% {
-    --r: var(--rmax);
-    --cx: var(--dx);
-    --cy: var(--dy);
+    --p: 1;
     opacity: 0;
   }
 }
