@@ -143,29 +143,63 @@ export default function App() {
   // Written straight to the element's CSS variables so mouse moves never re-render React.
   const mainRef = useRef<HTMLElement>(null);
   const pointerHaloRef = useRef<HTMLSpanElement>(null);
+  const rippleRef = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     const main = mainRef.current;
     const halo = pointerHaloRef.current;
+    const ripple = rippleRef.current;
     const art = halo?.parentElement;
-    if (!main || !halo || !art) return;
-    const hide = () => halo.classList.remove('is-active');
-    const onMove = (event: MouseEvent) => {
+    if (!main || !halo || !ripple || !art) return;
+
+    const locate = (event: MouseEvent) => {
       const rect = art.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-      if (y < 0 || y > rect.height || x < 0 || x > rect.width) {
+      const inside = x >= 0 && x <= rect.width && y >= 0 && y <= rect.height;
+      return { inside, hx: `${(x / rect.width) * 100}%`, hy: `${(y / rect.height) * 100}%` };
+    };
+    const hide = () => halo.classList.remove('is-active');
+    const onMove = (event: MouseEvent) => {
+      const at = locate(event);
+      if (!at.inside) {
         hide();
         return;
       }
-      halo.style.setProperty('--hx', `${(x / rect.width) * 100}%`);
-      halo.style.setProperty('--hy', `${(y / rect.height) * 100}%`);
+      halo.style.setProperty('--hx', at.hx);
+      halo.style.setProperty('--hy', at.hy);
       halo.classList.add('is-active');
     };
+
+    // Click: a ring of lit dots expands from the point and fades; the pointer halo dips out and eases back in.
+    let undimTimer: number | undefined;
+    let rippleTimer: number | undefined;
+    const onRippleEnd = () => ripple.classList.remove('is-rippling');
+    const onDown = (event: MouseEvent) => {
+      const at = locate(event);
+      if (!at.inside || event.button !== 0) return;
+      ripple.style.setProperty('--hx', at.hx);
+      ripple.style.setProperty('--hy', at.hy);
+      ripple.classList.remove('is-rippling');
+      void ripple.offsetWidth; // restart the animation on rapid clicks
+      ripple.classList.add('is-rippling');
+      window.clearTimeout(rippleTimer);
+      rippleTimer = window.setTimeout(onRippleEnd, 1300); // fallback if animationend never fires
+      halo.classList.add('is-dimmed');
+      window.clearTimeout(undimTimer);
+      undimTimer = window.setTimeout(() => halo.classList.remove('is-dimmed'), 450);
+    };
+
     main.addEventListener('mousemove', onMove);
     main.addEventListener('mouseleave', hide);
+    main.addEventListener('mousedown', onDown);
+    ripple.addEventListener('animationend', onRippleEnd);
     return () => {
       main.removeEventListener('mousemove', onMove);
       main.removeEventListener('mouseleave', hide);
+      main.removeEventListener('mousedown', onDown);
+      ripple.removeEventListener('animationend', onRippleEnd);
+      window.clearTimeout(undimTimer);
+      window.clearTimeout(rippleTimer);
     };
     // The art element is always rendered inside <main>, so the only remount is the compact/full switch.
   }, [windowMode.compact]);
@@ -326,6 +360,7 @@ export default function App() {
           <span className="halo halo-a" />
           <span className="halo halo-b" />
           <span className="halo halo-pointer" ref={pointerHaloRef} />
+          <span className="halo halo-ripple" ref={rippleRef} />
         </div>
         {loadError ? (
           <div className="banner banner-error">

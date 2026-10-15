@@ -1,7 +1,9 @@
 :root {
   --bg: #ffffff;
-  --bg-sidebar: #fcfaf8;
-  --bg-hover: #f3f1ee;
+  /* The main pane behind the glass card: a soft grey with a hint of the violet palette. */
+  --bg-canvas: #eeedf4;
+  --bg-sidebar: #f7f7fb;
+  --bg-hover: #ededf3;
   --bg-active: #ecebff;
   --border: #e6e3df;
   --text: #202020;
@@ -33,6 +35,7 @@
 
 :root[data-theme='dark'] {
   --bg: #1f1f1f;
+  --bg-canvas: #1a1a1e;
   --bg-sidebar: #282828;
   --bg-hover: #353535;
   --bg-hover-strong: #424242;
@@ -156,6 +159,7 @@ ul {
   overflow-y: auto;
   padding: 28px 40px 28px;
   position: relative;
+  background: var(--bg-canvas);
 }
 
 .main > *:not(.main-art) {
@@ -179,9 +183,9 @@ ul {
 }
 
 :root {
-  --glass-bg: rgba(255, 255, 255, 0.4);
-  --glass-border: rgba(255, 255, 255, 0.75);
-  --glass-shadow: 0 10px 40px rgba(60, 40, 120, 0.08);
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.9);
+  --glass-shadow: 0 10px 40px rgba(60, 40, 120, 0.1);
 }
 
 :root[data-theme='dark'] {
@@ -349,6 +353,60 @@ ul {
 
 .halo-pointer.is-active {
   opacity: var(--glow-opacity);
+  transition: opacity 1100ms ease; /* slow return after a click */
+}
+
+.halo-pointer.is-dimmed {
+  opacity: 0;
+  transition: opacity 160ms ease; /* quick dip when the ripple starts */
+}
+
+/* Click ripple: a ring of lit dots expanding from the click point, fading as it grows. */
+@property --r {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+.halo-ripple {
+  --dot-r: 2.4px;
+  --r: 0px;
+  opacity: 0;
+  background: linear-gradient(110deg, #5aa0ff 0%, #9a6bff 50%, #ff6fb3 100%);
+  -webkit-mask-image:
+    radial-gradient(circle at center, #000 var(--dot-r), transparent calc(var(--dot-r) + 0.7px)),
+    radial-gradient(circle at var(--hx) var(--hy), transparent calc(var(--r) - 70px), #000 calc(var(--r) - 28px), #000 var(--r), transparent calc(var(--r) + 26px));
+  mask-image:
+    radial-gradient(circle at center, #000 var(--dot-r), transparent calc(var(--dot-r) + 0.7px)),
+    radial-gradient(circle at var(--hx) var(--hy), transparent calc(var(--r) - 70px), #000 calc(var(--r) - 28px), #000 var(--r), transparent calc(var(--r) + 26px));
+  -webkit-mask-size: 14px 14px, 100% 100%;
+  mask-size: 14px 14px, 100% 100%;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
+.halo-ripple.is-rippling {
+  animation: dot-ripple 1100ms ease-out forwards;
+}
+
+@keyframes dot-ripple {
+  0% {
+    --r: 12px;
+    opacity: var(--glow-opacity);
+  }
+  60% {
+    opacity: calc(var(--glow-opacity) * 0.55);
+  }
+  100% {
+    --r: 560px;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .halo-ripple.is-rippling {
+    animation: none;
+  }
 }
 
 @keyframes dots-breathe {
@@ -420,8 +478,8 @@ ul {
 }
 
 :root {
-  --dot-color: rgba(32, 32, 32, 0.14);
-  --glow-opacity: 0.5;
+  --dot-color: rgba(70, 60, 130, 0.26);
+  --glow-opacity: 0.85;
 }
 
 :root[data-theme='dark'] {

@@ -25,7 +25,7 @@ const TITLE_BAR_HEIGHT = 36;
 // Native window buttons (minimize / maximize / close) are drawn by the OS over our own title bar,
 // so the colors must follow the app theme. Values mirror --bg-sidebar / --text in styles.css.
 const TITLE_BAR_COLORS = {
-  light: { color: '#fcfaf8', symbolColor: '#202020' },
+  light: { color: '#f7f7fb', symbolColor: '#202020' },
   dark: { color: '#282828', symbolColor: '#e8e8e8' },
 };
 
