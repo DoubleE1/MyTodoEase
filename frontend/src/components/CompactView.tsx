@@ -1,11 +1,12 @@
 import { addDays, format } from 'date-fns';
-import { CalendarDays, Check, ChevronDown, ChevronUp, EyeOff, Inbox, Maximize2, Plus, Tag } from 'lucide-react';
+import { Activity, CalendarDays, Check, ChevronDown, ChevronUp, EyeOff, Inbox, Maximize2, Plus, Tag } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { useTaskMutations } from '../api/hooks';
-import type { Label, Project, Section, Task, TaskInput } from '../api/types';
+import type { CompletionItem, Label, Project, Section, Task, TaskInput } from '../api/types';
 import { colorHex } from '../lib/colors';
 import { toDateStr, todayStr, tomorrowStr } from '../lib/dates';
 import { isOverdue, sortByOrder, sortForAgenda } from '../lib/views';
+import { Dashboard } from './Dashboard';
 import { Popover } from './Popover';
 import { TaskEditor, taskToInput } from './TaskEditor';
 import { TaskItem } from './TaskItem';
@@ -15,9 +16,13 @@ interface CompactViewProps {
   projects: Project[];
   sections: Section[];
   labels: Label[];
+  /** Completion history feeding the Overview pane (streak, week bars). */
+  completions: CompletionItem[];
   /** Browser only: the desktop title bar has its own expand button. */
   showExpand: boolean;
   onExpand: () => void;
+  /** Overview pane clicked: leave mini mode and open Insights. */
+  onOpenInsights: () => void;
   onOpenTask: (id: string) => void;
   onDeleteTask: (task: Task) => void;
   onCreateLabel: (name: string) => Promise<Label>;
@@ -25,6 +30,7 @@ interface CompactViewProps {
 
 /** What the lower pane of the mini window shows. Serialized as "kind" or "kind:id". */
 type Secondary =
+  | { kind: 'dashboard' }
   | { kind: 'nodate' }
   | { kind: 'inbox' }
   | { kind: 'upcoming' }
@@ -46,7 +52,7 @@ function deserialize(value: string | null): Secondary {
   const [kind, id] = value.split(':');
   if (kind === 'project' && id) return { kind, id };
   if (kind === 'label' && id) return { kind, id };
-  if (kind === 'nodate' || kind === 'inbox' || kind === 'upcoming') return { kind };
+  if (kind === 'nodate' || kind === 'inbox' || kind === 'upcoming' || kind === 'dashboard') return { kind };
   return { kind: 'nodate' };
 }
 
@@ -72,8 +78,10 @@ export function CompactView({
   projects,
   sections,
   labels,
+  completions,
   showExpand,
   onExpand,
+  onOpenInsights,
   onOpenTask,
   onDeleteTask,
   onCreateLabel,
@@ -205,6 +213,8 @@ export function CompactView({
   // ----- Lower pane contents -----
   const lower = ((): { title: string; tasks: Task[]; defaults: Partial<TaskInput>; empty: string } => {
     switch (secondary.kind) {
+      case 'dashboard':
+        return { title: 'Overview', tasks: [], defaults: {}, empty: '' };
       case 'nodate':
         return {
           title: 'No date',
@@ -275,6 +285,7 @@ export function CompactView({
   );
 
   const lowerOptions: { value: Secondary; label: string; icon: ReactNode }[] = [
+    { value: { kind: 'dashboard' }, label: 'Overview', icon: <Activity size={14} /> },
     { value: { kind: 'nodate' }, label: 'No date', icon: <CalendarDays size={14} /> },
     { value: { kind: 'inbox' }, label: 'Inbox', icon: <Inbox size={14} /> },
     { value: { kind: 'upcoming' }, label: 'Upcoming (7 days)', icon: <CalendarDays size={14} /> },
@@ -438,15 +449,24 @@ export function CompactView({
               <span className="spacer" />
               {panePicker}
             </div>
-            <div className="pane-body">
-              <ul className="task-list">{lower.tasks.map(renderTask)}</ul>
-              {lower.tasks.length === 0 && !addingBottom && <p className="empty">{lower.empty}</p>}
-            </div>
-            <div className="pane-footer">
-              {addingBottom
-                ? addEditor(lower.defaults, `Add a task to ${lower.title}`, () => setAddingBottom(false))
-                : addButton(() => setAddingBottom(true))}
-            </div>
+            {secondary.kind === 'dashboard' ? (
+              // The same overview card as the sidebar; tapping it expands the window into Insights.
+              <div className="pane-body pane-dashboard">
+                <Dashboard tasks={tasks} completions={completions} active={false} onSelectView={onOpenInsights} />
+              </div>
+            ) : (
+              <>
+                <div className="pane-body">
+                  <ul className="task-list">{lower.tasks.map(renderTask)}</ul>
+                  {lower.tasks.length === 0 && !addingBottom && <p className="empty">{lower.empty}</p>}
+                </div>
+                <div className="pane-footer">
+                  {addingBottom
+                    ? addEditor(lower.defaults, `Add a task to ${lower.title}`, () => setAddingBottom(false))
+                    : addButton(() => setAddingBottom(true))}
+                </div>
+              </>
+            )}
           </section>
         ) : (
           // Collapsed: a slim bar with one button that brings the pane back.
