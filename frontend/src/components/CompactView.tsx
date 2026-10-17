@@ -282,11 +282,15 @@ export function CompactView({
     </button>
   );
 
-  const lowerOptions: { value: Secondary; label: string; icon: ReactNode }[] = [
+  // Built-in views first, then the user's projects and labels behind a divider.
+  const builtinOptions: { value: Secondary; label: string; icon: ReactNode }[] = [
     { value: { kind: 'dashboard' }, label: 'Overview', icon: <Activity size={14} /> },
     { value: { kind: 'nodate' }, label: 'No date', icon: <CalendarDays size={14} /> },
     { value: { kind: 'inbox' }, label: 'Inbox', icon: <Inbox size={14} /> },
     { value: { kind: 'upcoming' }, label: 'Upcoming (7 days)', icon: <CalendarDays size={14} /> },
+  ];
+  const lowerOptions: { value: Secondary; label: string; icon: ReactNode }[] = [
+    ...builtinOptions,
     ...projects
       .filter((p) => !p.isInbox)
       .map((p) => ({
@@ -322,13 +326,14 @@ export function CompactView({
     >
       {(close) => (
         <div className="picker">
-          {lowerOptions.map((o) => {
+          {lowerOptions.map((o, i) => {
             const key = serialize(o.value);
+            const startsCustomGroup = i === builtinOptions.length;
             return (
               <button
                 key={key}
                 type="button"
-                className={`picker-row ${key === currentKey ? 'is-selected' : ''}`}
+                className={`picker-row ${key === currentKey ? 'is-selected' : ''} ${startsCustomGroup ? 'picker-row-divider' : ''}`}
                 onClick={() => {
                   setSecondary(o.value);
                   close();

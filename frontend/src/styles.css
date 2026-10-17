@@ -13,7 +13,14 @@
   --accent: #6d5dfc;
   --accent-hover: #5a4ae6;
   --accent-text: #5b4be0;
-  --accent-gradient: linear-gradient(135deg, #3f8cff, #7b4dff 55%, #ff5fa8);
+  /* Brand trio and the gradients built from it. lib/accent.ts overrides this family when the user
+     picks another accent color in Settings. */
+  --brand-1: #3f8cff;
+  --brand-2: #7b4dff;
+  --brand-3: #ff5fa8;
+  --accent-gradient: linear-gradient(135deg, var(--brand-1), var(--brand-2) 55%, var(--brand-3));
+  --halo-a: linear-gradient(110deg, #3f8cff 0%, #7b4dff 60%, #a35cff 100%);
+  --halo-b: linear-gradient(110deg, #8a5cff 0%, #c85cff 45%, #ff5fa8 100%);
   --danger: #d1453b;
   --tone-overdue: #d1453b;
   --tone-today: #058527;
@@ -48,7 +55,9 @@
   --accent: #7b6cff;
   --accent-hover: #8f82ff;
   --accent-text: #a79bff;
-  --accent-gradient: linear-gradient(135deg, #4f96ff, #8a5cff 55%, #ff6fb3);
+  --brand-1: #4f96ff;
+  --brand-2: #8a5cff;
+  --brand-3: #ff6fb3;
   --danger: #ff7a6e;
   --tone-overdue: #ff7a6e;
   --tone-today: #5cc472;
@@ -266,14 +275,14 @@ ul {
 }
 
 .halo-a {
-  background: linear-gradient(110deg, #3f8cff 0%, #7b4dff 60%, #a35cff 100%);
+  background: var(--halo-a);
   animation:
     dots-breathe 7s ease-in-out infinite,
     halo-wander-a 48s ease-in-out infinite;
 }
 
 .halo-b {
-  background: linear-gradient(110deg, #8a5cff 0%, #c85cff 45%, #ff5fa8 100%);
+  background: var(--halo-b);
   animation:
     dots-breathe 9s ease-in-out -4s infinite,
     halo-wander-b 61s ease-in-out -20s infinite;
@@ -2800,4 +2809,47 @@ ul {
 
 .view-insights.is-embedded .weekday-bars {
   height: 90px;
+}
+
+/* Accent color picker (Settings) */
+
+.settings-field {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.settings-field-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.accent-grid .color-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.color-swatch-custom {
+  position: relative;
+  overflow: hidden;
+  background: conic-gradient(#f87171, #fbbf24, #4ade80, #38bdf8, #a78bfa, #f472b6, #f87171);
+}
+
+.color-swatch-custom input[type='color'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* A divider row in the middle of the list keeps its rounded hover shape; only the last one squares off. */
+.picker-row-divider:not(:last-child) {
+  border-radius: 6px;
 }

@@ -313,6 +313,8 @@ export default function App() {
           onClose={closeDialog}
           themePreference={theme.preference}
           onSetTheme={theme.setPreference}
+          accent={theme.accent}
+          onSetAccent={theme.setAccent}
           confirm={confirm}
         />
       )}

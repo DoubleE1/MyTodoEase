@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, Monitor, Moon, Sun, Upload } from 'lucide-react';
+import { Check, Download, Monitor, Moon, Pipette, Sun, Upload } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { api, ApiError } from '../api/client';
+import { ACCENT_PRESETS, DEFAULT_ACCENT } from '../lib/accent';
 import type { ThemePreference } from '../lib/theme';
 import { showToast } from '../lib/toast';
 import type { ConfirmOptions } from './Dialogs';
@@ -39,13 +40,19 @@ export function SettingsDialog({
   onClose,
   themePreference,
   onSetTheme,
+  accent,
+  onSetAccent,
   confirm,
 }: {
   onClose: () => void;
   themePreference: ThemePreference;
   onSetTheme: (theme: ThemePreference) => void;
+  /** Current accent color as #rrggbb. */
+  accent: string;
+  onSetAccent: (hex: string) => void;
   confirm: (options: ConfirmOptions) => Promise<boolean>;
 }) {
+  const isPreset = ACCENT_PRESETS.some((p) => p.hex === accent);
   const queryClient = useQueryClient();
   const health = useQuery({ queryKey: ['health'], queryFn: api.health, staleTime: 60_000 });
   const fileInput = useRef<HTMLInputElement>(null);
@@ -120,6 +127,45 @@ export function SettingsDialog({
                 <span>{t.label}</span>
               </button>
             ))}
+          </div>
+
+          <div className="settings-field">
+            <span className="settings-field-label">Accent color</span>
+            <div className="color-grid accent-grid" role="radiogroup" aria-label="Accent color">
+              {ACCENT_PRESETS.map((p) => (
+                <button
+                  key={p.hex}
+                  type="button"
+                  role="radio"
+                  aria-checked={accent === p.hex}
+                  aria-label={p.label}
+                  title={p.label}
+                  className={`color-swatch ${accent === p.hex ? 'is-selected' : ''}`}
+                  style={{ background: p.hex }}
+                  onClick={() => onSetAccent(p.hex)}
+                >
+                  {accent === p.hex && <Check size={14} />}
+                </button>
+              ))}
+              <label
+                className={`color-swatch color-swatch-custom ${isPreset ? '' : 'is-selected'}`}
+                title="Custom color"
+                style={isPreset ? undefined : { background: accent }}
+              >
+                <Pipette size={14} />
+                <input
+                  type="color"
+                  value={accent}
+                  aria-label="Custom accent color"
+                  onChange={(event) => onSetAccent(event.target.value)}
+                />
+              </label>
+            </div>
+            {accent !== DEFAULT_ACCENT && (
+              <button type="button" className="link-btn" onClick={() => onSetAccent(DEFAULT_ACCENT)}>
+                Reset to default
+              </button>
+            )}
           </div>
         </section>
 

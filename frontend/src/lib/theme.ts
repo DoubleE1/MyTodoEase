@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { applyAccent, readStoredAccent, storeAccent } from './accent';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 
@@ -24,11 +25,14 @@ function systemPrefersDark(): boolean {
  */
 export function useTheme() {
   const [preference, setPreference] = useState<ThemePreference>(readStored);
+  const [accent, setAccentState] = useState<string>(readStoredAccent);
 
   useEffect(() => {
     const apply = () => {
       const resolved = preference === 'system' ? (systemPrefersDark() ? 'dark' : 'light') : preference;
       document.documentElement.dataset.theme = resolved;
+      // The accent family depends on the resolved theme (lighter shades on dark).
+      applyAccent(accent, resolved);
       // The Electron shell draws the native window buttons; keep their colors in step.
       window.mytodoease?.setTitleBarTheme?.(resolved).catch(() => {});
     };
@@ -42,12 +46,18 @@ export function useTheme() {
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     media.addEventListener('change', apply);
     return () => media.removeEventListener('change', apply);
-  }, [preference]);
+  }, [preference, accent]);
 
   const cycle = useCallback(
     () => setPreference((current) => ORDER[(ORDER.indexOf(current) + 1) % ORDER.length]),
     [],
   );
 
-  return { preference, setPreference, cycle };
+  const setAccent = useCallback((hex: string) => {
+    const value = hex.toLowerCase();
+    storeAccent(value);
+    setAccentState(value);
+  }, []);
+
+  return { preference, setPreference, cycle, accent, setAccent };
 }
