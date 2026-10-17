@@ -2356,29 +2356,6 @@ ul {
 
 /* Segmented control */
 
-.segmented {
-  display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.segmented button {
-  padding: 5px 12px;
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-.segmented button + button {
-  border-left: 1px solid var(--border);
-}
-
-.segmented button.is-selected {
-  background: var(--bg-active);
-  color: var(--accent-text);
-  font-weight: 600;
-}
-
 /* Calendar */
 
 .view-calendar {
@@ -2746,4 +2723,81 @@ ul {
 
 .pane-dashboard .dashboard {
   margin: 0;
+}
+
+/* Insights embedded in a narrow host (mini window's Overview pane) */
+
+.pane-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dashboard.is-static {
+  cursor: default;
+}
+
+.dashboard.is-static:hover {
+  border-color: var(--border);
+  transform: none;
+}
+
+.view-insights.is-embedded {
+  /* The page version centres itself with auto margins; inside the flex pane that would stop it stretching. */
+  margin: 0;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  min-height: 0;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: none;
+  box-shadow: none;
+}
+
+.view-insights.is-embedded .view-header {
+  margin-bottom: 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.view-insights.is-embedded .segmented {
+  align-self: flex-start;
+}
+
+.view-insights.is-embedded .heatmap-card,
+.view-insights.is-embedded .insight-panel {
+  background: var(--bg);
+  padding: 12px;
+}
+
+.view-insights.is-embedded .heatmap {
+  min-width: 520px;
+}
+
+.view-insights.is-embedded .insight-tiles {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.view-insights.is-embedded .insight-tile {
+  padding: 10px 12px;
+}
+
+.view-insights.is-embedded .insight-value {
+  font-size: 22px;
+}
+
+.view-insights.is-embedded .insight-columns {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.view-insights.is-embedded .weekday-bars {
+  height: 90px;
 }

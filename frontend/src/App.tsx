@@ -363,10 +363,6 @@ export default function App() {
             completions={recentCompletions.data?.items ?? []}
             showExpand={!windowMode.isDesktop}
             onExpand={() => void windowMode.setCompact(false)}
-            onOpenInsights={() => {
-              setView({ kind: 'insights' });
-              void windowMode.setCompact(false);
-            }}
             onOpenTask={setOpenTaskId}
             onDeleteTask={(task) => void deleteTask(task)}
             onCreateLabel={createLabel}

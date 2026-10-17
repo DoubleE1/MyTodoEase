@@ -10,7 +10,8 @@ interface DashboardProps {
   tasks: Task[];
   completions: CompletionItem[];
   active: boolean;
-  onSelectView: (view: View) => void;
+  /** Navigation target for clicks. Omit to render a static, non-clickable card. */
+  onSelectView?: (view: View) => void;
 }
 
 interface Stats {
@@ -75,22 +76,27 @@ export function Dashboard({ tasks, completions, active, onSelectView }: Dashboar
   const circumference = 2 * Math.PI * radius;
   const dash = circumference * stats.progress;
   const maxBar = Math.max(1, ...stats.week.map((d) => d.count));
-  const openInsights = () => onSelectView({ kind: 'insights' });
+  const interactive = onSelectView !== undefined;
+  const openInsights = () => onSelectView?.({ kind: 'insights' });
 
   return (
     <section
-      className={`dashboard ${active ? 'is-active' : ''}`}
-      aria-label="Overview. Open insights"
-      role="button"
-      tabIndex={0}
-      title="Open insights"
-      onClick={openInsights}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          openInsights();
-        }
-      }}
+      className={`dashboard ${active ? 'is-active' : ''} ${interactive ? '' : 'is-static'}`}
+      aria-label={interactive ? 'Overview. Open insights' : 'Overview'}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      title={interactive ? 'Open insights' : undefined}
+      onClick={interactive ? openInsights : undefined}
+      onKeyDown={
+        interactive
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openInsights();
+              }
+            }
+          : undefined
+      }
     >
       <div className="dashboard-top">
         <div
@@ -122,7 +128,7 @@ export function Dashboard({ tasks, completions, active, onSelectView }: Dashboar
         <div className="dashboard-text">
           <div className="dashboard-greeting">
             <span>{greeting(now)}</span>
-            <ChevronRight size={13} className="dashboard-arrow" />
+            {interactive && <ChevronRight size={13} className="dashboard-arrow" />}
           </div>
           <div className="dashboard-status">{statusLine(stats)}</div>
           <div className="muted small">
@@ -154,20 +160,26 @@ export function Dashboard({ tasks, completions, active, onSelectView }: Dashboar
           <Flame size={13} />
           {stats.streak > 0 ? `${stats.streak}-day streak` : 'No streak yet'}
         </span>
-        {stats.overdue > 0 && (
-          <button
-            type="button"
-            className="stat-chip is-overdue"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelectView({ kind: 'today' });
-            }}
-            title="Show overdue tasks"
-          >
-            <AlertCircle size={13} />
-            {stats.overdue} overdue
-          </button>
-        )}
+        {stats.overdue > 0 &&
+          (interactive ? (
+            <button
+              type="button"
+              className="stat-chip is-overdue"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectView({ kind: 'today' });
+              }}
+              title="Show overdue tasks"
+            >
+              <AlertCircle size={13} />
+              {stats.overdue} overdue
+            </button>
+          ) : (
+            <span className="stat-chip is-overdue">
+              <AlertCircle size={13} />
+              {stats.overdue} overdue
+            </span>
+          ))}
       </div>
     </section>
   );

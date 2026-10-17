@@ -7,6 +7,7 @@ import { colorHex } from '../lib/colors';
 import { toDateStr, todayStr, tomorrowStr } from '../lib/dates';
 import { isOverdue, sortByOrder, sortForAgenda } from '../lib/views';
 import { Dashboard } from './Dashboard';
+import { InsightsView } from './InsightsView';
 import { Popover } from './Popover';
 import { TaskEditor, taskToInput } from './TaskEditor';
 import { TaskItem } from './TaskItem';
@@ -21,8 +22,6 @@ interface CompactViewProps {
   /** Browser only: the desktop title bar has its own expand button. */
   showExpand: boolean;
   onExpand: () => void;
-  /** Overview pane clicked: leave mini mode and open Insights. */
-  onOpenInsights: () => void;
   onOpenTask: (id: string) => void;
   onDeleteTask: (task: Task) => void;
   onCreateLabel: (name: string) => Promise<Label>;
@@ -81,7 +80,6 @@ export function CompactView({
   completions,
   showExpand,
   onExpand,
-  onOpenInsights,
   onOpenTask,
   onDeleteTask,
   onCreateLabel,
@@ -450,9 +448,10 @@ export function CompactView({
               {panePicker}
             </div>
             {secondary.kind === 'dashboard' ? (
-              // The same overview card as the sidebar; tapping it expands the window into Insights.
+              // The sidebar's overview card (static here) followed by the full Insights page in a narrow layout.
               <div className="pane-body pane-dashboard">
-                <Dashboard tasks={tasks} completions={completions} active={false} onSelectView={onOpenInsights} />
+                <Dashboard tasks={tasks} completions={completions} active={false} />
+                <InsightsView projects={projects} embedded />
               </div>
             ) : (
               <>

@@ -18,6 +18,8 @@ import { completionsPerDay, currentStreak, longestStreak } from '../lib/stats';
 import { ProjectIcon } from './Pickers';
 
 interface InsightsViewProps {
+  /** Compact layout for a narrow host such as the mini window's lower pane: no page title, stacked header. */
+  embedded?: boolean;
   projects: Project[];
 }
 
@@ -37,7 +39,7 @@ function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
 
-export function InsightsView({ projects }: InsightsViewProps) {
+export function InsightsView({ projects, embedded = false }: InsightsViewProps) {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
   const query = useCompletions(`${year}-01-01`, `${year}-12-31`);
@@ -57,10 +59,10 @@ export function InsightsView({ projects }: InsightsViewProps) {
   const streakNow = isCurrentYear ? currentStreak(stats.perDay) : 0;
 
   return (
-    <div className="view view-insights">
+    <div className={`view view-insights ${embedded ? 'is-embedded' : ''}`}>
       <header className="view-header insights-header">
         <div>
-          <h1>Insights</h1>
+          {!embedded && <h1>Insights</h1>}
           <p className="muted">
             {stats.total === 0
               ? `No tasks completed in ${year} yet.`
@@ -74,7 +76,7 @@ export function InsightsView({ projects }: InsightsViewProps) {
               type="button"
               role="radio"
               aria-checked={y === year}
-              className={y === year ? 'is-selected' : ''}
+              className={`segmented-option ${y === year ? 'is-selected' : ''}`}
               onClick={() => setYear(y)}
             >
               {y}
