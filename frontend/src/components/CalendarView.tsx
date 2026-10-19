@@ -27,6 +27,7 @@ import {
 } from 'date-fns';
 import { ChevronLeft, ChevronRight, Plus, Repeat } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { projectedOccurrences } from '../lib/recurrence';
 import { queryKeys, useTaskMutations } from '../api/hooks';
 import type { Project, Task } from '../api/types';
 import { PRIORITY_META } from '../lib/colors';
@@ -58,25 +59,29 @@ function TaskChip({
   project,
   onOpen,
   overlay,
+  projected,
 }: {
   task: Task;
   project?: Project;
   onOpen?: () => void;
   overlay?: boolean;
+  /** A preview of a future occurrence of a recurring task: not draggable, drawn faded. */
+  projected?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, disabled: overlay });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, disabled: overlay || projected });
   const priority = PRIORITY_META[task.priority];
   const subtitle = [task.dueTime ? formatTime(task.dueTime) : null, project && !project.isInbox ? project.name : null]
     .filter(Boolean)
     .join(' · ');
+  const draggable = !overlay && !projected;
   return (
     <button
       type="button"
-      ref={overlay ? undefined : setNodeRef}
-      className={`cal-chip ${isDragging ? 'is-dragging' : ''} ${overlay ? 'is-overlay' : ''}`}
-      title={task.content}
+      ref={draggable ? setNodeRef : undefined}
+      className={`cal-chip ${isDragging ? 'is-dragging' : ''} ${overlay ? 'is-overlay' : ''} ${projected ? 'is-projected' : ''}`}
+      title={projected ? `${task.content} (repeats here after the current one is completed)` : task.content}
       onClick={onOpen}
-      {...(overlay ? {} : { ...attributes, ...listeners })}
+      {...(draggable ? { ...attributes, ...listeners } : {})}
     >
       <span className="cal-chip-dot" style={{ borderColor: priority.hex, background: task.priority < 4 ? `${priority.hex}33` : undefined }} />
       <span className="cal-chip-text">
@@ -93,6 +98,7 @@ function DayCell({
   mode,
   inMonth,
   tasks,
+  projected,
   projectById,
   onOpenTask,
   onAddTask,
@@ -101,6 +107,8 @@ function DayCell({
   mode: Mode;
   inMonth: boolean;
   tasks: Task[];
+  /** Recurring tasks that will land on this day once their current occurrence is done. */
+  projected: Task[];
   projectById: Map<string, Project>;
   onOpenTask: (id: string) => void;
   onAddTask: (dueDate: string) => void;
@@ -131,6 +139,15 @@ function DayCell({
       <div className="cal-cell-body">
         {tasks.map((task) => (
           <TaskChip key={task.id} task={task} project={projectById.get(task.projectId)} onOpen={() => onOpenTask(task.id)} />
+        ))}
+        {projected.map((task) => (
+          <TaskChip
+            key={`p-${task.id}`}
+            task={task}
+            project={projectById.get(task.projectId)}
+            onOpen={() => onOpenTask(task.id)}
+            projected
+          />
         ))}
       </div>
     </div>
@@ -195,6 +212,22 @@ export function CalendarView({ tasks, projects, onOpenTask, onAddTask }: Calenda
     for (const list of map.values()) list.sort((a, b) => compareDue(a, b) || a.priority - b.priority || a.order - b.order);
     return map;
   }, [tasks]);
+
+  // Future occurrences of recurring tasks inside the visible range, so a fortnightly release shows
+  // on every date it will land on, not only the next one.
+  const projectedByDate = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    const from = toDateStr(rangeStart);
+    const to = toDateStr(rangeEnd);
+    for (const task of tasks) {
+      for (const date of projectedOccurrences(task, from, to)) {
+        const list = map.get(date) ?? [];
+        list.push(task);
+        map.set(date, list);
+      }
+    }
+    return map;
+  }, [tasks, rangeStart, rangeEnd]);
 
   const unscheduled = useMemo(
     () => tasks.filter((t) => !t.dueDate).sort((a, b) => a.priority - b.priority || a.order - b.order),
@@ -272,7 +305,7 @@ export function CalendarView({ tasks, projects, onOpenTask, onAddTask }: Calenda
                   type="button"
                   role="radio"
                   aria-checked={mode === m}
-                  className={mode === m ? 'is-selected' : ''}
+                  className={`segmented-option ${mode === m ? 'is-selected' : ''}`}
                   onClick={() => setMode(m)}
                 >
                   {m === 'month' ? 'Month' : 'Week'}
@@ -298,6 +331,7 @@ export function CalendarView({ tasks, projects, onOpenTask, onAddTask }: Calenda
                   day={day}
                   mode={mode}
                   inMonth={mode === 'week' || isSameMonth(day, anchor)}
+                  projected={projectedByDate.get(toDateStr(day)) ?? []}
                   tasks={tasksByDate.get(toDateStr(day)) ?? []}
                   projectById={projectById}
                   onOpenTask={onOpenTask}

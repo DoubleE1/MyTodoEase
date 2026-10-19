@@ -2853,3 +2853,16 @@ ul {
 .picker-row-divider:not(:last-child) {
   border-radius: 6px;
 }
+
+/* Preview of a future occurrence of a recurring task (calendar) */
+.cal-chip.is-projected {
+  opacity: 0.55;
+  background: transparent;
+  border: 1px dashed var(--border);
+  cursor: pointer;
+}
+
+.cal-chip.is-projected:hover {
+  opacity: 0.85;
+  background: var(--bg-hover);
+}
