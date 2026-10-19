@@ -1,4 +1,4 @@
-export type Recurrence = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'yearly';
+export type Recurrence = 'none' | 'daily' | 'weekdays' | 'weekly' | 'biweekly' | 'monthly' | 'yearly';
 
 export type Priority = 1 | 2 | 3 | 4;
 

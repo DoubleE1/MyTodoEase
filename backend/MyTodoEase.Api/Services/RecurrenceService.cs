@@ -24,6 +24,7 @@ public static class RecurrenceService
         Recurrence.Daily => date.AddDays(1),
         Recurrence.Weekdays => NextWeekday(date),
         Recurrence.Weekly => date.AddDays(7),
+        Recurrence.Biweekly => date.AddDays(14),
         Recurrence.Monthly => date.AddMonths(1),
         Recurrence.Yearly => date.AddYears(1),
         _ => date.AddDays(1),

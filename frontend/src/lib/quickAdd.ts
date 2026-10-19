@@ -84,6 +84,7 @@ export function parseQuickAdd(input: string, ctx: Context): QuickAddResult {
     result.recurrence = 'weekdays';
     result.dueDate ??= format(nextWeekdayFrom(today), DATE_FORMAT);
   });
+  take(/\s(every (?:2|two|other) weeks?|biweekly|fortnightly)(?=\s)/i, () => { result.recurrence = 'biweekly'; });
   take(/\s(every week|weekly)(?=\s)/i, () => { result.recurrence = 'weekly'; });
   take(/\s(every month|monthly)(?=\s)/i, () => { result.recurrence = 'monthly'; });
   take(/\s(every year|yearly)(?=\s)/i, () => { result.recurrence = 'yearly'; });

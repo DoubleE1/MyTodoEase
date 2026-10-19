@@ -17,6 +17,7 @@ const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
   { value: 'daily', label: 'Every day' },
   { value: 'weekdays', label: 'Every weekday' },
   { value: 'weekly', label: 'Every week' },
+  { value: 'biweekly', label: 'Every 2 weeks' },
   { value: 'monthly', label: 'Every month' },
   { value: 'yearly', label: 'Every year' },
 ];

@@ -35,7 +35,7 @@ The API also works from a browser at http://localhost:5173 without Electron.
 
 - Projects with colors, favorites, and sections
 - Tasks with description, due date and time, priority P1 to P4, labels, sub-tasks
-- Recurring tasks (daily, weekdays, weekly, monthly, yearly); completing one rolls it to the next date
+- Recurring tasks (daily, weekdays, weekly, every 2 weeks, monthly, yearly; quick-add understands "every 2 weeks", "biweekly", "fortnightly"); completing one rolls it to the next date
 - Views: Inbox, Today (with overdue and "reschedule to today"), Upcoming (7 days + later), per project, per label, search, Completed
 - Calendar: month and week grids; drag a task to another day to reschedule it, drag undated tasks from the "No date" panel onto a day, "+" on a day to add a task there
 - Dashboard card in the sidebar: today's progress ring, a status line, last-7-days bars, streak, overdue shortcut

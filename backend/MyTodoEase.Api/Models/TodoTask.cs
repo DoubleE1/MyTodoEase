@@ -9,6 +9,8 @@ public enum Recurrence
     Daily,
     Weekdays,
     Weekly,
+    /// <summary>Every two weeks: sprint-cadence tasks such as a release day.</summary>
+    Biweekly,
     Monthly,
     Yearly,
 }
