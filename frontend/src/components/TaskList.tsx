@@ -18,7 +18,7 @@ import { useCalendarEvents } from '../api/hooks';
 import { planDay } from '../lib/plan';
 import { showToast } from '../lib/toast';
 import type { ExternalEvent } from '../api/types';
-import { Check, GripVertical, MoreHorizontal, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, GripVertical, MoreHorizontal, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { queryKeys, useSectionMutations, useTaskMutations } from '../api/hooks';
 import type { Label, Project, ReorderItem, Section, Task, TaskInput } from '../api/types';
@@ -57,6 +57,7 @@ interface Group {
 }
 
 const NO_SECTION_KEY = 'no-section';
+const COLLAPSED_GROUPS_KEY = 'mytodoease.collapsedGroups';
 const DROP_PREFIX = 'drop:';
 
 /** Top-level task row that can be dragged within and across section groups. */
@@ -117,6 +118,26 @@ export function TaskList({
   const [addingSection, setAddingSection] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  // Collapsed groups (sections, day headings) are remembered per group key on this device.
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(window.localStorage.getItem(COLLAPSED_GROUPS_KEY) ?? '[]') as string[]);
+    } catch {
+      return new Set();
+    }
+  });
+  const toggleCollapsed = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        window.localStorage.setItem(COLLAPSED_GROUPS_KEY, JSON.stringify([...next]));
+      } catch {
+        // Not persisted; fine.
+      }
+      return next;
+    });
 
   // Drag state: group key -> ordered top-level task ids, only while a drag is in progress.
   const [dragItems, setDragItems] = useState<Record<string, string[]> | null>(null);
@@ -511,7 +532,16 @@ export function TaskList({
                 </form>
               ) : (
                 <>
-                  <h2>{group.title}</h2>
+                  <button
+                    type="button"
+                    className="group-toggle"
+                    onClick={() => toggleCollapsed(group.key)}
+                    aria-expanded={!collapsed.has(group.key)}
+                    aria-label={`${collapsed.has(group.key) ? 'Expand' : 'Collapse'} ${group.title}`}
+                  >
+                    <ChevronDown size={16} className={`group-chevron ${collapsed.has(group.key) ? 'is-collapsed' : ''}`} />
+                    <h2>{group.title}</h2>
+                  </button>
                   <span className="muted count">{group.tasks.length || ''}</span>
                   <span className="spacer" />
                   <button
@@ -537,10 +567,22 @@ export function TaskList({
             </div>
           ) : group.title ? (
             <div className="group-header">
-              <h2>{group.title}</h2>
+              <button
+                type="button"
+                className="group-toggle"
+                onClick={() => toggleCollapsed(group.key)}
+                aria-expanded={!collapsed.has(group.key)}
+                aria-label={`${collapsed.has(group.key) ? 'Expand' : 'Collapse'} ${group.title}`}
+              >
+                <ChevronDown size={16} className={`group-chevron ${collapsed.has(group.key) ? 'is-collapsed' : ''}`} />
+                <h2>{group.title}</h2>
+              </button>
               <span className="muted count">{group.tasks.length || ''}</span>
             </div>
           ) : null}
+
+          {collapsed.has(group.key) && group.title ? null : (
+            <>
 
           {group.events && group.events.length > 0 && (
             <ul className="event-list" aria-label="Calendar events">
@@ -590,6 +632,8 @@ export function TaskList({
                 <span>Add task</span>
               </button>
             ))}
+            </>
+          )}
         </section>
       ))}
 

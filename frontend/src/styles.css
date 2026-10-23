@@ -3317,3 +3317,34 @@ ul {
   justify-content: space-between;
   gap: 12px;
 }
+
+/* Collapsible task groups (sections, day headings) */
+
+.group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.group-toggle:hover h2 {
+  color: var(--accent-text);
+}
+
+.group-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.group-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 150ms ease;
+}
+
+.group-chevron.is-collapsed {
+  transform: rotate(-90deg);
+}
