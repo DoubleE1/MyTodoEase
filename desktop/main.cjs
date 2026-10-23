@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, nativeTheme, screen, shell } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, screen, shell } = require('electron');
 const { execFile, execFileSync, spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -504,6 +504,30 @@ ipcMain.handle('shell:open-external', async (_event, url) => {
   const allowed = parsed.protocol === 'https:' && /(^|\.)google\.com$/.test(parsed.hostname);
   if (!allowed) return false;
   await shell.openExternal(parsed.toString());
+  return true;
+});
+
+// How an AI client should launch the bundled MCP server. Packaged builds run the bundled script through
+// this very executable in Node mode (ELECTRON_RUN_AS_NODE), so end users need no separate Node install;
+// a development checkout points at mcp/dist/index.js with the system node.
+ipcMain.handle('mcp:get-setup', () => {
+  const env = {};
+  if (process.env.MYTODOEASE_API_URL) env.MYTODOEASE_API_URL = process.env.MYTODOEASE_API_URL;
+  if (app.isPackaged) {
+    const script = path.join(process.resourcesPath, 'mcp', 'index.mjs');
+    return {
+      available: fs.existsSync(script),
+      command: process.execPath,
+      args: [script],
+      env: { ELECTRON_RUN_AS_NODE: '1', ...env },
+    };
+  }
+  const script = path.join(__dirname, '..', 'mcp', 'dist', 'index.js');
+  return { available: fs.existsSync(script), command: 'node', args: [script], env };
+});
+
+ipcMain.handle('clipboard:write-text', (_event, text) => {
+  clipboard.writeText(String(text));
   return true;
 });
 

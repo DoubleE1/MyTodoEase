@@ -4,15 +4,22 @@
   "description": "MCP server that lets AI assistants (Claude, Codex, ...) read and manage MyTodoEase tasks through the local API",
   "type": "module",
   "private": true,
-  "bin": { "mytodoease-mcp-server": "dist/index.js" },
-  "files": ["dist"],
+  "bin": {
+    "mytodoease-mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "bundle": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=../desktop/build/mcp/index.mjs --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\""
   },
-  "engines": { "node": ">=20.3" },
+  "engines": {
+    "node": ">=20.3"
+  },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.1",
     "zod": "^4.2.0"
@@ -21,6 +28,7 @@
     "@modelcontextprotocol/client": "^2.3.1",
     "@types/node": "^24.0.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "esbuild": "^0.28.2"
   }
 }

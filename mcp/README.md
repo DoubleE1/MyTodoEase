@@ -14,11 +14,17 @@ npm install
 npm run build:mcp
 ```
 
-The server is `mcp/dist/index.js` (stdio transport). Rebuild after pulling changes.
+The server is `mcp/dist/index.js` (stdio transport); the same command also bundles it into
+`desktop/build/mcp/index.mjs`, which the installer ships as `resources/mcp/index.mjs`. Rebuild after pulling changes.
 
 ## Connect an assistant
 
-Replace `C:\Codes\MyTodoEase` with your checkout path.
+**Shortcut:** in the app open *Settings → AI assistants* and click a copy button. "Copy setup prompt" gives you a
+prompt to paste into any AI chat (the assistant registers the server itself); the others copy the exact
+`claude mcp add` / `codex mcp add` command or the JSON block for this machine. Installed builds launch the bundled
+server through `MyTodoEase.exe` with `ELECTRON_RUN_AS_NODE=1`, so no Node.js install is needed.
+
+The manual commands below assume a development checkout; replace `C:\Codes\MyTodoEase` with your checkout path.
 
 ### Claude Code
 
@@ -90,5 +96,9 @@ MYTODOEASE_DATA_DIR=%TEMP%\mytodoease-smoke ASPNETCORE_URLS=http://localhost:508
 # in another terminal
 cd mcp && npm run build && npm run smoke
 ```
+
+To exercise the bundled copy the way an installed app launches it, set `MCP_COMMAND`, `MCP_ARGS` (JSON array) and
+`MCP_ENV` (JSON object), e.g. `MCP_COMMAND=...\release\win-unpacked\MyTodoEase.exe`,
+`MCP_ARGS=["...\\resources\\mcp\\index.mjs"]`, `MCP_ENV={"ELECTRON_RUN_AS_NODE":"1"}`.
 
 `npx @modelcontextprotocol/inspector node dist/index.js` opens an interactive explorer.

@@ -28,16 +28,37 @@
       {
         "from": "build/api",
         "to": "api",
-        "filter": ["**/*", "!*.pdb", "!appsettings.Development.json"]
+        "filter": [
+          "**/*",
+          "!*.pdb",
+          "!appsettings.Development.json"
+        ]
       },
       {
         "from": "build/appbar",
         "to": "appbar",
-        "filter": ["**/*", "!*.pdb"]
+        "filter": [
+          "**/*",
+          "!*.pdb"
+        ]
+      },
+      {
+        "from": "build/mcp",
+        "to": "mcp",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "build/icon.ico",
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },

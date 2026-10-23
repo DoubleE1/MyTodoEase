@@ -149,9 +149,17 @@ Endpoints: `GET/PUT /api/calendar/sync`, `POST /api/calendar/sync/run`, `GET /ap
 ## MCP server (Claude, Codex, other assistants)
 
 `mcp/` holds an MCP server that exposes the same API as tools, so an AI assistant can list what is due, add and
-reschedule tasks, complete them and review your week. Build it with `npm run build:mcp`, then register
-`node <checkout>\mcp\dist\index.js` with your client; [mcp/README.md](mcp/README.md) has the exact commands for
-Claude Code, Claude Desktop and Codex. It starts the bundled API itself when the desktop app is closed.
+reschedule tasks, complete them and review your week. It starts the bundled API itself when the desktop app is closed.
+
+The easiest way to connect is **Settings → AI assistants**, Figma-style: one click copies a ready-to-paste snippet
+for this machine. "Copy setup prompt" produces a natural-language prompt (with the config embedded) that you paste
+into any AI chat and the assistant registers the connection itself; the other buttons copy a `claude mcp add`
+command, a `codex mcp add` command, or the `mcpServers` JSON block for Claude Desktop, Cursor and Windsurf.
+
+The installer bundles the server as `resources/mcp/index.mjs` and runs it through `MyTodoEase.exe` in Node mode
+(`ELECTRON_RUN_AS_NODE=1`), so end users need no separate Node.js install. In a development checkout the snippets
+point at `node mcp/dist/index.js` instead (`npm run build:mcp` builds both). [mcp/README.md](mcp/README.md) has
+the manual commands and the tool list.
 
 ## Not yet
 

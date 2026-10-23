@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Download, Monitor, Moon, Pipette, Sun, Upload } from 'lucide-react';
+import { Bot, CalendarDays, Check, Database, Download, Monitor, Moon, Palette, Pipette, Sun, Upload, UserRound } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { api, ApiError } from '../api/client';
 import { ACCENT_PRESETS, DEFAULT_ACCENT } from '../lib/accent';
@@ -9,11 +9,22 @@ import type { ConfirmOptions } from './Dialogs';
 import { Modal } from './Dialogs';
 import { CalendarSyncSection } from './CalendarSyncSection';
 import { GoogleAccountSection } from './GoogleAccountSection';
+import { McpSection } from './McpSection';
 
 const THEMES: { value: ThemePreference; label: string; icon: ReactNode }[] = [
   { value: 'light', label: 'Light', icon: <Sun size={15} /> },
   { value: 'dark', label: 'Dark', icon: <Moon size={15} /> },
   { value: 'system', label: 'System', icon: <Monitor size={15} /> },
+];
+
+type SettingsTab = 'appearance' | 'account' | 'calendar' | 'ai' | 'data';
+
+const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
+  { id: 'appearance', label: 'Appearance', icon: <Palette size={16} /> },
+  { id: 'account', label: 'Account', icon: <UserRound size={16} /> },
+  { id: 'calendar', label: 'Google Calendar', icon: <CalendarDays size={16} /> },
+  { id: 'ai', label: 'AI assistants', icon: <Bot size={16} /> },
+  { id: 'data', label: 'Data', icon: <Database size={16} /> },
 ];
 
 function backupFileName() {
@@ -60,6 +71,7 @@ export function SettingsDialog({
   const googleSignedIn = useQuery({ queryKey: ['google-auth'], queryFn: api.googleAuth.status }).data?.signedIn === true;
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<'export' | 'import' | null>(null);
+  const [tab, setTab] = useState<SettingsTab>('appearance');
 
   const exportBackup = async () => {
     setBusy('export');
@@ -112,8 +124,25 @@ export function SettingsDialog({
   };
 
   return (
-    <Modal title="Settings" onClose={onClose}>
+    <Modal title="Settings" onClose={onClose} className="modal-settings">
       <div className="settings">
+        <nav className="settings-nav" role="tablist" aria-label="Settings sections">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              className={`settings-tab ${tab === t.id ? 'is-active' : ''}`}
+              onClick={() => setTab(t.id)}
+            >
+              {t.icon}
+              <span>{t.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="settings-pane" role="tabpanel">
+        {tab === 'appearance' && (
         <section className="settings-section">
           <h3>Appearance</h3>
           <div className="segmented" role="radiogroup" aria-label="Theme">
@@ -171,10 +200,13 @@ export function SettingsDialog({
             )}
           </div>
         </section>
+        )}
 
-        <GoogleAccountSection confirm={confirm} />
-        <CalendarSyncSection signedIn={googleSignedIn} />
+        {tab === 'account' && <GoogleAccountSection confirm={confirm} />}
+        {tab === 'calendar' && <CalendarSyncSection signedIn={googleSignedIn} />}
+        {tab === 'ai' && <McpSection />}
 
+        {tab === 'data' && (
         <section className="settings-section">
           <h3>Data</h3>
           <p className="settings-help">
@@ -212,6 +244,8 @@ export function SettingsDialog({
             />
           </div>
         </section>
+        )}
+        </div>
       </div>
     </Modal>
   );

@@ -16,9 +16,9 @@
     "build:appbar": "dotnet publish desktop/appbar/MyTodoEase.AppBar.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o desktop/build/appbar",
     "build:api": "dotnet publish backend/MyTodoEase.Api/MyTodoEase.Api.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o desktop/build/api",
     "build:web": "npm run build -w frontend",
-    "build": "npm run build:api && npm run build:appbar && npm run build:web && npm run build -w desktop",
+    "build": "npm run build:api && npm run build:appbar && npm run build:mcp && npm run build:web && npm run build -w desktop",
     "dist": "npm run build",
-    "build:mcp": "npm run build -w mcp",
+    "build:mcp": "npm run build -w mcp && npm run bundle -w mcp",
     "mcp": "node mcp/dist/index.js"
   },
   "devDependencies": {

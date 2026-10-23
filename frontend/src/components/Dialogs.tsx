@@ -8,11 +8,14 @@ export function Modal({
   onClose,
   title,
   wide,
+  className,
 }: {
   children: ReactNode;
   onClose: () => void;
   title?: string;
   wide?: boolean;
+  /** Extra class on the dialog box, e.g. a layout variant. */
+  className?: string;
 }) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -29,7 +32,7 @@ export function Modal({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className={`modal ${wide ? 'modal-wide' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
+      <div className={`modal ${wide ? 'modal-wide' : ''} ${className ?? ''}`} role="dialog" aria-modal="true" aria-label={title}>
         {title && (
           <div className="modal-title">
             <h2>{title}</h2>

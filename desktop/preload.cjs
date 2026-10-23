@@ -18,4 +18,6 @@ contextBridge.exposeInMainWorld('mytodoease', {
   saveTextFile: (defaultName, content) =>
     ipcRenderer.invoke('file:save-text', { defaultName: String(defaultName), content: String(content) }),
   openExternal: (url) => ipcRenderer.invoke('shell:open-external', String(url)),
+  getMcpSetup: () => ipcRenderer.invoke('mcp:get-setup'),
+  copyText: (text) => ipcRenderer.invoke('clipboard:write-text', String(text)),
 });

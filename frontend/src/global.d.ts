@@ -8,6 +8,15 @@ interface DesktopWindowState {
   canDock: boolean;
 }
 
+/** How an MCP client should launch the MyTodoEase MCP server on this machine. */
+interface DesktopMcpSetup {
+  /** False when the server script is missing (e.g. a dev checkout that has not run npm run build:mcp). */
+  available: boolean;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+}
+
 interface Window {
   mytodoease?: {
     platform: string;
@@ -23,5 +32,8 @@ interface Window {
     saveTextFile?: (defaultName: string, content: string) => Promise<string | null>;
     /** Open an https link in the system browser; resolves false when the host refused it. */
     openExternal?: (url: string) => Promise<boolean>;
+    getMcpSetup?: () => Promise<DesktopMcpSetup>;
+    /** Put text on the system clipboard. */
+    copyText?: (text: string) => Promise<boolean>;
   };
 }

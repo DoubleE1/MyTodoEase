@@ -8,12 +8,17 @@ import { Client } from "@modelcontextprotocol/client";
 import { getDefaultEnvironment, StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 
 const apiUrl = process.env.MYTODOEASE_API_URL ?? "http://localhost:5081";
+// MCP_COMMAND / MCP_ARGS (JSON array) point the test at another launcher, e.g. the bundled copy
+// run through the packaged Electron binary with ELECTRON_RUN_AS_NODE=1.
+const command = process.env.MCP_COMMAND ?? "node";
+const args: string[] = process.env.MCP_ARGS ? JSON.parse(process.env.MCP_ARGS) : ["dist/index.js"];
+const extraEnv: Record<string, string> = process.env.MCP_ENV ? JSON.parse(process.env.MCP_ENV) : {};
 const client = new Client({ name: "smoke-test", version: "1.0.0" });
 await client.connect(
   new StdioClientTransport({
-    command: "node",
-    args: ["dist/index.js"],
-    env: { ...getDefaultEnvironment(), MYTODOEASE_API_URL: apiUrl }
+    command,
+    args,
+    env: { ...getDefaultEnvironment(), ...extraEnv, MYTODOEASE_API_URL: apiUrl }
   })
 );
 

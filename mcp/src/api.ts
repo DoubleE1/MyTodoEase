@@ -87,6 +87,8 @@ function apiExecutableCandidates(): string[] {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const candidates = [
     process.env.MYTODOEASE_API_EXE,
+    // Bundled copy inside the installed app: resources/mcp/index.mjs next to resources/api/.
+    path.join(here, "..", "api", "MyTodoEase.Api.exe"),
     path.join(process.env.ProgramFiles ?? "C:\\Program Files", "MyTodoEase", "resources", "api", "MyTodoEase.Api.exe"),
     path.join(process.env.LOCALAPPDATA ?? "", "Programs", "MyTodoEase", "resources", "api", "MyTodoEase.Api.exe"),
     path.join(here, "..", "..", "desktop", "build", "api", "MyTodoEase.Api.exe")
