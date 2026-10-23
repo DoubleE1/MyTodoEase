@@ -35,7 +35,7 @@ import type { View } from './lib/views';
 type Dialog =
   | { kind: 'project'; project?: Project }
   | { kind: 'label'; label?: Label }
-  | { kind: 'quick-add'; dueDate?: string }
+  | { kind: 'quick-add'; dueDate?: string; dueTime?: string }
   | { kind: 'settings' }
   | null;
 
@@ -248,6 +248,7 @@ export default function App() {
     projectId: view.kind === 'project' ? view.projectId : inbox?.id,
     dueDate:
       dialog?.kind === 'quick-add' && dialog.dueDate ? dialog.dueDate : view.kind === 'today' ? todayStr() : undefined,
+    dueTime: dialog?.kind === 'quick-add' ? dialog.dueTime : undefined,
     labelIds: view.kind === 'label' ? [view.labelId] : undefined,
   };
 
@@ -433,7 +434,7 @@ export default function App() {
             tasks={tasks.data ?? []}
             projects={projects.data ?? []}
             onOpenTask={setOpenTaskId}
-            onAddTask={(dueDate) => setDialog({ kind: 'quick-add', dueDate })}
+            onAddTask={(dueDate, dueTime) => setDialog({ kind: 'quick-add', dueDate, dueTime })}
           />
         ) : (
           <TaskList

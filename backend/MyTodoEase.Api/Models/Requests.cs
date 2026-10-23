@@ -16,6 +16,7 @@ public sealed record TaskWriteRequest(
     int? Priority,
     string? DueDate,
     string? DueTime,
+    int? DurationMinutes,
     Recurrence? Recurrence,
     int? Order);
 

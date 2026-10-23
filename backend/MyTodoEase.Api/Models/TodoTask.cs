@@ -34,6 +34,8 @@ public sealed class TodoTask
     public int Priority { get; set; } = 4;
     public string? DueDate { get; set; }
     public string? DueTime { get; set; }
+    /// <summary>How long the task takes when placed on the timeline; null means the default 30 minutes.</summary>
+    public int? DurationMinutes { get; set; }
     public Recurrence Recurrence { get; set; } = Recurrence.None;
     public bool IsCompleted { get; set; }
     public DateTime? CompletedAt { get; set; }

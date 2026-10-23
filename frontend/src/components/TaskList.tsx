@@ -15,8 +15,10 @@ import { CSS } from '@dnd-kit/utilities';
 import { useQueryClient } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
 import { useCalendarEvents } from '../api/hooks';
+import { planDay } from '../lib/plan';
+import { showToast } from '../lib/toast';
 import type { ExternalEvent } from '../api/types';
-import { Check, GripVertical, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Check, GripVertical, MoreHorizontal, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { queryKeys, useSectionMutations, useTaskMutations } from '../api/hooks';
 import type { Label, Project, ReorderItem, Section, Task, TaskInput } from '../api/types';
@@ -141,6 +143,23 @@ export function TaskList({
   const externalEvents = useCalendarEvents(today, weekEnd, view.kind === 'today' || view.kind === 'upcoming');
   const eventsFor = (day: string): ExternalEvent[] =>
     (externalEvents.data ?? []).filter((e) => e.date <= day && day <= e.endDate);
+
+  // "Plan my day": slot today's untimed and overdue tasks into the free gaps between meetings.
+  const [planning, setPlanning] = useState(false);
+  const planToday = async () => {
+    setPlanning(true);
+    try {
+      const { placed, unplaced } = planDay({ date: today, tasks, events: eventsFor(today) });
+      for (const { task, dueTime } of placed) {
+        await taskMut.update.mutateAsync({ id: task.id, input: { ...taskToInput(task), dueDate: today, dueTime } });
+      }
+      if (placed.length === 0 && unplaced.length === 0) showToast('Nothing left to plan: every task today already has a time.');
+      else if (unplaced.length === 0) showToast(`Planned ${placed.length} task${placed.length === 1 ? '' : 's'} into today's free time.`);
+      else showToast(`Planned ${placed.length}; ${unplaced.length} did not fit before 6 pm.`);
+    } finally {
+      setPlanning(false);
+    }
+  };
 
   const buildGroups = (): Group[] => {
     switch (view.kind) {
@@ -429,7 +448,21 @@ export function TaskList({
   const content = (
     <div className="view">
       <header className="view-header">
-        <h1>{title}</h1>
+        <div className="view-header-row">
+          <h1>{title}</h1>
+          {view.kind === 'today' && (
+            <button
+              type="button"
+              className="btn cal-plan-btn"
+              onClick={() => void planToday()}
+              disabled={planning}
+              title="Give today's untimed and overdue tasks a time slot in the gaps between your meetings"
+            >
+              <Sparkles size={14} />
+              <span>{planning ? 'Planning…' : 'Plan my day'}</span>
+            </button>
+          )}
+        </div>
         {subtitle && <p className="muted">{subtitle}</p>}
         {view.kind === 'search' && <p className="muted">{totalShown} result{totalShown === 1 ? '' : 's'}</p>}
       </header>

@@ -22,6 +22,7 @@ const dueDateField = z
   .string()
   .describe("Due date: yyyy-MM-dd, 'today' or 'tomorrow'. Use an empty string to clear it.");
 const dueTimeField = z.string().regex(/^\d{2}:\d{2}$/).describe("Due time HH:mm (24h); only meaningful with a due date");
+const durationField = z.number().int().min(5).max(1440).describe("How long the task takes in minutes (default 30); used for time-blocking and the calendar mirror");
 const priorityField = z.number().int().min(1).max(4).describe("1 = highest (P1) … 4 = none (P4, default)");
 const recurrenceField = z.enum(RECURRENCES).describe("Repeat rule; completing a recurring task rolls it to the next date instead of closing it");
 const labelsField = z.array(z.string()).describe("Label names (with or without @) or ids; unknown names are created");
@@ -209,6 +210,7 @@ Examples:
         priority: priorityField.optional(),
         due_date: dueDateField.optional(),
         due_time: dueTimeField.optional(),
+        duration_minutes: durationField.optional(),
         recurrence: recurrenceField.optional(),
         response_format: ResponseFormat
       }),
@@ -229,6 +231,7 @@ Examples:
         priority: (args.priority as Priority | undefined) ?? 4,
         dueDate: normalizeDate(args.due_date) ?? null,
         dueTime: args.due_time ?? null,
+        durationMinutes: args.duration_minutes ?? null,
         recurrence: (args.recurrence as Recurrence | undefined) ?? "none"
       };
       const task = await api<Task>("POST", "/api/tasks", input, signal);
@@ -254,6 +257,7 @@ Pass due_date="" to remove the date, section="" to move the task to the project 
         priority: priorityField.optional(),
         due_date: dueDateField.optional(),
         due_time: dueTimeField.optional().describe("Due time HH:mm; empty string clears it"),
+        duration_minutes: durationField.optional(),
         recurrence: recurrenceField.optional(),
         response_format: ResponseFormat
       }),
@@ -281,6 +285,7 @@ Pass due_date="" to remove the date, section="" to move the task to the project 
       if (args.priority !== undefined) input.priority = args.priority as Priority;
       if (args.due_date !== undefined) input.dueDate = normalizeDate(args.due_date) ?? null;
       if (args.due_time !== undefined) input.dueTime = args.due_time === "" ? null : args.due_time;
+      if (args.duration_minutes !== undefined) input.durationMinutes = args.duration_minutes;
       if (args.recurrence !== undefined) input.recurrence = args.recurrence as Recurrence;
       const task = await api<Task>("PUT", `/api/tasks/${encodeURIComponent(args.task_id)}`, input, signal);
       return taskResult(task, ws, args.response_format, "Updated:");

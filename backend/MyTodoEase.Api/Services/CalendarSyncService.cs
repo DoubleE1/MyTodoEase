@@ -295,7 +295,7 @@ public sealed class CalendarSyncService : BackgroundService
             var start = due.ToDateTime(t, DateTimeKind.Unspecified);
             var zone = LocalIanaTimeZone();
             ev.Start = new GoogleCalendarClient.EventTime { DateTime = start.ToString("yyyy-MM-dd'T'HH:mm:ss"), TimeZone = zone };
-            ev.End = new GoogleCalendarClient.EventTime { DateTime = start.AddMinutes(30).ToString("yyyy-MM-dd'T'HH:mm:ss"), TimeZone = zone };
+            ev.End = new GoogleCalendarClient.EventTime { DateTime = start.AddMinutes(task.DurationMinutes ?? 30).ToString("yyyy-MM-dd'T'HH:mm:ss"), TimeZone = zone };
         }
         else
         {

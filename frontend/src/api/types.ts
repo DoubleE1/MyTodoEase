@@ -41,6 +41,8 @@ export interface Task {
   dueDate: string | null;
   /** HH:mm, only meaningful when dueDate is set. */
   dueTime: string | null;
+  /** Minutes the task takes when placed on the timeline; null = default 30. */
+  durationMinutes: number | null;
   recurrence: Recurrence;
   isCompleted: boolean;
   completedAt: string | null;
@@ -59,6 +61,7 @@ export interface TaskInput {
   priority?: Priority;
   dueDate?: string | null;
   dueTime?: string | null;
+  durationMinutes?: number | null;
   recurrence?: Recurrence;
   order?: number;
 }

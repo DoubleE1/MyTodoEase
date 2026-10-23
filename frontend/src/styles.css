@@ -3076,3 +3076,244 @@ ul {
 .is-spinning {
   animation: spin 1s linear infinite;
 }
+
+/* Week timeline (time-blocking) */
+
+.tl-wrap {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: auto;
+  max-height: calc(100vh - 230px);
+  background: var(--bg);
+  position: relative;
+}
+
+.tl-head,
+.tl-allday,
+.tl-body {
+  display: grid;
+  grid-template-columns: 56px repeat(7, minmax(120px, 1fr));
+}
+
+.tl-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.tl-head-cell {
+  padding: 8px 8px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  border-left: 1px solid var(--border);
+}
+
+.tl-head-cell.is-today {
+  color: var(--accent-text);
+}
+
+.tl-head-cell .tl-day-number {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.tl-head-cell.is-today .tl-day-number {
+  background: var(--accent);
+  color: #fff;
+}
+
+.tl-allday {
+  position: sticky;
+  top: 33px;
+  z-index: 3;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.tl-gutter {
+  position: relative;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  padding-right: 6px;
+}
+
+.tl-allday .tl-gutter {
+  padding-top: 6px;
+}
+
+.tl-allday-cell {
+  min-height: 32px;
+  padding: 4px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tl-allday-cell.is-over,
+.tl-col.is-over {
+  background: var(--bg-active);
+}
+
+.tl-col {
+  position: relative;
+  border-left: 1px solid var(--border);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--hour-px) - 1px),
+    var(--border) calc(var(--hour-px) - 1px),
+    var(--border) var(--hour-px)
+  );
+  cursor: copy;
+}
+
+.tl-col.is-today {
+  background-color: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+
+.tl-col.is-past {
+  cursor: default;
+}
+
+.tl-hour {
+  position: absolute;
+  right: 6px;
+  transform: translateY(-50%);
+}
+
+.tl-block {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: left;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg));
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  cursor: grab;
+  z-index: 1;
+}
+
+.tl-block:hover {
+  z-index: 2;
+  border-color: var(--accent);
+}
+
+.tl-block.is-dragging {
+  opacity: 0.35;
+}
+
+.tl-block.is-event {
+  background: color-mix(in srgb, var(--event-color, var(--text-muted)) 14%, var(--bg));
+  border-color: color-mix(in srgb, var(--event-color, var(--text-muted)) 40%, var(--border));
+  border-left: 3px solid var(--event-color, var(--text-muted));
+  cursor: pointer;
+}
+
+.tl-block.is-overlay {
+  box-shadow: var(--shadow);
+  cursor: grabbing;
+  width: 160px;
+  position: static;
+}
+
+.tl-block-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tl-block-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tl-block-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid;
+  margin-right: 5px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.tl-resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 7px;
+  cursor: ns-resize;
+}
+
+.tl-resize::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 24px;
+  height: 2px;
+  margin-left: -12px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 50%, transparent);
+  opacity: 0;
+}
+
+.tl-block:hover .tl-resize::after {
+  opacity: 1;
+}
+
+.tl-now {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px solid var(--tone-overdue);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.tl-now::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tone-overdue);
+}
+
+.cal-plan-btn {
+  gap: 6px;
+}
+
+.view-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}

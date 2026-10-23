@@ -32,6 +32,7 @@ export function taskToInput(task: Task): TaskInput {
     priority: task.priority,
     dueDate: task.dueDate,
     dueTime: task.dueTime,
+    durationMinutes: task.durationMinutes,
     recurrence: task.recurrence,
     order: task.order,
   };
@@ -117,6 +118,7 @@ export function TaskEditor({
       priority: effective.priority,
       dueDate: effective.dueDate,
       dueTime: effective.dueDate ? effective.dueTime : null,
+      durationMinutes: base.durationMinutes ?? null,
       recurrence: effective.dueDate ? effective.recurrence : 'none',
       order: task?.order,
     } as const;

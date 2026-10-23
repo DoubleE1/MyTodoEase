@@ -180,6 +180,7 @@ export interface Task {
   priority: Priority;
   dueDate: string | null;
   dueTime: string | null;
+  durationMinutes: number | null;
   recurrence: Recurrence;
   isCompleted: boolean;
   completedAt: string | null;
@@ -198,6 +199,7 @@ export interface TaskInput {
   priority?: Priority;
   dueDate?: string | null;
   dueTime?: string | null;
+  durationMinutes?: number | null;
   recurrence?: Recurrence;
   order?: number;
 }
@@ -224,6 +226,7 @@ export const taskToInput = (task: Task): TaskInput => ({
   priority: task.priority,
   dueDate: task.dueDate,
   dueTime: task.dueTime,
+  durationMinutes: task.durationMinutes,
   recurrence: task.recurrence,
   order: task.order
 });
