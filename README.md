@@ -104,6 +104,13 @@ there), waits for it to become healthy, and stops it on exit. The database is an
 needs nothing else installed. If the API cannot start, the app shows a dialog saying so and keeps retrying in the
 window. Override the API address with the `MYTODOEASE_API_URL` environment variable.
 
+## MCP server (Claude, Codex, other assistants)
+
+`mcp/` holds an MCP server that exposes the same API as tools, so an AI assistant can list what is due, add and
+reschedule tasks, complete them and review your week. Build it with `npm run build:mcp`, then register
+`node <checkout>\mcp\dist\index.js` with your client; [mcp/README.md](mcp/README.md) has the exact commands for
+Claude Code, Claude Desktop and Codex. It starts the bundled API itself when the desktop app is closed.
+
 ## Not yet
 
 - Authentication / multi-user (single local user for now; the API has no auth and CORS is wide open)

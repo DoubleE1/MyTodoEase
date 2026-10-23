@@ -5,7 +5,8 @@
   "description": "MyTodoEase - a Todoist-style todo app: ASP.NET Core + embedded LiteDB backend, React front end, Electron desktop shell.",
   "workspaces": [
     "frontend",
-    "desktop"
+    "desktop",
+    "mcp"
   ],
   "scripts": {
     "api": "dotnet run --project backend/MyTodoEase.Api",
@@ -16,7 +17,9 @@
     "build:api": "dotnet publish backend/MyTodoEase.Api/MyTodoEase.Api.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o desktop/build/api",
     "build:web": "npm run build -w frontend",
     "build": "npm run build:api && npm run build:appbar && npm run build:web && npm run build -w desktop",
-    "dist": "npm run build"
+    "dist": "npm run build",
+    "build:mcp": "npm run build -w mcp",
+    "mcp": "node mcp/dist/index.js"
   },
   "devDependencies": {
     "concurrently": "^9.2.5"

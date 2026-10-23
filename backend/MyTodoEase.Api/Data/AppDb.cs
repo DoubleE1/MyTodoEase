@@ -26,6 +26,9 @@ public sealed partial class AppDb : IDisposable
         FilePath = options.Value.ResolvePath();
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
 
+        // LiteDB turns "" into null when writing by default; clients expect "" for empty descriptions.
+        BsonMapper.Global.EmptyStringToNull = false;
+
         _db = new LiteDatabase(new ConnectionString
         {
             Filename = FilePath,
