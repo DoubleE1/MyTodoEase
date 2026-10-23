@@ -17,20 +17,13 @@ import type {
   TaskInput,
 } from './types';
 
+import { BACKEND } from './backend';
+import { ApiError } from './errors';
+import { firestoreApi } from './firestoreClient';
+
+export { ApiError } from './errors';
+
 export const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:5080';
-
-export class ApiError extends Error {
-  status: number;
-  /** Field -> messages, when the server returned a validation problem. */
-  errors: Record<string, string[]>;
-
-  constructor(status: number, message: string, errors: Record<string, string[]> = {}) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-    this.errors = errors;
-  }
-}
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
@@ -68,7 +61,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 const json = (body: unknown): RequestInit => ({ body: JSON.stringify(body) });
 
-export const api = {
+const restApi = {
   health: () => request<{ status: string; storage?: string }>('/api/health'),
 
   googleAuth: {
@@ -137,3 +130,9 @@ export const api = {
       request<CompletionsResponse>(`/api/stats/completions?from=${from}&to=${to}`),
   },
 };
+
+/** The data API surface; the REST client defines it and the Firestore client must match it. */
+export type Api = typeof restApi;
+
+/** Local ASP.NET API in the desktop app and dev server; Firestore in the hosted web app. */
+export const api: Api = BACKEND === 'firebase' ? firestoreApi : restApi;

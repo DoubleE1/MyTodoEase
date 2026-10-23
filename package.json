@@ -16,12 +16,17 @@
     "build:appbar": "dotnet publish desktop/appbar/MyTodoEase.AppBar.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o desktop/build/appbar",
     "build:api": "dotnet publish backend/MyTodoEase.Api/MyTodoEase.Api.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o desktop/build/api",
     "build:web": "npm run build -w frontend",
+    "dev:site": "npm run dev:site -w frontend",
+    "build:site": "npm run build:site -w frontend",
+    "deploy:site": "npm run build:site && firebase deploy --only hosting,firestore",
     "build": "npm run build:api && npm run build:appbar && npm run build:mcp && npm run build:web && npm run build -w desktop",
     "dist": "npm run build",
     "build:mcp": "npm run build -w mcp && npm run bundle -w mcp",
-    "mcp": "node mcp/dist/index.js"
+    "mcp": "node mcp/dist/index.js",
+    "emulators": "firebase emulators:start --only auth,firestore --project demo-mytodoease"
   },
   "devDependencies": {
-    "concurrently": "^9.2.5"
+    "concurrently": "^9.2.5",
+    "firebase-tools": "^15.34.1"
   }
 }

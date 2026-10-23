@@ -146,6 +146,33 @@ Settings → Google Calendar (after signing in) asks for calendar permission inc
 Endpoints: `GET/PUT /api/calendar/sync`, `POST /api/calendar/sync/run`, `GET /api/calendar/calendars`,
 `GET /api/calendar/events?from&to` (local dates, at most 120 days).
 
+## Web app (Firebase Hosting + Firestore)
+
+The same React code also runs as a hosted web app where data lives in Firestore under the user's Google account,
+so tasks follow the user to any PC or phone browser. `vite build --mode web` picks the Firebase backend
+(`frontend/.env.web`, `VITE_BACKEND=firebase`); the desktop app and `npm run dev` keep using the local API.
+
+- **Sign-in:** Firebase Auth with Google (popup). Everything is stored under `users/{uid}/…` and
+  `firestore.rules` lets a user read and write only their own tree.
+- **Data client:** `frontend/src/api/firestoreClient.ts` implements the same `Api` surface as the REST client,
+  including the API's rules (validation, cascades, recurring roll-forward, backup import), and ids keep the 24-hex
+  shape, so a backup exported on the desktop imports on the web and back.
+- **Live updates:** `frontend/src/api/realtime.ts` feeds Firestore snapshots into the query cache; the SDK's
+  persistent cache keeps the app usable offline.
+- **Desktop-only for now:** Google Calendar sync and the MCP copy buttons; Settings says so on the web.
+
+Setup once: create a Firebase project (Authentication → Google enabled, Firestore in production mode), register a
+web app, copy its config into `frontend/.env.web` (see `.env.web.example`), put the project id in `.firebaserc`,
+then:
+
+```bash
+npx firebase login
+npm run deploy:site      # builds frontend/dist-web, deploys hosting + Firestore rules
+```
+
+`npm run dev:site` runs the web build locally on port 5174; `npm run emulators` starts the Auth and Firestore
+emulators (needs Java 21+) and `frontend/.env.web.local` with `VITE_FIREBASE_EMULATOR=1` points the app at them.
+
 ## MCP server (Claude, Codex, other assistants)
 
 `mcp/` holds an MCP server that exposes the same API as tools, so an AI assistant can list what is due, add and

@@ -1,16 +1,20 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// base './' so the built index.html works when Electron loads it from disk (file://).
-export default defineConfig({
-  plugins: [react()],
-  base: './',
-  build: {
-    outDir: '../desktop/renderer',
-    emptyOutDir: true,
-  },
-  server: {
-    port: 5173,
-    strictPort: true,
-  },
+// Default build: the Electron renderer, with base './' so index.html works from disk (file://).
+// `--mode web` (loads .env.web, VITE_BACKEND=firebase): the hosted web app, served from Firebase Hosting.
+export default defineConfig(({ mode }) => {
+  const web = mode === 'web';
+  return {
+    plugins: [react()],
+    base: web ? '/' : './',
+    build: {
+      outDir: web ? 'dist-web' : '../desktop/renderer',
+      emptyOutDir: true,
+    },
+    server: {
+      port: web ? 5174 : 5173,
+      strictPort: true,
+    },
+  };
 });

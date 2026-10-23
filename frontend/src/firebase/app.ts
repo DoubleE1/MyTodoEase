@@ -1,0 +1,58 @@
+/**
+ * Firebase bootstrap for the hosted web app. Initialised lazily so the desktop build, which never calls
+ * it, carries no Firebase state. Config comes from VITE_FIREBASE_* (frontend/.env.web); these values are
+ * public identifiers, not secrets: access is enforced by Firestore rules and Firebase Auth.
+ */
+import { initializeApp, type FirebaseApp } from 'firebase/app';
+import { connectAuthEmulator, getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
+import {
+  connectFirestoreEmulator,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore,
+} from 'firebase/firestore';
+
+interface FirebaseServices {
+  app: FirebaseApp;
+  auth: Auth;
+  db: Firestore;
+  projectId: string;
+}
+
+let services: FirebaseServices | undefined;
+
+export function firebase(): FirebaseServices {
+  if (services) return services;
+  const env = import.meta.env;
+  const config = {
+    apiKey: env.VITE_FIREBASE_API_KEY,
+    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: env.VITE_FIREBASE_APP_ID,
+  };
+  if (!config.apiKey || !config.projectId || !config.appId) {
+    throw new Error('Firebase is not configured. Copy frontend/.env.web.example to frontend/.env.web and fill in your web app config.');
+  }
+  const app = initializeApp(config);
+  // Offline cache shared across tabs: the app keeps working without a connection and syncs when back.
+  const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+  });
+  const auth = getAuth(app);
+  if (env.VITE_FIREBASE_EMULATOR === '1') {
+    // Local Firebase emulators (npm run emulators); never set in a production build.
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  }
+  services = { app, auth, db, projectId: config.projectId };
+  return services;
+}
+
+export function googleProvider(): GoogleAuthProvider {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  return provider;
+}

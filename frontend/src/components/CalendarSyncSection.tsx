@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarSync, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { IS_WEB_APP } from '../api/backend';
 import { api } from '../api/client';
 import { GOOGLE_CALENDAR_SCOPE, queryKeys, useCalendarSync } from '../api/hooks';
 import { showToast } from '../lib/toast';
@@ -19,6 +20,24 @@ function formatWhen(iso: string | null): string {
 
 /** Settings section: grant Google Calendar access, mirror tasks to Google, choose calendars to show. */
 export function CalendarSyncSection({ signedIn }: { signedIn: boolean }) {
+  // Build-time constant, so the early return never changes between renders.
+  if (IS_WEB_APP) return <CalendarSyncUnavailable />;
+  return <CalendarSyncSectionDesktop signedIn={signedIn} />;
+}
+
+function CalendarSyncUnavailable() {
+  return (
+    <section className="settings-section">
+      <h3>Google Calendar</h3>
+      <p className="settings-help">
+        Two-way Google Calendar sync runs in the Windows desktop app for now. Tasks you add here appear there as soon
+        as you sign in with the same Google account and restore a backup.
+      </p>
+    </section>
+  );
+}
+
+function CalendarSyncSectionDesktop({ signedIn }: { signedIn: boolean }) {
   const queryClient = useQueryClient();
   const sync = useCalendarSync();
   const [waiting, setWaiting] = useState(false);

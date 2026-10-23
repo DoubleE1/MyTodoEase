@@ -2,6 +2,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
+import { IS_WEB_APP } from './api/backend';
+import { AuthGate } from './components/SignIn';
 import './styles.css';
 
 const queryClient = new QueryClient({
@@ -17,7 +19,13 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      {IS_WEB_APP ? (
+        <AuthGate>
+          <App />
+        </AuthGate>
+      ) : (
+        <App />
+      )}
     </QueryClientProvider>
   </StrictMode>,
 );
