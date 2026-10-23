@@ -35,3 +35,6 @@ desktop/build/appbar/
 desktop/build/api/
 
 desktop/renderer/
+
+# Google OAuth client downloaded from Google Cloud; shipped with the build, kept out of git
+backend/MyTodoEase.Api/google-client.json

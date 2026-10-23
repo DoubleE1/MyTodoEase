@@ -17,4 +17,5 @@ contextBridge.exposeInMainWorld('mytodoease', {
   setTitleBarTheme: (theme) => ipcRenderer.invoke('window:set-title-bar-theme', theme === 'dark' ? 'dark' : 'light'),
   saveTextFile: (defaultName, content) =>
     ipcRenderer.invoke('file:save-text', { defaultName: String(defaultName), content: String(content) }),
+  openExternal: (url) => ipcRenderer.invoke('shell:open-external', String(url)),
 });

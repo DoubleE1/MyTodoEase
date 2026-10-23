@@ -116,6 +116,23 @@ export interface BackupDocument {
   completions: unknown[];
 }
 
+export interface GoogleAccount {
+  email: string;
+  name: string;
+  picture: string | null;
+  scopes: string[];
+  connectedAt: string;
+}
+
+export interface GoogleAuthStatus {
+  configured: boolean;
+  clientId: string | null;
+  signedIn: boolean;
+  account: GoogleAccount | null;
+  /** A sign-in was started and Google has not called back yet. */
+  pending: boolean;
+}
+
 export interface ImportResult {
   projects: number;
   sections: number;

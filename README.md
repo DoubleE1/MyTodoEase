@@ -104,6 +104,29 @@ there), waits for it to become healthy, and stops it on exit. The database is an
 needs nothing else installed. If the API cannot start, the app shows a dialog saying so and keeps retrying in the
 window. Override the API address with the `MYTODOEASE_API_URL` environment variable.
 
+## Google sign-in
+
+Settings → Account lets you connect a Google account (identity only for now; upcoming email reminders and
+email-to-task will ask for Gmail permissions incrementally). The app uses the OAuth 2.0 authorization-code flow with
+PKCE and a loopback redirect into the local API; the refresh token and client secret are stored in
+`%LOCALAPPDATA%\MyTodoEase\google-auth.json`, encrypted with Windows DPAPI for your user.
+
+The app ships with its OAuth client, so users just click **Sign in with Google**. To build with your own client (free):
+
+1. Open [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials) and
+   create a project if you have none.
+2. Configure the OAuth consent screen (External, app name "MyTodoEase", your email). While the app is in **Testing**,
+   add the Google addresses that may sign in under Test users.
+3. Create credentials → OAuth client ID → Application type **Desktop app** → Download JSON.
+4. Save that file as `backend/MyTodoEase.Api/google-client.json` (git-ignored). The build copies it next to the API,
+   which reads `installed.client_id` / `installed.client_secret` from it.
+
+Alternatives: `MYTODOEASE_GOOGLE_CLIENT_ID` / `MYTODOEASE_GOOGLE_CLIENT_SECRET` environment variables, or
+`Google:ClientId` / `Google:ClientSecret` in `appsettings.json`. Without any client the Account section shows a form to
+paste one, stored encrypted on that PC. Google treats a desktop client's secret as non-confidential.
+Endpoints: `GET /api/auth/google` (status), `PUT /api/auth/google/config`, `POST /api/auth/google/start` (consent
+URL), `GET /api/auth/google/callback`, `POST /api/auth/google/cancel`, `DELETE /api/auth/google` (revoke + forget).
+
 ## MCP server (Claude, Codex, other assistants)
 
 `mcp/` holds an MCP server that exposes the same API as tools, so an AI assistant can list what is due, add and

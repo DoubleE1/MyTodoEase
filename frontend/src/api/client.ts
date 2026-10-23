@@ -1,6 +1,7 @@
 import type {
   BackupDocument,
   CompletionsResponse,
+  GoogleAuthStatus,
   ImportResult,
   Label,
   LabelInput,
@@ -66,6 +67,16 @@ const json = (body: unknown): RequestInit => ({ body: JSON.stringify(body) });
 
 export const api = {
   health: () => request<{ status: string; storage?: string }>('/api/health'),
+
+  googleAuth: {
+    status: () => request<GoogleAuthStatus>('/api/auth/google'),
+    configure: (clientId: string, clientSecret: string) =>
+      request<GoogleAuthStatus>('/api/auth/google/config', { method: 'PUT', ...json({ clientId, clientSecret }) }),
+    /** Returns the consent URL to open in a browser. */
+    start: (scopes?: string[]) => request<{ url: string }>('/api/auth/google/start', { method: 'POST', ...json({ scopes }) }),
+    cancel: () => request<void>('/api/auth/google/cancel', { method: 'POST' }),
+    signOut: () => request<GoogleAuthStatus>('/api/auth/google', { method: 'DELETE' }),
+  },
 
   backup: {
     export: () => request<BackupDocument>('/api/backup'),

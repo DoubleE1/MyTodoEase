@@ -2866,3 +2866,85 @@ ul {
   opacity: 0.85;
   background: var(--bg-hover);
 }
+
+/* Google account (Settings) */
+
+.account-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-sidebar);
+}
+
+.account-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.account-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-gradient);
+  color: #fff;
+  font-weight: 600;
+}
+
+.account-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.account-text strong,
+.account-text span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.google-btn {
+  gap: 8px;
+}
+
+.settings-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-setup a {
+  color: var(--accent-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.settings-input {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.settings-input input {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.settings-input input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

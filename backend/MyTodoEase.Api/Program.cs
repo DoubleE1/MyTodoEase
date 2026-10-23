@@ -7,6 +7,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
 builder.Services.AddSingleton<AppDb>();
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<MyTodoEase.Api.Services.GoogleAuthService>();
 builder.Services.AddOpenApi();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -45,5 +47,6 @@ app.MapLabels();
 app.MapTasks();
 app.MapStats();
 app.MapBackup();
+app.MapAuth();
 
 app.Run();

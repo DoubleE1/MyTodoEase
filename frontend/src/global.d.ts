@@ -21,5 +21,7 @@ interface Window {
     setTitleBarTheme: (theme: 'light' | 'dark') => Promise<void>;
     /** Native save dialog; resolves to the chosen path, or null when cancelled. */
     saveTextFile?: (defaultName: string, content: string) => Promise<string | null>;
+    /** Open an https link in the system browser; resolves false when the host refused it. */
+    openExternal?: (url: string) => Promise<boolean>;
   };
 }

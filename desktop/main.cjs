@@ -493,6 +493,20 @@ app.on('will-quit', (event) => {
   });
 });
 
+// Open a link in the system browser (Google sign-in). Only https links to known hosts are allowed.
+ipcMain.handle('shell:open-external', async (_event, url) => {
+  let parsed;
+  try {
+    parsed = new URL(String(url));
+  } catch {
+    return false;
+  }
+  const allowed = parsed.protocol === 'https:' && /(^|\.)google\.com$/.test(parsed.hostname);
+  if (!allowed) return false;
+  await shell.openExternal(parsed.toString());
+  return true;
+});
+
 // Save text (a backup) where the user chooses. Returns the path, or null when they cancel.
 ipcMain.handle('file:save-text', async (_event, { defaultName, content }) => {
   const { canceled, filePath } = await dialog.showSaveDialog(win ?? undefined, {

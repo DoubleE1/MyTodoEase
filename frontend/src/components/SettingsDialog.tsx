@@ -7,6 +7,7 @@ import type { ThemePreference } from '../lib/theme';
 import { showToast } from '../lib/toast';
 import type { ConfirmOptions } from './Dialogs';
 import { Modal } from './Dialogs';
+import { GoogleAccountSection } from './GoogleAccountSection';
 
 const THEMES: { value: ThemePreference; label: string; icon: ReactNode }[] = [
   { value: 'light', label: 'Light', icon: <Sun size={15} /> },
@@ -168,6 +169,8 @@ export function SettingsDialog({
             )}
           </div>
         </section>
+
+        <GoogleAccountSection confirm={confirm} />
 
         <section className="settings-section">
           <h3>Data</h3>
