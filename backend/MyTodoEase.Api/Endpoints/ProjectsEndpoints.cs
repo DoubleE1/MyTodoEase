@@ -53,7 +53,7 @@ public static class ProjectsEndpoints
             return Results.Ok(project);
         });
 
-        group.MapDelete("/{id}", (string id, AppDb db) =>
+        group.MapDelete("/{id}", (string id, AppDb db, Services.CalendarSyncService sync) =>
         {
             if (!AppDb.IsValidId(id)) return Results.NotFound();
             var project = db.Projects.FindById(id);
@@ -64,6 +64,7 @@ public static class ProjectsEndpoints
             db.Tasks.DeleteMany(t => t.ProjectId == id);
             db.Sections.DeleteMany(s => s.ProjectId == id);
             db.Projects.Delete(id);
+            sync.EnqueueFull();
             return Results.NoContent();
         });
 

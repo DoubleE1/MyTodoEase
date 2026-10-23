@@ -7,6 +7,7 @@ import type { ThemePreference } from '../lib/theme';
 import { showToast } from '../lib/toast';
 import type { ConfirmOptions } from './Dialogs';
 import { Modal } from './Dialogs';
+import { CalendarSyncSection } from './CalendarSyncSection';
 import { GoogleAccountSection } from './GoogleAccountSection';
 
 const THEMES: { value: ThemePreference; label: string; icon: ReactNode }[] = [
@@ -56,6 +57,7 @@ export function SettingsDialog({
   const isPreset = ACCENT_PRESETS.some((p) => p.hex === accent);
   const queryClient = useQueryClient();
   const health = useQuery({ queryKey: ['health'], queryFn: api.health, staleTime: 60_000 });
+  const googleSignedIn = useQuery({ queryKey: ['google-auth'], queryFn: api.googleAuth.status }).data?.signedIn === true;
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<'export' | 'import' | null>(null);
 
@@ -171,6 +173,7 @@ export function SettingsDialog({
         </section>
 
         <GoogleAccountSection confirm={confirm} />
+        <CalendarSyncSection signedIn={googleSignedIn} />
 
         <section className="settings-section">
           <h3>Data</h3>

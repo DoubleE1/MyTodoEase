@@ -38,7 +38,7 @@ public static class BackupEndpoints
             db.Completions.FindAll().ToList())));
 
         // Replaces everything. The client asks the user to confirm before calling this.
-        group.MapPost("/import", (BackupDocument? doc, AppDb db) =>
+        group.MapPost("/import", (BackupDocument? doc, AppDb db, Services.CalendarSyncService sync) =>
         {
             if (doc is null) return Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = ["Not a MyTodoEase backup."] });
             var errors = Validate(doc);
@@ -79,6 +79,7 @@ public static class BackupEndpoints
                 projects.Insert(0, new Project { Id = AppDb.NewId(), Name = "Inbox", Color = "grey", IsInbox = true, Order = -1 });
 
             db.ReplaceAll(projects, sections, labels, tasks, completions);
+            sync.EnqueueFull();
             return Results.Ok(new ImportResult(projects.Count, sections.Count, labels.Count, tasks.Count, completions.Count));
         });
 

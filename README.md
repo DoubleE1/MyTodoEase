@@ -127,6 +127,23 @@ paste one, stored encrypted on that PC. Google treats a desktop client's secret 
 Endpoints: `GET /api/auth/google` (status), `PUT /api/auth/google/config`, `POST /api/auth/google/start` (consent
 URL), `GET /api/auth/google/callback`, `POST /api/auth/google/cancel`, `DELETE /api/auth/google` (revoke + forget).
 
+## Google Calendar sync
+
+Settings → Google Calendar (after signing in) asks for calendar permission incrementally, then offers two things:
+
+- **Mirror tasks to Google Calendar**: every open task with a due date becomes an event in a dedicated "MyTodoEase"
+  calendar (all-day, or 30 minutes at the due time; recurring tasks become recurring events with an RRULE). Creating,
+  editing, rescheduling, completing or deleting a task updates or removes its event. Pushes are queued per task and a
+  full reconcile runs on enable and every 15 minutes; "Sync now" forces one. Turning the switch off deletes the mirrored
+  events. Links between tasks and events live in the `calendar_links` collection; settings in
+  `%LOCALAPPDATA%\MyTodoEase\calendar-sync.json`.
+- **Show these calendars**: events from the Google calendars you tick appear in the Calendar grid, and under the day
+  headings in Today and Upcoming (read-only; click one to open it in Google). The MyTodoEase mirror calendar is always
+  excluded so tasks never show twice.
+
+Endpoints: `GET/PUT /api/calendar/sync`, `POST /api/calendar/sync/run`, `GET /api/calendar/calendars`,
+`GET /api/calendar/events?from&to` (local dates, at most 120 days).
+
 ## MCP server (Claude, Codex, other assistants)
 
 `mcp/` holds an MCP server that exposes the same API as tools, so an AI assistant can list what is due, add and

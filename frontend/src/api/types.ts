@@ -133,6 +133,40 @@ export interface GoogleAuthStatus {
   pending: boolean;
 }
 
+export interface CalendarSyncStatus {
+  scopeGranted: boolean;
+  enabled: boolean;
+  targetCalendarId: string | null;
+  sourceCalendarIds: string[];
+  lastSyncAt: string | null;
+  lastError: string | null;
+  linkedTasks: number;
+}
+
+export interface GoogleCalendarInfo {
+  id: string;
+  summary: string;
+  backgroundColor: string | null;
+  primary: boolean;
+  accessRole: string | null;
+}
+
+/** An event from one of the user's Google calendars, in local calendar dates. */
+export interface ExternalEvent {
+  id: string;
+  calendarId: string;
+  calendarName: string;
+  color: string | null;
+  title: string;
+  location: string | null;
+  date: string;
+  endDate: string;
+  startTime: string | null;
+  endTime: string | null;
+  allDay: boolean;
+  htmlLink: string | null;
+}
+
 export interface ImportResult {
   projects: number;
   sections: number;

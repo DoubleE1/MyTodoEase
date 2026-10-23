@@ -20,6 +20,7 @@ public sealed partial class AppDb : IDisposable
     public ILiteCollection<Label> Labels { get; }
     public ILiteCollection<TodoTask> Tasks { get; }
     public ILiteCollection<Completion> Completions { get; }
+    public ILiteCollection<CalendarLink> CalendarLinks { get; }
 
     public AppDb(IOptions<StorageOptions> options)
     {
@@ -45,6 +46,7 @@ public sealed partial class AppDb : IDisposable
         Labels = _db.GetCollection<Label>("labels");
         Tasks = _db.GetCollection<TodoTask>("tasks");
         Completions = _db.GetCollection<Completion>("completions");
+        CalendarLinks = _db.GetCollection<CalendarLink>("calendar_links");
     }
 
     /// <summary>Creates indexes and guarantees the Inbox project exists. Safe to run on every start.</summary>

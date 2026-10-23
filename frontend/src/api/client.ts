@@ -1,7 +1,10 @@
 import type {
   BackupDocument,
+  CalendarSyncStatus,
   CompletionsResponse,
+  ExternalEvent,
   GoogleAuthStatus,
+  GoogleCalendarInfo,
   ImportResult,
   Label,
   LabelInput,
@@ -76,6 +79,16 @@ export const api = {
     start: (scopes?: string[]) => request<{ url: string }>('/api/auth/google/start', { method: 'POST', ...json({ scopes }) }),
     cancel: () => request<void>('/api/auth/google/cancel', { method: 'POST' }),
     signOut: () => request<GoogleAuthStatus>('/api/auth/google', { method: 'DELETE' }),
+  },
+
+  calendar: {
+    syncStatus: () => request<CalendarSyncStatus>('/api/calendar/sync'),
+    updateSync: (input: { enabled?: boolean; sourceCalendarIds?: string[] }) =>
+      request<CalendarSyncStatus>('/api/calendar/sync', { method: 'PUT', ...json(input) }),
+    runSync: () => request<CalendarSyncStatus>('/api/calendar/sync/run', { method: 'POST' }),
+    calendars: () => request<GoogleCalendarInfo[]>('/api/calendar/calendars'),
+    /** Events from the chosen Google calendars between two local dates (inclusive). */
+    events: (from: string, to: string) => request<ExternalEvent[]>(`/api/calendar/events?from=${from}&to=${to}`),
   },
 
   backup: {

@@ -16,7 +16,7 @@ public static class TasksEndpoints
 
         // Active tasks by default. The client filters views (Today, Upcoming, project, label) locally,
         // which keeps the API simple for a single-user app. completed=true returns the completed log, newest first.
-        group.MapGet("/", (bool? completed, int? limit, AppDb db) =>
+        group.MapGet("/", (bool? completed, int? limit, AppDb db, CalendarSyncService sync) =>
         {
             if (completed == true)
             {
@@ -30,14 +30,14 @@ public static class TasksEndpoints
             return Results.Ok(active);
         });
 
-        group.MapGet("/{id}", (string id, AppDb db) =>
+        group.MapGet("/{id}", (string id, AppDb db, CalendarSyncService sync) =>
         {
             if (!AppDb.IsValidId(id)) return Results.NotFound();
             var task = db.Tasks.FindById(id);
             return task is null ? Results.NotFound() : Results.Ok(task);
         });
 
-        group.MapPost("/", (TaskWriteRequest req, AppDb db) =>
+        group.MapPost("/", (TaskWriteRequest req, AppDb db, CalendarSyncService sync) =>
         {
             var errors = Validate(req, db);
             if (errors.Count > 0) return Results.ValidationProblem(errors);
@@ -45,10 +45,11 @@ public static class TasksEndpoints
             var task = new TodoTask { Id = AppDb.NewId(), Order = req.Order ?? NextOrder(db, req.ProjectId) };
             Apply(task, req);
             db.Tasks.Insert(task);
+            sync.Enqueue(task.Id);
             return Results.Created($"/api/tasks/{task.Id}", task);
         });
 
-        group.MapPut("/{id}", (string id, TaskWriteRequest req, AppDb db) =>
+        group.MapPut("/{id}", (string id, TaskWriteRequest req, AppDb db, CalendarSyncService sync) =>
         {
             if (!AppDb.IsValidId(id)) return Results.NotFound();
             var errors = Validate(req, db);
@@ -61,6 +62,7 @@ public static class TasksEndpoints
             Apply(task, req);
             if (req.Order is int order) task.Order = order;
             db.Tasks.Update(task);
+            sync.Enqueue(task.Id);
 
             // Subtasks follow their parent when it moves to another project or section.
             foreach (var child in db.Tasks.Find(t => t.ParentId == id).ToList())
@@ -72,15 +74,18 @@ public static class TasksEndpoints
             return Results.Ok(task);
         });
 
-        group.MapDelete("/{id}", (string id, AppDb db) =>
+        group.MapDelete("/{id}", (string id, AppDb db, CalendarSyncService sync) =>
         {
             if (!AppDb.IsValidId(id)) return Results.NotFound();
+            var childIds = db.Tasks.Find(t => t.ParentId == id).Select(t => t.Id).ToList();
             if (!db.Tasks.Delete(id)) return Results.NotFound();
             db.Tasks.DeleteMany(t => t.ParentId == id);
+            sync.Enqueue(id);
+            foreach (var childId in childIds) sync.Enqueue(childId);
             return Results.NoContent();
         });
 
-        group.MapPost("/{id}/complete", (string id, AppDb db) =>
+        group.MapPost("/{id}/complete", (string id, AppDb db, CalendarSyncService sync) =>
         {
             if (!AppDb.IsValidId(id)) return Results.NotFound();
             var task = db.Tasks.FindById(id);
@@ -104,6 +109,7 @@ public static class TasksEndpoints
                 task.DueDate = next.ToString(DateFormat, CultureInfo.InvariantCulture);
                 task.UpdatedAt = now;
                 db.Tasks.Update(task);
+                sync.Enqueue(task.Id);
                 return Results.Ok(task);
             }
 
@@ -118,11 +124,12 @@ public static class TasksEndpoints
                 t.CompletedAt = now;
                 t.UpdatedAt = now;
                 db.Tasks.Update(t);
+                sync.Enqueue(t.Id);
             }
             return Results.Ok(task);
         });
 
-        group.MapPost("/{id}/reopen", (string id, AppDb db) =>
+        group.MapPost("/{id}/reopen", (string id, AppDb db, CalendarSyncService sync) =>
         {
             if (!AppDb.IsValidId(id)) return Results.NotFound();
             var task = db.Tasks.FindById(id);
@@ -131,6 +138,7 @@ public static class TasksEndpoints
             var now = DateTime.UtcNow;
             Reopen(task, now);
             db.Tasks.Update(task);
+            sync.Enqueue(task.Id);
 
             // Undo the latest completion log entry so history matches what the user sees.
             var latest = db.Completions.Find(c => c.TaskId == id).MaxBy(c => c.CompletedAt);
@@ -141,11 +149,12 @@ public static class TasksEndpoints
             {
                 Reopen(parent, now);
                 db.Tasks.Update(parent);
+                sync.Enqueue(parent.Id);
             }
             return Results.Ok(task);
         });
 
-        group.MapPost("/reorder", (ReorderRequest req, AppDb db) =>
+        group.MapPost("/reorder", (ReorderRequest req, AppDb db, CalendarSyncService sync) =>
         {
             if (req.Items is null || req.Items.Count == 0) return Results.NoContent();
             var now = DateTime.UtcNow;
@@ -159,6 +168,7 @@ public static class TasksEndpoints
                 if (item.SectionId is not null) task.SectionId = item.SectionId == "" ? null : item.SectionId;
                 if (item.ParentId is not null) task.ParentId = item.ParentId == "" ? null : item.ParentId;
                 db.Tasks.Update(task);
+                sync.Enqueue(task.Id);
             }
             return Results.NoContent();
         });

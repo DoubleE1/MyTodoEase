@@ -14,11 +14,13 @@ import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import { useQueryClient } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
+import { useCalendarEvents } from '../api/hooks';
+import type { ExternalEvent } from '../api/types';
 import { Check, GripVertical, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { queryKeys, useSectionMutations, useTaskMutations } from '../api/hooks';
 import type { Label, Project, ReorderItem, Section, Task, TaskInput } from '../api/types';
-import { describeDayHeading, toDateStr, todayStr } from '../lib/dates';
+import { describeDayHeading, formatTime, toDateStr, todayStr } from '../lib/dates';
 import { isOverdue, matchesSearch, sortByOrder, sortForAgenda, viewTitle, type View } from '../lib/views';
 import type { ConfirmOptions } from './Dialogs';
 import { TaskEditor, taskToInput } from './TaskEditor';
@@ -48,6 +50,8 @@ interface Group {
   nested: boolean;
   emptyText?: string;
   isOverdue?: boolean;
+  /** Google Calendar events on this day (Today and Upcoming views). */
+  events?: ExternalEvent[];
 }
 
 const NO_SECTION_KEY = 'no-section';
@@ -132,6 +136,12 @@ export function TaskList({
 
   const editorProps = { projects, sections, labels, onCreateLabel };
 
+  // Google Calendar events for the coming week, shown under each day heading in Today and Upcoming.
+  const weekEnd = toDateStr(addDays(new Date(), 7));
+  const externalEvents = useCalendarEvents(today, weekEnd, view.kind === 'today' || view.kind === 'upcoming');
+  const eventsFor = (day: string): ExternalEvent[] =>
+    (externalEvents.data ?? []).filter((e) => e.date <= day && day <= e.endDate);
+
   const buildGroups = (): Group[] => {
     switch (view.kind) {
       case 'inbox':
@@ -177,6 +187,7 @@ export function TaskList({
           tasks: dueToday,
           defaults: { projectId: inbox?.id, dueDate: today },
           nested: false,
+          events: eventsFor(today),
           emptyText: 'Nothing due today. Add a task or enjoy the calm.',
         });
         return groups;
@@ -195,6 +206,7 @@ export function TaskList({
             tasks: sortForAgenda(tasks.filter((t) => t.dueDate === day)),
             defaults: { projectId: inbox?.id, dueDate: day },
             nested: false,
+            events: eventsFor(day),
           });
         }
         const lastDay = toDateStr(addDays(new Date(), 6));
@@ -496,6 +508,32 @@ export function TaskList({
               <span className="muted count">{group.tasks.length || ''}</span>
             </div>
           ) : null}
+
+          {group.events && group.events.length > 0 && (
+            <ul className="event-list" aria-label="Calendar events">
+              {group.events.map((event) => (
+                <li key={`${event.calendarId}-${event.id}`}>
+                  <button
+                    type="button"
+                    className="event-row"
+                    title={`${event.title} · ${event.calendarName}${event.location ? ` · ${event.location}` : ''}`}
+                    onClick={() => {
+                      if (!event.htmlLink) return;
+                      if (window.mytodoease?.openExternal) void window.mytodoease.openExternal(event.htmlLink);
+                      else window.open(event.htmlLink, '_blank', 'noopener');
+                    }}
+                  >
+                    <span className="dot" style={{ background: event.color ?? 'var(--text-muted)' }} />
+                    <span className="event-row-time">
+                      {event.allDay ? 'All day' : `${formatTime(event.startTime!)}${event.endTime ? ` – ${formatTime(event.endTime)}` : ''}`}
+                    </span>
+                    <span className="event-row-title">{event.title}</span>
+                    <span className="event-row-cal muted">{event.calendarName}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
           {renderGroupTasks(group)}
 

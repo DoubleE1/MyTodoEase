@@ -15,6 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  addDays,
   addMonths,
   addWeeks,
   eachDayOfInterval,
@@ -22,12 +23,15 @@ import {
   endOfWeek,
   format,
   isSameMonth,
+  parseISO,
   startOfMonth,
   startOfWeek,
 } from 'date-fns';
 import { ChevronLeft, ChevronRight, Plus, Repeat } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { projectedOccurrences } from '../lib/recurrence';
+import { useCalendarEvents } from '../api/hooks';
+import type { ExternalEvent } from '../api/types';
 import { queryKeys, useTaskMutations } from '../api/hooks';
 import type { Project, Task } from '../api/types';
 import { PRIORITY_META } from '../lib/colors';
@@ -93,12 +97,38 @@ function TaskChip({
   );
 }
 
+/** A Google Calendar event: read-only, opens in Google on click. */
+function EventChip({ event }: { event: ExternalEvent }) {
+  const open = () => {
+    if (!event.htmlLink) return;
+    const desktop = window.mytodoease;
+    if (desktop?.openExternal) void desktop.openExternal(event.htmlLink);
+    else window.open(event.htmlLink, '_blank', 'noopener');
+  };
+  const time = event.allDay ? 'All day' : `${formatTime(event.startTime!)}${event.endTime ? `–${formatTime(event.endTime)}` : ''}`;
+  return (
+    <button
+      type="button"
+      className="cal-chip is-event"
+      title={`${event.title} · ${event.calendarName}${event.location ? ` · ${event.location}` : ''}`}
+      onClick={open}
+    >
+      <span className="cal-chip-dot cal-event-dot" style={{ background: event.color ?? 'var(--text-muted)', borderColor: event.color ?? 'var(--text-muted)' }} />
+      <span className="cal-chip-text">
+        <span className="cal-chip-title">{event.title}</span>
+        <span className="cal-chip-sub">{time}</span>
+      </span>
+    </button>
+  );
+}
+
 function DayCell({
   day,
   mode,
   inMonth,
   tasks,
   projected,
+  events,
   projectById,
   onOpenTask,
   onAddTask,
@@ -109,6 +139,8 @@ function DayCell({
   tasks: Task[];
   /** Recurring tasks that will land on this day once their current occurrence is done. */
   projected: Task[];
+  /** Google Calendar events on this day. */
+  events: ExternalEvent[];
   projectById: Map<string, Project>;
   onOpenTask: (id: string) => void;
   onAddTask: (dueDate: string) => void;
@@ -137,6 +169,9 @@ function DayCell({
         </button>
       </div>
       <div className="cal-cell-body">
+        {events.map((event) => (
+          <EventChip key={`e-${event.calendarId}-${event.id}`} event={event} />
+        ))}
         {tasks.map((task) => (
           <TaskChip key={task.id} task={task} project={projectById.get(task.projectId)} onOpen={() => onOpenTask(task.id)} />
         ))}
@@ -228,6 +263,22 @@ export function CalendarView({ tasks, projects, onOpenTask, onAddTask }: Calenda
     }
     return map;
   }, [tasks, rangeStart, rangeEnd]);
+
+  // Google Calendar events for the visible range, spread over every day a multi-day event covers.
+  const externalEvents = useCalendarEvents(toDateStr(rangeStart), toDateStr(rangeEnd));
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, ExternalEvent[]>();
+    for (const event of externalEvents.data ?? []) {
+      let cursor = parseISO(event.date);
+      const last = parseISO(event.endDate);
+      for (let i = 0; i < 62 && cursor <= last; i++) {
+        const key = toDateStr(cursor);
+        map.set(key, [...(map.get(key) ?? []), event]);
+        cursor = addDays(cursor, 1);
+      }
+    }
+    return map;
+  }, [externalEvents.data]);
 
   const unscheduled = useMemo(
     () => tasks.filter((t) => !t.dueDate).sort((a, b) => a.priority - b.priority || a.order - b.order),
@@ -332,6 +383,7 @@ export function CalendarView({ tasks, projects, onOpenTask, onAddTask }: Calenda
                   mode={mode}
                   inMonth={mode === 'week' || isSameMonth(day, anchor)}
                   projected={projectedByDate.get(toDateStr(day)) ?? []}
+                  events={eventsByDate.get(toDateStr(day)) ?? []}
                   tasks={tasksByDate.get(toDateStr(day)) ?? []}
                   projectById={projectById}
                   onOpenTask={onOpenTask}

@@ -10,6 +10,26 @@ export const queryKeys = {
   tasks: ['tasks', 'active'] as const,
   completed: ['tasks', 'completed'] as const,
   completions: ['completions'] as const,
+  calendarSync: ['calendar', 'sync'] as const,
+  calendarEvents: ['calendar', 'events'] as const,
+};
+
+export const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar';
+
+export const useCalendarSync = () =>
+  useQuery({ queryKey: queryKeys.calendarSync, queryFn: api.calendar.syncStatus, staleTime: 30_000 });
+
+/** Google events for a local date range; only fetched once calendar access has been granted. */
+export const useCalendarEvents = (from: string, to: string, enabled = true) => {
+  const sync = useCalendarSync();
+  return useQuery({
+    queryKey: [...queryKeys.calendarEvents, from, to],
+    queryFn: () => api.calendar.events(from, to),
+    enabled: enabled && sync.data?.scopeGranted === true,
+    staleTime: 60_000,
+    refetchInterval: 5 * 60_000,
+    retry: 1,
+  });
 };
 
 export const useProjects = () => useQuery({ queryKey: queryKeys.projects, queryFn: api.projects.list });
