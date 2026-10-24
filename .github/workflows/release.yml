@@ -85,6 +85,9 @@ jobs:
           files: ${{ steps.installer.outputs.path }}
           generate_release_notes: true
           fail_on_unmatched_files: true
+          # "Latest" follows the highest version, not the most recently built tag (re-pushing an old tag must not
+          # point releases/latest/download/... at an old installer).
+          make_latest: legacy
 
       - name: Keep the published installer as a workflow artifact
         uses: actions/upload-artifact@v4
