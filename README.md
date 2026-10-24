@@ -148,6 +148,8 @@ Endpoints: `GET/PUT /api/calendar/sync`, `POST /api/calendar/sync/run`, `GET /ap
 
 ## Web app (Firebase Hosting + Firestore)
 
+Live at **https://mytodoease-883bf.web.app** (Firebase project `mytodoease-883bf`, Firestore in asia-southeast1).
+
 The same React code also runs as a hosted web app where data lives in Firestore under the user's Google account,
 so tasks follow the user to any PC or phone browser. `vite build --mode web` picks the Firebase backend
 (`frontend/.env.web`, `VITE_BACKEND=firebase`); the desktop app and `npm run dev` keep using the local API.
