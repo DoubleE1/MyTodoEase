@@ -80,7 +80,7 @@ export function McpSection() {
         <p className="settings-help">Open the desktop app to copy the setup for this machine.</p>
       ) : setup.data && !ready ? (
         <p className="settings-help">
-          The MCP server files were not found next to the app. Reinstall MyTodoEase, or in a development checkout
+          The MCP server files were not found next to the app. Reinstall TodoEase, or in a development checkout
           run <code>npm run build:mcp</code>.
         </p>
       ) : (

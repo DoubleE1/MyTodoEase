@@ -1,10 +1,10 @@
 {
   "name": "desktop",
-  "productName": "MyTodoEase",
+  "productName": "TodoEase",
   "private": true,
-  "version": "0.1.1",
-  "description": "MyTodoEase desktop shell",
-  "author": "MyTodoEase",
+  "version": "0.1.2",
+  "description": "TodoEase desktop shell",
+  "author": "TodoEase",
   "main": "main.cjs",
   "scripts": {
     "dev": "wait-on http-get://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
@@ -14,7 +14,7 @@
   "build": {
     "appId": "com.mytodoease.desktop",
     "electronVersion": "41.7.1",
-    "productName": "MyTodoEase",
+    "productName": "TodoEase",
     "directories": {
       "output": "../release",
       "buildResources": "build"
@@ -68,7 +68,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "MyTodoEase",
+      "shortcutName": "TodoEase",
       "runAfterFinish": true,
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico"

@@ -185,7 +185,7 @@ function CalendarSyncSectionDesktop({ confirm }: { confirm: (options: ConfirmOpt
       {status && !data?.scopeGranted && (status.configured && !showSetup ? (
         <>
           <p className="settings-help">
-            Show your Google Calendar events next to your tasks, and mirror dated tasks into a “MyTodoEase” calendar so
+            Show your Google Calendar events next to your tasks, and mirror dated tasks into a “TodoEase” calendar so
             they appear on your phone. Connecting asks Google for permission to read and write your calendars; the
             connection is kept on this PC.
           </p>
@@ -236,7 +236,7 @@ function CalendarSyncSectionDesktop({ confirm }: { confirm: (options: ConfirmOpt
                 onClick={async () => {
                   const ok = await confirm({
                     title: 'Disconnect Google Calendar?',
-                    message: 'Mirrored events are removed from Google Calendar and MyTodoEase forgets this calendar access. Your tasks are not affected.',
+                    message: 'Mirrored events are removed from Google Calendar and TodoEase forgets this calendar access. Your tasks are not affected.',
                     confirmLabel: 'Disconnect',
                   });
                   if (ok) disconnect.mutate();
@@ -258,7 +258,7 @@ function CalendarSyncSectionDesktop({ confirm }: { confirm: (options: ConfirmOpt
             <span>
               <strong>Mirror tasks to Google Calendar</strong>
               <span className="muted small">
-                Open tasks with a date become events in a “MyTodoEase” calendar; completing or deleting removes them.
+                Open tasks with a date become events in a “TodoEase” calendar; completing or deleting removes them.
               </span>
             </span>
           </label>
@@ -277,7 +277,7 @@ function CalendarSyncSectionDesktop({ confirm }: { confirm: (options: ConfirmOpt
           {data.lastError && <p className="settings-error">Last sync problem: {data.lastError}</p>}
 
           <div className="settings-field">
-            <span className="settings-field-label">Show these calendars in MyTodoEase</span>
+            <span className="settings-field-label">Show these calendars in TodoEase</span>
             {calendars.isLoading && <span className="muted small">Loading calendars…</span>}
             {calendars.error && <span className="settings-error">Could not load your calendars.</span>}
             {calendars.data && (

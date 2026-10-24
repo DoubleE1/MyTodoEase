@@ -93,7 +93,7 @@ export function CloudAccountSection({ confirm }: { confirm: (options: ConfirmOpt
           </div>
           <p className="settings-help">
             Your tasks are stored in the cloud under this Google account and synced live to every device signed in with it:
-            this PC, other PCs running MyTodoEase, and the web app at{' '}
+            this PC, other PCs running TodoEase, and the web app at{' '}
             <a href={WEB_APP_URL} onClick={(e) => { e.preventDefault(); void openInBrowser(WEB_APP_URL); }}>
               {WEB_APP_URL.replace('https://', '')} <ExternalLink size={11} />
             </a>

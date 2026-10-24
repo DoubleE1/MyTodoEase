@@ -8,7 +8,7 @@ interface DesktopWindowState {
   canDock: boolean;
 }
 
-/** How an MCP client should launch the MyTodoEase MCP server on this machine. */
+/** How an MCP client should launch the TodoEase MCP server on this machine. */
 interface DesktopMcpSetup {
   /** False when the server script is missing (e.g. a dev checkout that has not run npm run build:mcp). */
   available: boolean;

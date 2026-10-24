@@ -120,7 +120,7 @@ public sealed class FirestoreStore : IDataStore
             // Not JSON.
         }
         if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-            throw new CloudSessionService.CloudSessionException($"Firestore refused the request: {detail}. Sign in again in the MyTodoEase app.");
+            throw new CloudSessionService.CloudSessionException($"Firestore refused the request: {detail}. Sign in again in the TodoEase app.");
         throw new InvalidOperationException($"Firestore returned {(int)response.StatusCode}: {detail}");
     }
 

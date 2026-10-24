@@ -44,16 +44,16 @@ public static class AuthEndpoints
             if (!string.IsNullOrEmpty(error) || string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state))
             {
                 auth.CancelPending();
-                return Page("Sign-in cancelled", $"Google reported: {WebUtility.HtmlEncode(error ?? "missing code")}. You can close this tab and try again from MyTodoEase.", false);
+                return Page("Sign-in cancelled", $"Google reported: {WebUtility.HtmlEncode(error ?? "missing code")}. You can close this tab and try again from TodoEase.", false);
             }
             try
             {
                 var account = await auth.CompleteLoginAsync(code, state, ct);
-                return Page("Signed in", $"MyTodoEase is now connected to <strong>{WebUtility.HtmlEncode(account.Email)}</strong>. You can close this tab.", true);
+                return Page("Signed in", $"TodoEase is now connected to <strong>{WebUtility.HtmlEncode(account.Email)}</strong>. You can close this tab.", true);
             }
             catch (Exception ex)
             {
-                return Page("Sign-in failed", WebUtility.HtmlEncode(ex.Message) + " You can close this tab and try again from MyTodoEase.", false);
+                return Page("Sign-in failed", WebUtility.HtmlEncode(ex.Message) + " You can close this tab and try again from TodoEase.", false);
             }
         });
 
@@ -77,7 +77,7 @@ public static class AuthEndpoints
         var color = ok ? "#16a34a" : "#dc2626";
         var html = $$"""
             <!doctype html>
-            <html lang="en"><head><meta charset="utf-8"><title>{{title}} · MyTodoEase</title>
+            <html lang="en"><head><meta charset="utf-8"><title>{{title}} · TodoEase</title>
             <style>
               body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a1e; color: #e8e8e8; display: grid; place-items: center; min-height: 100vh; margin: 0; }
               main { max-width: 420px; padding: 32px; border-radius: 16px; background: #262630; text-align: center; }

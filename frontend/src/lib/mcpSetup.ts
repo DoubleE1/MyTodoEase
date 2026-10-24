@@ -1,5 +1,5 @@
 /**
- * Ready-to-paste snippets that connect an AI assistant to the MyTodoEase MCP server, built from the
+ * Ready-to-paste snippets that connect an AI assistant to the TodoEase MCP server, built from the
  * launcher the desktop shell reports (command, arguments, environment).
  */
 
@@ -46,7 +46,7 @@ export function jsonConfig(setup: McpSetup): string {
  */
 export function setupPrompt(setup: McpSetup): string {
   return [
-    'Connect to my MyTodoEase todo app through its MCP server so you can read and manage my tasks.',
+    'Connect to my TodoEase todo app through its MCP server so you can read and manage my tasks.',
     'It is a local stdio server (no network, no API key). Register it in your MCP settings with this configuration:',
     '',
     jsonConfig(setup),

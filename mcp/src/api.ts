@@ -1,5 +1,5 @@
 /**
- * Client for the MyTodoEase API (ASP.NET Core, localhost only). If nothing answers on the port,
+ * Client for the TodoEase API (ASP.NET Core, localhost only). If nothing answers on the port,
  * the bundled API executable is started so the assistant can work while the desktop app is closed.
  */
 import { spawn } from "node:child_process";
@@ -28,7 +28,7 @@ function httpErrorMessage(status: number, detail: string | undefined): string {
     case 400:
       return detail ? `The API rejected the request: ${detail}` : "The API rejected the request.";
     default:
-      return detail ? `MyTodoEase API returned HTTP ${status}: ${detail}` : `MyTodoEase API returned HTTP ${status}.`;
+      return detail ? `TodoEase API returned HTTP ${status}: ${detail}` : `TodoEase API returned HTTP ${status}.`;
   }
 }
 
@@ -64,7 +64,7 @@ async function rawRequest<T>(method: string, apiPath: string, body: unknown, sig
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "TimeoutError") {
-      throw new Error(`The MyTodoEase API at ${API_URL} did not respond within 30 seconds.`);
+      throw new Error(`The TodoEase API at ${API_URL} did not respond within 30 seconds.`);
     }
     throw error;
   }
@@ -89,8 +89,11 @@ function apiExecutableCandidates(): string[] {
     process.env.MYTODOEASE_API_EXE,
     // Bundled copy inside the installed app: resources/mcp/index.mjs next to resources/api/.
     path.join(here, "..", "api", "MyTodoEase.Api.exe"),
-    path.join(process.env.ProgramFiles ?? "C:\\Program Files", "MyTodoEase", "resources", "api", "MyTodoEase.Api.exe"),
+    path.join(process.env.LOCALAPPDATA ?? "", "Programs", "TodoEase", "resources", "api", "MyTodoEase.Api.exe"),
+    path.join(process.env.ProgramFiles ?? "C:\\Program Files", "TodoEase", "resources", "api", "MyTodoEase.Api.exe"),
+    // Installs from before the app was renamed.
     path.join(process.env.LOCALAPPDATA ?? "", "Programs", "MyTodoEase", "resources", "api", "MyTodoEase.Api.exe"),
+    path.join(process.env.ProgramFiles ?? "C:\\Program Files", "MyTodoEase", "resources", "api", "MyTodoEase.Api.exe"),
     path.join(here, "..", "..", "desktop", "build", "api", "MyTodoEase.Api.exe")
   ];
   return candidates.filter((c): c is string => Boolean(c));
@@ -110,7 +113,7 @@ export async function ensureApi(): Promise<void> {
       const exe = apiExecutableCandidates().find((c) => existsSync(c));
       if (!exe) {
         throw new Error(
-          `Nothing is listening at ${API_URL} and no API executable was found. Open the MyTodoEase desktop app, ` +
+          `Nothing is listening at ${API_URL} and no API executable was found. Open the TodoEase desktop app, ` +
             "or set MYTODOEASE_API_EXE to the path of MyTodoEase.Api.exe."
         );
       }

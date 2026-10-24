@@ -66,7 +66,7 @@ export function SignInScreen() {
             Plan the day. <span className="landing-gradient">Ease through it.</span>
           </h1>
           <p className="landing-lead">
-            MyTodoEase keeps your tasks and your calendar on one screen. Capture quickly, give each task a time, and
+            TodoEase keeps your tasks and your calendar on one screen. Capture quickly, give each task a time, and
             watch the day fill in around your meetings. It runs in the browser and as a Windows app, and your Google
             account keeps both in step.
           </p>
@@ -117,7 +117,7 @@ export function SignInScreen() {
       </main>
 
       <footer className="landing-footer">
-        <span>MyTodoEase</span>
+        <span>TodoEase</span>
         <span>In the browser and on Windows. Your tasks live in your own Google account; the Windows app also works fully offline.</span>
       </footer>
     </div>

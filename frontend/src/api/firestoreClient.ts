@@ -483,9 +483,9 @@ const backup: Api['backup'] = {
 
   import: async (raw: unknown) => {
     const docIn = raw as Partial<BackupDocument> | null;
-    if (!docIn || typeof docIn !== 'object') invalid({ file: ['Not a MyTodoEase backup.'] });
+    if (!docIn || typeof docIn !== 'object') invalid({ file: ['Not a TodoEase backup.'] });
     const errors: Record<string, string[]> = {};
-    if (String(docIn.app).toLowerCase() !== 'mytodoease') errors.file = ['Not a MyTodoEase backup.'];
+    if (String(docIn.app).toLowerCase() !== 'mytodoease') errors.file = ['Not a TodoEase backup.'];
     if (typeof docIn.version !== 'number' || docIn.version < 1 || docIn.version > 1)
       errors.version = [`Backup version ${docIn.version} is not supported by this app.`];
 

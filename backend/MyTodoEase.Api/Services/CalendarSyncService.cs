@@ -11,14 +11,16 @@ namespace MyTodoEase.Api.Services;
 
 /// <summary>
 /// Two-way Google Calendar integration.
-/// Push: every open task with a due date is mirrored as an event in a dedicated "MyTodoEase" calendar
+/// Push: every open task with a due date is mirrored as an event in a dedicated "TodoEase" calendar
 /// (recurring tasks become recurring events). Pull: events from the calendars the user picked are
 /// served to the UI for the Calendar, Today and Upcoming views. Pushes are queued per task and run on a
 /// background worker, with a full reconcile on enable and every 15 minutes.
 /// </summary>
 public sealed class CalendarSyncService : BackgroundService
 {
-    private const string TargetCalendarName = "MyTodoEase";
+    private const string TargetCalendarName = "TodoEase";
+    /// <summary>Name the mirror calendar had before the app was renamed; still recognised after a reinstall.</summary>
+    private const string LegacyTargetCalendarName = "MyTodoEase";
     private static readonly TimeSpan FullSyncInterval = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan EventsCacheTtl = TimeSpan.FromSeconds(60);
 
@@ -274,9 +276,9 @@ public sealed class CalendarSyncService : BackgroundService
         var current = _settings.TargetCalendarId;
         if (current is not null && await _google.CalendarExistsAsync(current, ct)) return current;
 
-        // Reuse an existing "MyTodoEase" calendar (for example after a reinstall) before creating one.
-        var existing = (await _google.ListCalendarsAsync(ct))
-            .FirstOrDefault(c => c.Summary == TargetCalendarName && c.AccessRole == "owner");
+        // Reuse an existing mirror calendar (for example after a reinstall) before creating one.
+        var owned = (await _google.ListCalendarsAsync(ct)).Where(c => c.AccessRole == "owner").ToList();
+        var existing = owned.FirstOrDefault(c => c.Summary == TargetCalendarName) ?? owned.FirstOrDefault(c => c.Summary == LegacyTargetCalendarName);
         var id = existing?.Id ?? (await _google.CreateCalendarAsync(TargetCalendarName, LocalIanaTimeZone(), ct)).Id;
         lock (_gate)
         {
@@ -293,7 +295,7 @@ public sealed class CalendarSyncService : BackgroundService
         var ev = new GoogleCalendarClient.Event
         {
             Summary = task.Content,
-            Description = string.IsNullOrWhiteSpace(task.Description) ? "From MyTodoEase" : task.Description + "\n\nFrom MyTodoEase",
+            Description = string.IsNullOrWhiteSpace(task.Description) ? "From TodoEase" : task.Description + "\n\nFrom TodoEase",
             ExtendedProperties = new GoogleCalendarClient.ExtendedProperties
             {
                 Private = new Dictionary<string, string> { ["mytodoeaseTaskId"] = task.Id },

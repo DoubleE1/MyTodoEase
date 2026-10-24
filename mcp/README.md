@@ -1,9 +1,9 @@
 # mytodoease-mcp-server
 
-An [MCP](https://modelcontextprotocol.io) server that lets AI assistants read and manage your MyTodoEase tasks:
+An [MCP](https://modelcontextprotocol.io) server that lets AI assistants read and manage your TodoEase tasks:
 list what is due, add and reschedule tasks, complete them, create projects and labels, and review what you finished.
 
-It talks to the MyTodoEase API on this computer (`http://localhost:5080`). When the desktop app is closed, nothing is
+It talks to the TodoEase API on this computer (`http://localhost:5080`). When the desktop app is closed, nothing is
 listening, so the server starts the bundled API executable itself (looked up in the installed app folder, or set
 `MYTODOEASE_API_EXE`). The API serves the local file, or the user's Firestore data while the desktop app is signed in to
 cloud sync, so the assistant always sees the same tasks as the app.
@@ -23,7 +23,7 @@ The server is `mcp/dist/index.js` (stdio transport); the same command also bundl
 **Shortcut:** in the app open *Settings → AI assistants* and click a copy button. "Copy setup prompt" gives you a
 prompt to paste into any AI chat (the assistant registers the server itself); the others copy the exact
 `claude mcp add` / `codex mcp add` command or the JSON block for this machine. Installed builds launch the bundled
-server through `MyTodoEase.exe` with `ELECTRON_RUN_AS_NODE=1`, so no Node.js install is needed.
+server through `TodoEase.exe` with `ELECTRON_RUN_AS_NODE=1`, so no Node.js install is needed.
 
 The manual commands below assume a development checkout; replace `C:\Codes\MyTodoEase` with your checkout path.
 
@@ -69,7 +69,7 @@ Launch `node <path>\mcp\dist\index.js` over stdio. Environment variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `MYTODOEASE_API_URL` | `http://localhost:5080` | Where the MyTodoEase API listens |
+| `MYTODOEASE_API_URL` | `http://localhost:5080` | Where the TodoEase API listens |
 | `MYTODOEASE_API_EXE` | installed app / repo build | Executable to start when nothing answers at the URL |
 
 ## Tools
@@ -99,7 +99,7 @@ cd mcp && npm run build && npm run smoke
 ```
 
 To exercise the bundled copy the way an installed app launches it, set `MCP_COMMAND`, `MCP_ARGS` (JSON array) and
-`MCP_ENV` (JSON object), e.g. `MCP_COMMAND=...\release\win-unpacked\MyTodoEase.exe`,
+`MCP_ENV` (JSON object), e.g. `MCP_COMMAND=...\release\win-unpacked\TodoEase.exe`,
 `MCP_ARGS=["...\\resources\\mcp\\index.mjs"]`, `MCP_ENV={"ELECTRON_RUN_AS_NODE":"1"}`.
 
 `npx @modelcontextprotocol/inspector node dist/index.js` opens an interactive explorer.

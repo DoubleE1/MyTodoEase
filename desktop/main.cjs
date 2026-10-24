@@ -3,6 +3,18 @@ const { execFile, execFileSync, spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
+// The app used to be called MyTodoEase. Electron derives its user-data folder from the product name, so carry the
+// old folder (window settings, the signed-in cloud session, Firestore cache) over once instead of starting empty.
+// Must run before anything touches userData, i.e. before app is ready.
+try {
+  const appData = app.getPath('appData');
+  const oldDir = path.join(appData, 'MyTodoEase');
+  const newDir = path.join(appData, 'TodoEase');
+  if (!fs.existsSync(newDir) && fs.existsSync(oldDir)) fs.renameSync(oldDir, newDir);
+} catch (error) {
+  console.error('Could not carry over the MyTodoEase user-data folder:', error);
+}
+
 // Bundled native pieces live under desktop/build in development and under resources/ when packaged.
 const resourcesDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, 'build');
 
@@ -166,7 +178,7 @@ function createWindow() {
     ...bounds,
     minWidth: minimum.width,
     minHeight: minimum.height,
-    title: 'MyTodoEase',
+    title: 'TodoEase',
     icon: path.join(__dirname, 'build', 'icon.ico'),
     autoHideMenuBar: true,
     alwaysOnTop: settings.alwaysOnTop,
@@ -466,7 +478,7 @@ app.whenReady().then(async () => {
     const ok = await ensureApi();
     if (!ok) {
       dialog.showErrorBox(
-        'MyTodoEase could not start its service',
+        'TodoEase could not start its service',
         `The task service did not respond at ${API_URL}.\n\nAnother program may be using that port, or the service failed to start. ` +
           'Close the app and open it again; the window will keep retrying meanwhile.',
       );

@@ -35,7 +35,7 @@ public static class BackupEndpoints
         // Replaces everything. The client asks the user to confirm before calling this.
         group.MapPost("/import", async (BackupDocument? doc, IDataStore store, Services.CalendarSyncService sync, CancellationToken ct) =>
         {
-            if (doc is null) return Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = ["Not a MyTodoEase backup."] });
+            if (doc is null) return Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = ["Not a TodoEase backup."] });
             var errors = Validate(doc);
             if (errors.Count > 0) return Results.ValidationProblem(errors);
 
@@ -95,7 +95,7 @@ public static class BackupEndpoints
     {
         var errors = new Dictionary<string, string[]>();
         if (!string.Equals(doc.App, "MyTodoEase", StringComparison.OrdinalIgnoreCase))
-            errors["file"] = ["Not a MyTodoEase backup."];
+            errors["file"] = ["Not a TodoEase backup."];
         if (doc.Version is < 1 or > CurrentVersion)
             errors["version"] = [$"Backup version {doc.Version} is not supported by this app."];
 

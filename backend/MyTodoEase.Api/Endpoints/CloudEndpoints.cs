@@ -60,7 +60,7 @@ public static class CloudEndpoints
         auth.MapGet("/page", (string? state) =>
         {
             if (string.IsNullOrEmpty(state) || !Pending.TryGetValue(state, out var pending) || pending.ExpiresAt < DateTime.UtcNow)
-                return AuthEndpoints.Page("Sign-in expired", "This sign-in link is no longer valid. Start again from Settings in MyTodoEase.", false);
+                return AuthEndpoints.Page("Sign-in expired", "This sign-in link is no longer valid. Start again from Settings in TodoEase.", false);
             return Results.Content(SignInPage(state, pending.Config), "text/html; charset=utf-8");
         });
 
@@ -68,7 +68,7 @@ public static class CloudEndpoints
         auth.MapPost("/callback", (CallbackRequest req) =>
         {
             if (string.IsNullOrEmpty(req.State) || !Pending.TryGetValue(req.State, out var pending) || pending.ExpiresAt < DateTime.UtcNow)
-                return Results.Problem("This sign-in attempt has expired. Start again from Settings in MyTodoEase.", statusCode: StatusCodes.Status400BadRequest);
+                return Results.Problem("This sign-in attempt has expired. Start again from Settings in TodoEase.", statusCode: StatusCodes.Status400BadRequest);
             if (string.IsNullOrWhiteSpace(req.IdToken))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["idToken"] = ["Missing id token."] });
             pending.IdToken = req.IdToken;
@@ -148,7 +148,7 @@ public static class CloudEndpoints
         var stateJson = JsonSerializer.Serialize(state);
         return $$"""
             <!doctype html>
-            <html lang="en"><head><meta charset="utf-8"><title>Sign in · MyTodoEase</title>
+            <html lang="en"><head><meta charset="utf-8"><title>Sign in · TodoEase</title>
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <style>
               body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a1e; color: #e8e8e8; display: grid; place-items: center; min-height: 100vh; margin: 0; }
@@ -161,7 +161,7 @@ public static class CloudEndpoints
               .hidden { display: none; }
             </style></head>
             <body><main>
-              <h1 id="title">Sign in to MyTodoEase</h1>
+              <h1 id="title">Sign in to TodoEase</h1>
               <p id="message">Choose the Google account whose tasks you want to use on this PC. Your tasks sync to every device signed in with it.</p>
               <button id="go" type="button">
                 <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.8 6C12.3 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.4 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.7-4.1-13.6-9.9l-7.8 6C6.5 42.6 14.6 48 24 48z"/></svg>
@@ -199,9 +199,9 @@ public static class CloudEndpoints
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ state, idToken: credential.idToken, email: result.user.email }),
                   });
-                  if (!response.ok) throw new Error('MyTodoEase did not accept the sign-in (' + response.status + '). Start again from Settings.');
+                  if (!response.ok) throw new Error('TodoEase did not accept the sign-in (' + response.status + '). Start again from Settings.');
                   await auth.signOut();
-                  done(true, 'Signed in', 'MyTodoEase on this PC now uses the tasks of ' + (result.user.email || 'your Google account') + '. You can close this tab.');
+                  done(true, 'Signed in', 'TodoEase on this PC now uses the tasks of ' + (result.user.email || 'your Google account') + '. You can close this tab.');
                 } catch (error) {
                   const code = error?.code || '';
                   if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {

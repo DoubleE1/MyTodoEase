@@ -1,6 +1,6 @@
-# MyTodoEase
+# TodoEase
 
-A Todoist-style todo app: Windows desktop shell (Electron) around a React UI, backed by an ASP.NET Core API with an embedded LiteDB database. Nothing else to install.
+A planner that keeps your tasks and your calendar on one screen: Windows desktop shell (Electron) around a React UI, backed by an ASP.NET Core API with an embedded LiteDB database. Nothing else to install.
 The same React code is also served as a web app (https://mytodoease.web.app) backed by Firestore, and once you
 sign in with Google on the desktop both use the same cloud data, so tasks follow you across PCs and browsers
 (see [Cloud sync](#cloud-sync-desktop--web)). Without signing in the desktop keeps everything in its local file.
@@ -12,7 +12,7 @@ sign in with Google on the desktop both use the same cloud data, so tasks follow
 | Desktop  | Electron 41                                       | `desktop/`  |
 | UI       | React 19, Vite 8, TypeScript, TanStack Query      | `frontend/` |
 | API      | ASP.NET Core minimal API (.NET 10), LiteDB         | `backend/`  |
-| Database | LiteDB (embedded, single file)                    | `%LOCALAPPDATA%\MyTodoEase\mytodoease.db` |
+| Database | LiteDB (embedded, single file)                    | `%LOCALAPPDATA%\TodoEase\mytodoease.db` |
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ npm install
 npm run dev       # API (5080) + Vite (5173) + Electron window
 ```
 
-Data lives in `%LOCALAPPDATA%\MyTodoEase\mytodoease.db`, shared by development runs and the installed app.
+Data lives in `%LOCALAPPDATA%\TodoEase\mytodoease.db`, shared by development runs and the installed app.
 Set `MYTODOEASE_DATA_DIR` (or `Storage:Path` in `appsettings.json`) to store it somewhere else.
 
 Or run pieces individually: `npm run api`, `npm run web`, `npm run desktop`.
@@ -88,27 +88,27 @@ alpha mask (radius about 23% of the side), and export 512px PNGs plus an ICO wit
 
 ## Configuration
 
-- API: `backend/MyTodoEase.Api/appsettings.json` → `Storage.Path` (LiteDB file; empty = `%LOCALAPPDATA%\MyTodoEase\mytodoease.db`), or the `MYTODOEASE_DATA_DIR` environment variable
+- API: `backend/MyTodoEase.Api/appsettings.json` → `Storage.Path` (LiteDB file; empty = `%LOCALAPPDATA%\TodoEase\mytodoease.db`), or the `MYTODOEASE_DATA_DIR` environment variable
 - UI: `frontend/.env` holds the public Firebase web config (`VITE_FIREBASE_*`, used by both the desktop renderer and the web build; tracked in git). `VITE_API_URL` (default `http://localhost:5080`) can be overridden in the git-ignored `frontend/.env.local`
 
 ## Publish a release
 
 The installer is distributed through [GitHub Releases](https://github.com/DoubleE1/MyTodoEase/releases); the landing
-page's **Download for Windows** button always fetches `releases/latest/download/MyTodoEase-Setup.exe`, so the asset
-name must stay `MyTodoEase-Setup.exe` (the release tag carries the version). After `npm run build`:
+page's **Download for Windows** button always fetches `releases/latest/download/TodoEase-Setup.exe`, so the asset
+name must stay `TodoEase-Setup.exe` (the release tag carries the version). After `npm run build`:
 
 ```bash
-gh release create v0.1.1 release/MyTodoEase-Setup.exe --title "MyTodoEase 0.1.1" --generate-notes
+gh release create v0.1.2 release/TodoEase-Setup.exe --title "TodoEase 0.1.2" --generate-notes
 ```
 
-(or create the release on GitHub and drag `release/MyTodoEase-Setup.exe` into it). Bump `version` in the three
+(or create the release on GitHub and drag `release/TodoEase-Setup.exe` into it). Bump `version` in the three
 `package.json` files first so the installer and the tag agree.
 
 Easier: push a version tag and let GitHub Actions do it. `.github/workflows/release.yml` builds the installer on a
 Windows runner and attaches it to a release for that tag (also runnable by hand from the Actions tab):
 
 ```bash
-git tag v0.1.1 && git push origin v0.1.1
+git tag v0.1.2 && git push origin v0.1.2
 ```
 
 Add the repository secret `GOOGLE_CLIENT_JSON` (the contents of `backend/MyTodoEase.Api/google-client.json`) so the
@@ -122,10 +122,10 @@ npm run build
 
 This publishes the API (`desktop/build/api`) and the app-bar helper (`desktop/build/appbar`) as self-contained
 Windows executables (no .NET runtime needed on the target PC), builds the UI into `desktop/renderer/`, and runs
-electron-builder, which writes `release/MyTodoEase-Setup.exe` (NSIS, per-user, choosable install folder,
+electron-builder, which writes `release/TodoEase-Setup.exe` (NSIS, per-user, choosable install folder,
 desktop + Start Menu shortcuts) plus the unpacked app in `release/win-unpacked/`.
 
-The installed `MyTodoEase.exe` starts the bundled API on `http://localhost:5080` (unless something already answers
+The installed `TodoEase.exe` starts the bundled API on `http://localhost:5080` (unless something already answers
 there), waits for it to become healthy, and stops it on exit. The database is an embedded LiteDB file, so a clean PC
 needs nothing else installed. If the API cannot start, the app shows a dialog saying so and keeps retrying in the
 window. Override the API address with the `MYTODOEASE_API_URL` environment variable.
@@ -149,7 +149,7 @@ file; the cloud data stays in your account.
   Firebase user appears or leaves, clears the query cache and re-mounts the app. Google Calendar settings and sync
   stay on the local API in both modes.
 - **Local API follows the session.** After signing in, the renderer shares the Firebase refresh token with the API
-  (`PUT /api/cloud/session`, stored DPAPI-encrypted in `%LOCALAPPDATA%\MyTodoEase\cloud-session.json`). While a
+  (`PUT /api/cloud/session`, stored DPAPI-encrypted in `%LOCALAPPDATA%\TodoEase\cloud-session.json`). While a
   session exists every `/api/projects|sections|labels|tasks|stats|backup` call is served from Firestore through the
   Firestore REST API (`Data/FirestoreStore.cs`, under the same security rules) instead of LiteDB
   (`Data/LiteDbStore.cs`), so the **MCP server** and **Google Calendar sync** read and write the same cloud data as
@@ -165,13 +165,13 @@ file; the cloud data stays in your account.
 Settings → Google Calendar connects a Google account for calendar access (this is separate from the cloud account:
 it is an OAuth grant held by the local API on this PC). The app uses the OAuth 2.0 authorization-code flow with
 PKCE and a loopback redirect into the local API; the refresh token and client secret are stored in
-`%LOCALAPPDATA%\MyTodoEase\google-auth.json`, encrypted with Windows DPAPI for your user.
+`%LOCALAPPDATA%\TodoEase\google-auth.json`, encrypted with Windows DPAPI for your user.
 
 The app ships with its OAuth client, so users just click **Connect Google Calendar**. To build with your own client (free):
 
 1. Open [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials) and
    create a project if you have none.
-2. Configure the OAuth consent screen (External, app name "MyTodoEase", your email). While the app is in **Testing**,
+2. Configure the OAuth consent screen (External, app name "TodoEase", your email). While the app is in **Testing**,
    add the Google addresses that may sign in under Test users.
 3. Create credentials → OAuth client ID → Application type **Desktop app** → Download JSON.
 4. Save that file as `backend/MyTodoEase.Api/google-client.json` (git-ignored). The build copies it next to the API,
@@ -188,14 +188,14 @@ URL), `GET /api/auth/google/callback`, `POST /api/auth/google/cancel`, `DELETE /
 Settings → Google Calendar, once connected, offers two things (they work in local and in cloud mode; in cloud mode
 the mirror follows the cloud tasks):
 
-- **Mirror tasks to Google Calendar**: every open task with a due date becomes an event in a dedicated "MyTodoEase"
+- **Mirror tasks to Google Calendar**: every open task with a due date becomes an event in a dedicated "TodoEase"
   calendar (all-day, or 30 minutes at the due time; recurring tasks become recurring events with an RRULE). Creating,
   editing, rescheduling, completing or deleting a task updates or removes its event. Pushes are queued per task and a
   full reconcile runs on enable and every 15 minutes; "Sync now" forces one. Turning the switch off deletes the mirrored
   events. Links between tasks and events live in the `calendar_links` collection; settings in
-  `%LOCALAPPDATA%\MyTodoEase\calendar-sync.json`.
+  `%LOCALAPPDATA%\TodoEase\calendar-sync.json`.
 - **Show these calendars**: events from the Google calendars you tick appear in the Calendar grid, and under the day
-  headings in Today and Upcoming (read-only; click one to open it in Google). The MyTodoEase mirror calendar is always
+  headings in Today and Upcoming (read-only; click one to open it in Google). The TodoEase mirror calendar is always
   excluded so tasks never show twice.
 
 Endpoints: `GET/PUT /api/calendar/sync`, `POST /api/calendar/sync/run`, `GET /api/calendar/calendars`,
@@ -248,7 +248,7 @@ for this machine. "Copy setup prompt" produces a natural-language prompt (with t
 into any AI chat and the assistant registers the connection itself; the other buttons copy a `claude mcp add`
 command, a `codex mcp add` command, or the `mcpServers` JSON block for Claude Desktop, Cursor and Windsurf.
 
-The installer bundles the server as `resources/mcp/index.mjs` and runs it through `MyTodoEase.exe` in Node mode
+The installer bundles the server as `resources/mcp/index.mjs` and runs it through `TodoEase.exe` in Node mode
 (`ELECTRON_RUN_AS_NODE=1`), so end users need no separate Node.js install. In a development checkout the snippets
 point at `node mcp/dist/index.js` instead (`npm run build:mcp` builds both). [mcp/README.md](mcp/README.md) has
 the manual commands and the tool list.

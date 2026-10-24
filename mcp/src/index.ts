@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * mytodoease-mcp-server: lets AI assistants read and manage MyTodoEase tasks over stdio.
+ * mytodoease-mcp-server: lets AI assistants read and manage TodoEase tasks over stdio.
  * Talks to the local API (http://localhost:5080 by default) and starts it when the desktop app is closed.
  */
 import { McpServer } from "@modelcontextprotocol/server";

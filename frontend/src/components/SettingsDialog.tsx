@@ -100,13 +100,13 @@ export function SettingsDialog({
         throw new Error('That file is not valid JSON.');
       }
       const doc = parsed as { app?: unknown; tasks?: unknown[]; projects?: unknown[]; exportedAt?: string };
-      if (doc?.app !== 'MyTodoEase') throw new Error('That file is not a MyTodoEase backup.');
+      if (doc?.app !== 'MyTodoEase') throw new Error('That file is not a TodoEase backup.');
 
       const exported = doc.exportedAt ? new Date(doc.exportedAt).toLocaleString() : 'unknown date';
       const ok = await confirm({
         title: 'Replace all data?',
         message:
-          `This will delete everything currently in MyTodoEase and load the backup from ${exported} ` +
+          `This will delete everything currently in TodoEase and load the backup from ${exported} ` +
           `(${doc.projects?.length ?? 0} projects, ${doc.tasks?.length ?? 0} tasks). This cannot be undone.`,
         confirmLabel: 'Replace and import',
       });

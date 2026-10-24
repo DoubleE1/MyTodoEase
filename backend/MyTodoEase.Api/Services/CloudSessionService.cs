@@ -64,7 +64,7 @@ public sealed class CloudSessionService
         {
             lock (_gate)
             {
-                if (_session is not { } s) throw new CloudSessionException("No cloud session: sign in to Google in the MyTodoEase app.");
+                if (_session is not { } s) throw new CloudSessionException("No cloud session: sign in to Google in the TodoEase app.");
                 return (s.ProjectId, s.Uid);
             }
         }
@@ -124,7 +124,7 @@ public sealed class CloudSessionService
             lock (_gate)
             {
                 if (_idToken is { } cached && cached.ExpiresAt > DateTime.UtcNow) return cached.Token;
-                if (_session is not { } s) throw new CloudSessionException("No cloud session: sign in to Google in the MyTodoEase app.");
+                if (_session is not { } s) throw new CloudSessionException("No cloud session: sign in to Google in the TodoEase app.");
                 apiKey = s.ApiKey;
                 refresh = Unprotect(s.RefreshTokenProtected);
             }
@@ -140,7 +140,7 @@ public sealed class CloudSessionService
                 var detail = ExtractError(body);
                 lock (_gate) _lastError = detail;
                 _log.LogWarning("Firebase refused to refresh the cloud session: {Detail}", detail);
-                throw new CloudSessionException($"The cloud session is no longer valid ({detail}). Sign in again in the MyTodoEase app.");
+                throw new CloudSessionException($"The cloud session is no longer valid ({detail}). Sign in again in the TodoEase app.");
             }
             var tokens = JsonSerializer.Deserialize<RefreshResponse>(body) ?? throw new CloudSessionException("Empty token response from Firebase.");
             lock (_gate)

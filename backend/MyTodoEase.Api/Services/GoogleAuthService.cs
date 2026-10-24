@@ -123,7 +123,7 @@ public sealed class GoogleAuthService
 
         var tokens = await PostTokenAsync(form, ct);
         if (string.IsNullOrEmpty(tokens.RefreshToken))
-            throw new InvalidOperationException("Google did not return a refresh token. Remove MyTodoEase from your Google account's third-party access list and sign in again.");
+            throw new InvalidOperationException("Google did not return a refresh token. Remove TodoEase from your Google account's third-party access list and sign in again.");
 
         var profile = await GetUserInfoAsync(tokens.AccessToken, ct);
         var grantedScopes = (tokens.Scope ?? string.Join(' ', pending.Scopes)).Split(' ', StringSplitOptions.RemoveEmptyEntries);

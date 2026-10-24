@@ -1,7 +1,7 @@
 {
   "name": "mytodoease-mcp-server",
-  "version": "0.1.1",
-  "description": "MCP server that lets AI assistants (Claude, Codex, ...) read and manage MyTodoEase tasks through the local API",
+  "version": "0.1.2",
+  "description": "MCP server that lets AI assistants (Claude, Codex, ...) read and manage TodoEase tasks through the local API",
   "type": "module",
   "private": true,
   "bin": {
