@@ -187,6 +187,13 @@ so tasks follow the user to any PC or phone browser. `vite build --mode web` pic
 (`frontend/.env.web`, `VITE_BACKEND=firebase`); the desktop app and `npm run dev` start on the local API and switch
 to the same Firestore data when the user signs in (see Cloud sync above).
 
+- **Landing page:** signed-out visitors see a landing page (`frontend/src/components/SignIn.tsx`) with
+  **Continue with Google** and download buttons; the app itself only renders after sign-in. The Windows installer is
+  served by Hosting as `/downloads/MyTodoEase-Setup-Windows.zip` (zipped: the Hosting free plan refuses `.exe` files): `npm run build:site` zips the newest
+  `release/MyTodoEase-Setup-*.exe` into `frontend/dist-web/downloads/` (so run `npm run build` first), and
+  `VITE_DOWNLOAD_WINDOWS_URL` / `VITE_DOWNLOAD_MAC_URL` in `frontend/.env.web` set the links (an empty URL shows the
+  button as "coming soon"; there is no macOS build yet). Note the Hosting free tier allows about 360 MB of download
+  per day, roughly two installer downloads; move the file to a release host if that becomes a problem.
 - **Sign-in:** Firebase Auth with Google (popup). Everything is stored under `users/{uid}/…` and
   `firestore.rules` lets a user read and write only their own tree.
 - **Data client:** `frontend/src/api/firestoreClient.ts` implements the same `Api` surface as the REST client,

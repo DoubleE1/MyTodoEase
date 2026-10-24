@@ -10,6 +10,9 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_STORAGE_BUCKET?: string;
   readonly VITE_FIREBASE_MESSAGING_SENDER_ID?: string;
   readonly VITE_FIREBASE_APP_ID?: string;
+  /** Landing page download links; a button is shown as "coming soon" when its URL is empty. */
+  readonly VITE_DOWNLOAD_WINDOWS_URL?: string;
+  readonly VITE_DOWNLOAD_MAC_URL?: string;
   /** '1' connects to the local Auth and Firestore emulators. */
   readonly VITE_FIREBASE_EMULATOR?: string;
 }
