@@ -6,7 +6,7 @@
     "mytodoease-883bf": {
       "hosting": {
         "app": [
-          "todoease-app"
+          "mytodoease"
         ]
       }
     }
