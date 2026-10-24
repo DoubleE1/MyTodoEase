@@ -878,36 +878,15 @@ ul {
   overflow: visible;
 }
 
-/* Grove theme palette. Blocks and labels follow the app theme; the foliage is the theme's own. */
-.world-theme-grove {
-  --world-top: #d3e4cb;
-  --world-top-grown: #bedcb1;
-  --world-side-left: #a9c59e;
-  --world-side-right: #8fae85;
-  --world-trunk: #8b6b4e;
-  --world-shadow: rgba(40, 60, 30, 0.16);
-  --world-leaf-shine: rgba(255, 255, 255, 0.38);
-  --world-leaf-1: #8fcf6b;
-  --world-leaf-2: #6cbd58;
-  --world-leaf-3: #4aa64a;
-  --world-leaf-4: #2f8f40;
+/* World palette: the blocks and marks follow the app theme. Sprite themes (Grove) bring their own ground. */
+.world-card {
+  --world-top: color-mix(in srgb, var(--accent) 8%, var(--bg-hover));
+  --world-top-grown: color-mix(in srgb, var(--accent) 18%, var(--bg-hover));
+  --world-side-left: color-mix(in srgb, #000 12%, var(--world-top));
+  --world-side-right: color-mix(in srgb, #000 24%, var(--world-top));
   --world-marker: var(--brand-3);
   --world-glow: var(--brand-3);
   --world-today: var(--accent);
-}
-
-:root[data-theme='dark'] .world-theme-grove {
-  --world-top: #3d4c3a;
-  --world-top-grown: #4a6442;
-  --world-side-left: #2d3b2b;
-  --world-side-right: #232e22;
-  --world-trunk: #a3825f;
-  --world-shadow: rgba(0, 0, 0, 0.32);
-  --world-leaf-shine: rgba(255, 255, 255, 0.22);
-  --world-leaf-1: #9bd877;
-  --world-leaf-2: #78c663;
-  --world-leaf-3: #57b152;
-  --world-leaf-4: #3d9c48;
 }
 
 .world-top {
@@ -935,25 +914,14 @@ ul {
   stroke-width: 0.8;
 }
 
-.world-cell.is-today .world-top {
+.world-cell:hover .world-art {
+  filter: brightness(1.12);
+}
+
+.world-today-ring {
+  fill: none;
   stroke: var(--world-today);
   stroke-width: 1.2;
-}
-
-.world-art.level-1 {
-  --world-leaf: var(--world-leaf-1);
-}
-
-.world-art.level-2 {
-  --world-leaf: var(--world-leaf-2);
-}
-
-.world-art.level-3 {
-  --world-leaf: var(--world-leaf-3);
-}
-
-.world-art.level-4 {
-  --world-leaf: var(--world-leaf-4);
 }
 
 /* Streak: the whole run glows and sparkles. */
@@ -985,12 +953,12 @@ ul {
   animation: world-pulse 2.2s ease-out infinite;
 }
 
-/* Motion: everything grows in from the ground in a left-to-right wave, then trees idle in a slow sway. */
+/* Motion: every block pops up from the ground in a left-to-right wave; themes may add a slow sway on trees. */
 .world-obj {
   transform-box: fill-box;
   transform-origin: 50% 100%;
-  animation: world-grow 480ms cubic-bezier(0.3, 1.45, 0.5, 1) both;
-  animation-delay: calc(var(--c) * 16ms + var(--r) * 6ms);
+  animation: world-grow 420ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+  animation-delay: calc(var(--c) * 12ms + var(--r) * 5ms);
 }
 
 .world-art.is-swaying {
@@ -1002,7 +970,7 @@ ul {
 
 @keyframes world-grow {
   from {
-    transform: scale(0.3, 0);
+    transform: scale(0.55);
     opacity: 0;
   }
   to {

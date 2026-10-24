@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 import { Flame } from 'lucide-react';
 import { useMemo, type CSSProperties, type ReactNode } from 'react';
+import { BLOCK_WIDTH, GROVE_SPRITES, type GroveSpriteName } from '../assets/world/grove/sprites';
 import { parseDateStr, todayStr } from '../lib/dates';
 import { celebratedStreakDays, completionLevel, type WorldLevel } from '../lib/world';
 
@@ -23,16 +24,20 @@ export interface PlotFlags {
   isToday: boolean;
   inStreak: boolean;
   isFuture: boolean;
+  /** Stable per day in [0, 1): lets a theme vary the look between days of the same tier. */
+  seed: number;
 }
 
-/** What a theme puts on a block. */
+/** What a theme puts on a plot. */
 export interface PlotArt {
   /** Id of a <symbol> from the theme's defs; its origin sits at the centre of the block's top face, y grows upwards. */
   symbol: string;
-  /** How far the art rises above the block, in grid units; places the sparkles. */
+  /** How far the art rises above the top face, in grid units; places the sparkles. */
   height: number;
-  /** Gentle idle sway: trees yes, tiny things no. */
+  /** Gentle idle sway (vector trees); off for sprites that include their block. */
   sway: boolean;
+  /** True when the symbol draws the ground block itself, so the view draws none. */
+  ground: boolean;
 }
 
 export interface WorldTheme {
@@ -46,8 +51,8 @@ export interface WorldTheme {
 
 // ---- Grid geometry (SVG user units; the drawing scales with the card width) ----
 
-const CELL = 24; // column pitch
-const ROW = 22; // row pitch
+const CELL = 23; // column pitch
+const ROW = 20; // row pitch
 const TOP_W = 20; // top face of a block (2:1 isometric diamond)
 const TOP_H = TOP_W / 2;
 const DEPTH = 6; // visible side faces
@@ -61,65 +66,45 @@ const GLOW = diamond(TOP_W * 1.9, TOP_H * 1.9);
 const FACE_LEFT = `${-TOP_W / 2},0 0,${TOP_H / 2} 0,${TOP_H / 2 + DEPTH} ${-TOP_W / 2},${DEPTH}`;
 const FACE_RIGHT = `0,${TOP_H / 2} ${TOP_W / 2},0 ${TOP_W / 2},${DEPTH} 0,${TOP_H / 2 + DEPTH}`;
 
-// ---- Grove theme: flat, friendly shapes in the app's own style ----
+// ---- Grove theme: the owner's rendered sprites (design/world/grove, cut by frontend/scripts/world-sprites.py) ----
 
-const leaf: CSSProperties = { fill: 'var(--world-leaf)' };
-const leafShine: CSSProperties = { fill: 'var(--world-leaf-shine)' };
-const trunk: CSSProperties = { fill: 'var(--world-trunk)' };
-const stem: CSSProperties = { fill: 'none', stroke: 'var(--world-trunk)', strokeWidth: 1.5, strokeLinecap: 'round' };
-const shadow: CSSProperties = { fill: 'var(--world-shadow)' };
+const SPRITE_SCALE = TOP_W / BLOCK_WIDTH; // sprite px -> grid units, so every block is TOP_W wide
+
 const marker: CSSProperties = { fill: 'var(--world-marker)' };
 
-const GROVE_ART: Record<WorldLevel, PlotArt | null> = {
-  0: null,
-  1: { symbol: 'grove-sprout', height: 9, sway: false },
-  2: { symbol: 'grove-sapling', height: 16, sway: false },
-  3: { symbol: 'grove-tree', height: 24, sway: true },
-  4: { symbol: 'grove-landmark', height: 41, sway: true },
-};
+function spriteArt(name: GroveSpriteName): PlotArt {
+  const sprite = GROVE_SPRITES[name];
+  return { symbol: `grove-${name}`, height: sprite.anchorY * SPRITE_SCALE, sway: false, ground: true };
+}
 
 const GROVE: WorldTheme = {
   id: 'grove',
   name: 'Grove',
   defs: (
     <>
-      <symbol id="grove-sprout" overflow="visible">
-        <path d="M0 0.5 C0.6 -2 0.2 -4 0 -6.5" style={stem} />
-        <ellipse cx={-3} cy={-4.4} rx={3.2} ry={1.6} transform="rotate(-36 -3 -4.4)" style={leaf} />
-        <ellipse cx={3} cy={-6} rx={3.2} ry={1.6} transform="rotate(36 3 -6)" style={leaf} />
-        <circle cx={0} cy={-7.4} r={1.3} style={leaf} />
-      </symbol>
-      <symbol id="grove-sapling" overflow="visible">
-        <ellipse cx={0} cy={0.6} rx={5.5} ry={2.2} style={shadow} />
-        <rect x={-1.1} y={-7} width={2.2} height={7.6} rx={0.8} style={trunk} />
-        <circle cx={-3.6} cy={-8} r={3.4} style={leaf} />
-        <circle cx={3.6} cy={-8} r={3.4} style={leaf} />
-        <circle cx={0} cy={-11.2} r={4.6} style={leaf} />
-        <circle cx={-1.5} cy={-12.8} r={1.5} style={leafShine} />
-      </symbol>
-      <symbol id="grove-tree" overflow="visible">
-        <ellipse cx={0} cy={0.8} rx={7.5} ry={2.8} style={shadow} />
-        <rect x={-1.6} y={-10} width={3.2} height={10.8} rx={1} style={trunk} />
-        <circle cx={-5.8} cy={-11.5} r={5} style={leaf} />
-        <circle cx={5.8} cy={-11.5} r={5} style={leaf} />
-        <circle cx={0} cy={-16.6} r={7.2} style={leaf} />
-        <circle cx={-2.4} cy={-19} r={2.3} style={leafShine} />
-      </symbol>
-      <symbol id="grove-landmark" overflow="visible">
-        <ellipse cx={0} cy={1} rx={10} ry={3.6} style={shadow} />
-        <rect x={-2.2} y={-13} width={4.4} height={14} rx={1.2} style={trunk} />
-        <circle cx={-8} cy={-14} r={6.5} style={leaf} />
-        <circle cx={8} cy={-14} r={6.5} style={leaf} />
-        <circle cx={-4.2} cy={-21} r={6.5} style={leaf} />
-        <circle cx={4.2} cy={-21} r={6.5} style={leaf} />
-        <circle cx={0} cy={-26} r={7.5} style={leaf} />
-        <circle cx={-3} cy={-29} r={2.6} style={leafShine} />
-        <path d="M0 -32 V-41" style={stem} />
-        <path d="M0 -41 L7.5 -38.2 L0 -35.4 Z" style={marker} />
-      </symbol>
+      {(Object.keys(GROVE_SPRITES) as GroveSpriteName[]).map((name) => {
+        const sprite = GROVE_SPRITES[name];
+        return (
+          <symbol key={name} id={`grove-${name}`} overflow="visible">
+            <image
+              href={sprite.url}
+              x={-sprite.anchorX * SPRITE_SCALE}
+              y={-sprite.anchorY * SPRITE_SCALE}
+              width={sprite.width * SPRITE_SCALE}
+              height={sprite.height * SPRITE_SCALE}
+            />
+          </symbol>
+        );
+      })}
     </>
   ),
-  plotArt: (level) => GROVE_ART[level],
+  plotArt(level, flags) {
+    if (level === 0) return spriteArt('bare');
+    // Two species so a busy month does not look like a plantation; the seed keeps a day's tree stable.
+    const species = flags.seed < 0.62 ? 'leafy' : 'pine';
+    if (species === 'leafy' && level === 1) return spriteArt((flags.seed * 100) % 1 < 0.5 ? 'leafy-1a' : 'leafy-1b');
+    return spriteArt(`${species}-${level}` as GroveSpriteName);
+  },
 };
 
 export const WORLD_THEMES = { grove: GROVE } as const;
@@ -142,6 +127,18 @@ interface WorldViewProps {
 function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
+
+/** Small stable hash of a date string into [0, 1), for per-day variety. */
+function dateSeed(date: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < date.length; i += 1) {
+    h ^= date.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 10007) / 10007;
+}
+
+const LEGEND_FLAGS: PlotFlags = { isToday: false, inStreak: false, isFuture: false, seed: 0.1 };
 
 export function WorldView({ year, weeks, monthLabels, cells, perDay, total, themeId = 'grove' }: WorldViewProps) {
   const theme: WorldTheme = WORLD_THEMES[themeId];
@@ -191,6 +188,7 @@ export function WorldView({ year, weeks, monthLabels, cells, perDay, total, them
                   isToday: cell.date === today,
                   inStreak: streak.has(cell.date),
                   isFuture: cell.date > today,
+                  seed: dateSeed(cell.date),
                 };
                 const level = completionLevel(cell.count);
                 const art = theme.plotArt(level, flags);
@@ -220,9 +218,13 @@ export function WorldView({ year, weeks, monthLabels, cells, perDay, total, them
                   >
                     <title>{`${plural(cell.count, 'task')} on ${format(date, 'EEE d MMM yyyy')}`}</title>
                     {flags.inStreak && <polygon className="world-glow" points={GLOW} />}
-                    <polygon className="world-face-left" points={FACE_LEFT} />
-                    <polygon className="world-face-right" points={FACE_RIGHT} />
-                    <polygon className="world-top" points={TOP} />
+                    {!art?.ground && (
+                      <>
+                        <polygon className="world-face-left" points={FACE_LEFT} />
+                        <polygon className="world-face-right" points={FACE_RIGHT} />
+                        <polygon className="world-top" points={TOP} />
+                      </>
+                    )}
                     {flags.isToday && <polygon className="world-pulse" points={TOP} />}
                     {art && (
                       <g className="world-obj">
@@ -232,6 +234,7 @@ export function WorldView({ year, weeks, monthLabels, cells, perDay, total, them
                         />
                       </g>
                     )}
+                    {flags.isToday && <polygon className="world-today-ring" points={TOP} />}
                     {flags.inStreak && art && (
                       <>
                         <use href="#world-sparkle" className="world-sparkle" transform={`translate(8 ${-art.height - 1})`} />
@@ -264,13 +267,17 @@ export function WorldView({ year, weeks, monthLabels, cells, perDay, total, them
         <div className="world-legend">
           <span className="muted small">Less</span>
           {([0, 1, 2, 3, 4] as WorldLevel[]).map((level) => {
-            const art = theme.plotArt(level, { isToday: false, inStreak: false, isFuture: false });
+            const art = theme.plotArt(level, LEGEND_FLAGS);
             return (
-              <svg key={level} className="world-legend-glyph" viewBox="-12 -42 24 54" aria-hidden="true">
+              <svg key={level} className="world-legend-glyph" viewBox="-15 -32 30 44" aria-hidden="true">
                 <g className={`world-cell level-${level}${level > 0 ? ' is-grown' : ''}`}>
-                  <polygon className="world-face-left" points={FACE_LEFT} />
-                  <polygon className="world-face-right" points={FACE_RIGHT} />
-                  <polygon className="world-top" points={TOP} />
+                  {!art?.ground && (
+                    <>
+                      <polygon className="world-face-left" points={FACE_LEFT} />
+                      <polygon className="world-face-right" points={FACE_RIGHT} />
+                      <polygon className="world-top" points={TOP} />
+                    </>
+                  )}
                   {art && <use href={`#${art.symbol}`} className={`world-art level-${level}`} />}
                 </g>
               </svg>
