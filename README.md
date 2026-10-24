@@ -93,7 +93,7 @@ alpha mask (radius about 23% of the side), and export 512px PNGs plus an ICO wit
 
 ## Publish a release
 
-The installer is distributed through [GitHub Releases](https://github.com/DoubleE1/MyTodoEase/releases); the landing
+The installer is distributed through [GitHub Releases](https://github.com/DoubleE1/TodoEase/releases); the landing
 page's **Download for Windows** button always fetches `releases/latest/download/TodoEase-Setup.exe`, so the asset
 name must stay `TodoEase-Setup.exe` (the release tag carries the version). After `npm run build`:
 
@@ -279,4 +279,4 @@ the manual commands and the tool list.
 ## License
 
 [MIT](LICENSE). TodoEase is open source; issues and pull requests are welcome at
-https://github.com/DoubleE1/MyTodoEase.
+https://github.com/DoubleE1/TodoEase.
