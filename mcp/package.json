@@ -1,6 +1,6 @@
 {
   "name": "mytodoease-mcp-server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server that lets AI assistants (Claude, Codex, ...) read and manage MyTodoEase tasks through the local API",
   "type": "module",
   "private": true,
@@ -28,7 +28,7 @@
     "@modelcontextprotocol/client": "^2.3.1",
     "@types/node": "^24.0.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "esbuild": "^0.28.2"
   }
 }

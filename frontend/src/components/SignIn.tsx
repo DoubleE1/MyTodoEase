@@ -8,12 +8,12 @@ const WINDOWS_URL = import.meta.env.VITE_DOWNLOAD_WINDOWS_URL || '';
 const MAC_URL = import.meta.env.VITE_DOWNLOAD_MAC_URL || '';
 
 const FEATURES: { icon: ReactNode; title: string; text: string }[] = [
-  { icon: <SunMedium size={18} />, title: 'Today, Upcoming, Inbox', text: 'Projects, sections, labels, priorities and sub-tasks, with quick add that understands "tomorrow 3pm" and "every 2 weeks".' },
-  { icon: <CalendarClock size={18} />, title: 'Time-blocking with Google Calendar', text: 'Drag tasks onto an hour-by-hour week next to your meetings, and let Plan my day fill the gaps. Dated tasks mirror to a calendar on your phone.' },
-  { icon: <Repeat size={18} />, title: 'Recurring tasks that roll forward', text: 'Daily, weekdays, weekly, every two weeks, monthly or yearly. Completing one moves it to the next date and still counts.' },
-  { icon: <BarChart3 size={18} />, title: 'Insights', text: 'A GitHub-style year heatmap of what you finished, streaks, best day and weekday patterns.' },
-  { icon: <Sparkles size={18} />, title: 'Mini window and dock', text: 'On Windows, shrink to a small always-on-top list or dock it to the screen edge like the taskbar.' },
-  { icon: <Bot size={18} />, title: 'Works with your AI assistant', text: 'Claude, Codex and other MCP clients can list, add, reschedule and complete your tasks through the desktop app.' },
+  { icon: <SunMedium size={18} />, title: 'Capture in plain words', text: 'Type "call the dentist tomorrow 3pm every 2 weeks" and it lands in the right place with the right date, time and repeat. Projects, sections, labels, priorities and sub-tasks when you want structure.' },
+  { icon: <CalendarClock size={18} />, title: 'Your day on a timeline', text: 'Tasks and Google Calendar events share one hour-by-hour week. Drag a task into a free slot, stretch it to the time it needs, or press Plan my day and let the gaps fill themselves.' },
+  { icon: <Repeat size={18} />, title: 'Routines that keep going', text: 'Daily, weekdays, weekly, every two weeks, monthly or yearly. Finish one and it moves to its next date; the finish still counts in your history.' },
+  { icon: <BarChart3 size={18} />, title: 'See the year you built', text: 'A heatmap of every finished task, your current streak, your best day and the weekdays you get the most done.' },
+  { icon: <Sparkles size={18} />, title: 'A list that stays beside you', text: 'On Windows, shrink the app to a slim always-on-top list, or dock it to the edge of the screen so other windows make room for it.' },
+  { icon: <Bot size={18} />, title: 'Talk to it through your assistant', text: 'Claude, Codex and other MCP-capable assistants can read your agenda, add tasks, reschedule and tick things off for you.' },
 ];
 
 /**
@@ -63,12 +63,12 @@ export function SignInScreen() {
         <section className="landing-hero">
           <Logo size={72} />
           <h1>
-            Your tasks, <span className="landing-gradient">everywhere.</span>
+            Plan the day. <span className="landing-gradient">Ease through it.</span>
           </h1>
           <p className="landing-lead">
-            A Todoist-style planner for people who live in their calendar. Use it in the browser, or install the
-            desktop app for time-blocking, Google Calendar sync and a dockable mini window. Sign in with Google
-            and the same tasks follow you to every device.
+            MyTodoEase keeps your tasks and your calendar on one screen. Capture quickly, give each task a time, and
+            watch the day fill in around your meetings. It runs in the browser and as a Windows app, and your Google
+            account keeps both in step.
           </p>
           <div className="landing-ctas">
             {googleButton('landing-cta')}
@@ -118,7 +118,7 @@ export function SignInScreen() {
 
       <footer className="landing-footer">
         <span>MyTodoEase</span>
-        <span>Windows desktop app plus web. Your data lives in your Google account; the desktop app can also work fully offline.</span>
+        <span>In the browser and on Windows. Your tasks live in your own Google account; the Windows app also works fully offline.</span>
       </footer>
     </div>
   );

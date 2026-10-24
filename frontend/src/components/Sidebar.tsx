@@ -46,6 +46,8 @@ interface SidebarProps {
   themePreference: ThemePreference;
   onCycleTheme: () => void;
   onOpenSettings: () => void;
+  /** Signed-in account control for the footer (switch account, sign out); null in local mode. */
+  accountMenu?: ReactNode;
   /** In the browser there is no title bar, so Mini mode lives here instead. */
   showCompactButton: boolean;
   onCompact: () => void;
@@ -169,6 +171,7 @@ export function Sidebar({
   themePreference,
   onCycleTheme,
   onOpenSettings,
+  accountMenu,
   showCompactButton,
   onCompact,
 }: SidebarProps) {
@@ -363,6 +366,7 @@ export function Sidebar({
       </CollapsibleSection>
 
       <div className="sidebar-footer">
+        {accountMenu}
         <button type="button" className="footer-btn" onClick={onOpenSettings} title="Settings" aria-label="Settings">
           <Settings size={15} />
           <span>Settings</span>

@@ -1,7 +1,7 @@
 {
   "name": "mytodoease",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MyTodoEase - a Todoist-style todo app: ASP.NET Core + embedded LiteDB backend, React front end, Electron desktop shell.",
   "workspaces": [
     "frontend",

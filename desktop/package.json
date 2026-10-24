@@ -2,7 +2,7 @@
   "name": "desktop",
   "productName": "MyTodoEase",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MyTodoEase desktop shell",
   "author": "MyTodoEase",
   "main": "main.cjs",

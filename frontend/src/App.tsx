@@ -16,6 +16,7 @@ import {
   useTaskMutations,
 } from './api/hooks';
 import type { Label, Project, Task } from './api/types';
+import { AccountMenu } from './components/AccountMenu';
 import { CalendarView } from './components/CalendarView';
 import { CompactView } from './components/CompactView';
 import { ConfirmDialog, LabelDialog, Modal, ProjectDialog, type ConfirmOptions } from './components/Dialogs';
@@ -401,6 +402,7 @@ export default function App() {
         themePreference={theme.preference}
         onCycleTheme={theme.cycle}
         onOpenSettings={() => setDialog({ kind: 'settings' })}
+        accountMenu={<AccountMenu confirm={confirm} />}
         showCompactButton={!windowMode.isDesktop}
         onCompact={() => void windowMode.setCompact(true)}
       />

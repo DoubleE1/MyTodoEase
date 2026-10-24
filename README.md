@@ -98,7 +98,7 @@ page's **Download for Windows** button always fetches `releases/latest/download/
 name must stay `MyTodoEase-Setup.exe` (the release tag carries the version). After `npm run build`:
 
 ```bash
-gh release create v0.1.0 release/MyTodoEase-Setup.exe --title "MyTodoEase 0.1.0" --generate-notes
+gh release create v0.1.1 release/MyTodoEase-Setup.exe --title "MyTodoEase 0.1.1" --generate-notes
 ```
 
 (or create the release on GitHub and drag `release/MyTodoEase-Setup.exe` into it). Bump `version` in the three
@@ -108,7 +108,7 @@ Easier: push a version tag and let GitHub Actions do it. `.github/workflows/rele
 Windows runner and attaches it to a release for that tag (also runnable by hand from the Actions tab):
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0
+git tag v0.1.1 && git push origin v0.1.1
 ```
 
 Add the repository secret `GOOGLE_CLIENT_JSON` (the contents of `backend/MyTodoEase.Api/google-client.json`) so the
