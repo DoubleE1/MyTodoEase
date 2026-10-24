@@ -114,6 +114,22 @@ git tag v0.1.2 && git push origin v0.1.2
 Add the repository secret `GOOGLE_CLIENT_JSON` (the contents of `backend/MyTodoEase.Api/google-client.json`) so the
 built installer ships the Google Calendar OAuth client; without it users are asked to paste one.
 
+### Code signing (SignPath Foundation)
+
+Unsigned installers trip Windows SmartScreen until they earn reputation. The workflow is ready to sign through the
+[SignPath Foundation](https://signpath.org), which signs open-source releases for free:
+
+1. Apply at signpath.org with this repository (public, MIT licence), the maintainers and the build setup
+   (GitHub Actions, workflow `release.yml`, artifact `TodoEase-Setup-unsigned`).
+2. When approved, create a project `TodoEase` with a signing policy `release-signing` in SignPath, install the
+   SignPath GitHub app on the repository, and add the repository secret `SIGNPATH_API_TOKEN` and the repository
+   variable `SIGNPATH_ORGANIZATION_ID`.
+3. Push the next tag: the workflow uploads the unsigned installer, waits for SignPath to sign it, and publishes the
+   signed file. Until the secret exists the unsigned installer is published as before.
+
+When signing is active, keep this notice in the README, as SignPath requires: *Free code signing provided by
+[SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).*
+
 ## Build a Windows installer
 
 ```bash
@@ -259,3 +275,8 @@ the manual commands and the tool list.
 - Reordering projects, sections, or sub-tasks by drag (only top-level tasks are draggable)
 - Comments, attachments, reminders, notifications
 - Email / Telegram integration and email-to-task analysis
+
+## License
+
+[MIT](LICENSE). TodoEase is open source; issues and pull requests are welcome at
+https://github.com/DoubleE1/MyTodoEase.
