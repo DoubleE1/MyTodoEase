@@ -10,7 +10,7 @@ import type { ConfirmOptions } from './Dialogs';
 import { GoogleMark } from './GoogleMark';
 import { useCloudUser } from './SessionGate';
 
-const WEB_APP_URL = 'https://mytodoease.web.app';
+const WEB_APP_URL = 'https://todoease.com';
 
 async function openInBrowser(url: string): Promise<void> {
   const desktop = window.mytodoease;
