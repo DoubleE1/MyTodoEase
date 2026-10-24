@@ -98,7 +98,7 @@ page's **Download for Windows** button always fetches `releases/latest/download/
 name must stay `TodoEase-Setup.exe` (the release tag carries the version). After `npm run build`:
 
 ```bash
-gh release create v0.1.2 release/TodoEase-Setup.exe --title "TodoEase 0.1.2" --generate-notes
+gh release create v0.1.3 release/TodoEase-Setup.exe --title "TodoEase 0.1.3" --generate-notes
 ```
 
 (or create the release on GitHub and drag `release/TodoEase-Setup.exe` into it). Bump `version` in the three
@@ -108,7 +108,7 @@ Easier: push a version tag and let GitHub Actions do it. `.github/workflows/rele
 Windows runner and attaches it to a release for that tag (also runnable by hand from the Actions tab):
 
 ```bash
-git tag v0.1.2 && git push origin v0.1.2
+git tag v0.1.3 && git push origin v0.1.3
 ```
 
 Add the repository secret `GOOGLE_CLIENT_JSON` (the contents of `backend/MyTodoEase.Api/google-client.json`) so the
@@ -154,12 +154,14 @@ projects, sections, labels and completion history then live in Firestore under y
 web app at https://todoease.com shows exactly the same data. Sign out and the PC goes back to its local
 file; the cloud data stays in your account.
 
-- **Sign-in flow.** Firebase's Google popup cannot run inside Electron, so the renderer asks the local API for a
-  one-time page (`POST /api/auth/firebase/start` → `http://localhost:5080/api/auth/firebase/page?state=…`) and
-  opens it in your default browser. That page loads the Firebase SDK, runs the normal Google popup and posts the
-  Google ID token back to the API (same origin); the app polls `GET /api/auth/firebase/pending/{state}` and finishes
-  with `signInWithCredential`. `localhost` is one of Firebase's default authorized domains, so no console setup is
-  needed. The Firebase session is persisted by the SDK inside the app (IndexedDB), like in the web app.
+- **Sign-in flow.** One Google sign-in covers everything. The local API runs the OAuth 2.0 authorization-code flow
+  with PKCE and a loopback redirect (`POST /api/auth/google/start` returns the consent URL, which the app opens in
+  your default browser) and keeps the refresh token for Google Calendar. The desktop OAuth client lives in the same
+  Google Cloud project as Firebase, so the renderer then opens the matching Firebase session with the ID token of
+  that very sign-in (`GET /api/auth/google/id-token`, handed out once, then `signInWithCredential`): no second
+  consent screen. Google's consent page lists calendar access as a tickable permission; leaving it unticked still
+  signs you in, and Settings offers **Allow calendar access** later. The Firebase session is persisted by the SDK
+  inside the app (IndexedDB), like in the web app.
 - **Data layer.** `frontend/src/api/client.ts` exposes one `api` object that routes each call to the active backend:
   the REST client (local) or the Firestore client (cloud, `firestoreClient.ts`). `SessionGate.tsx` flips it when the
   Firebase user appears or leaves, clears the query cache and re-mounts the app. Google Calendar settings and sync
@@ -176,33 +178,39 @@ file; the cloud data stays in your account.
   and offers **Move local data to the cloud** (local backup export `GET /api/backup/local` → cloud import, replacing
   the cloud data after confirmation). The local file is left unchanged as a backup.
 
-## Google Calendar connection
+## Google OAuth client (sign-in and Calendar)
 
-Settings → Google Calendar connects a Google account for calendar access (this is separate from the cloud account:
-it is an OAuth grant held by the local API on this PC). The app uses the OAuth 2.0 authorization-code flow with
-PKCE and a loopback redirect into the local API; the refresh token and client secret are stored in
-`%LOCALAPPDATA%\TodoEase\google-auth.json`, encrypted with Windows DPAPI for your user.
+The desktop app signs in through an OAuth client of type **Desktop app** that belongs to the Firebase project
+(`mytodoease-883bf`), named "TodoEase Desktop". It must be in that project: Firebase only accepts ID tokens issued to
+clients of its own project, and that is what lets one consent screen produce both the cloud session and the calendar
+permission. The refresh token and the client secret are stored in `%LOCALAPPDATA%\TodoEase\google-auth.json`,
+encrypted with Windows DPAPI for your user; the client secret of an installed app is not confidential by Google's own
+definition, so bundling it is the standard approach.
 
-The app ships with its OAuth client, so users just click **Connect Google Calendar**. To build with your own client (free):
+The app ships with its client, so users just click **Sign in with Google**. To build with your own client (free):
 
-1. Open [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials) and
-   create a project if you have none.
-2. Configure the OAuth consent screen (External, app name "TodoEase", your email). While the app is in **Testing**,
-   add the Google addresses that may sign in under Test users.
-3. Create credentials → OAuth client ID → Application type **Desktop app** → Download JSON.
-4. Save that file as `backend/MyTodoEase.Api/google-client.json` (git-ignored). The build copies it next to the API,
-   which reads `installed.client_id` / `installed.client_secret` from it.
+1. In [Google Cloud Console](https://console.cloud.google.com/) select the Firebase project, enable the **Google
+   Calendar API**, and under Google Auth Platform → Data Access add the scope `https://www.googleapis.com/auth/calendar`.
+2. Google Auth Platform → Clients → Create client → Application type **Desktop app** → Download JSON.
+3. Save that file as `backend/MyTodoEase.Api/google-client.json` (git-ignored). The build copies it next to the API,
+   which reads `installed.client_id` / `installed.client_secret` from it; the release workflow takes it from the
+   `GOOGLE_CLIENT_JSON` secret. A build whose client differs from the one a user signed in with asks that user to
+   sign in again (refresh tokens are bound to the client).
 
 Alternatives: `MYTODOEASE_GOOGLE_CLIENT_ID` / `MYTODOEASE_GOOGLE_CLIENT_SECRET` environment variables, or
-`Google:ClientId` / `Google:ClientSecret` in `appsettings.json`. Without any client the Account section shows a form to
-paste one, stored encrypted on that PC. Google treats a desktop client's secret as non-confidential.
+`Google:ClientId` / `Google:ClientSecret` in `appsettings.json`. Without any client the Google Calendar tab shows a
+form to paste one, stored encrypted on that PC.
 Endpoints: `GET /api/auth/google` (status), `PUT /api/auth/google/config`, `POST /api/auth/google/start` (consent
-URL), `GET /api/auth/google/callback`, `POST /api/auth/google/cancel`, `DELETE /api/auth/google` (revoke + forget).
+URL), `GET /api/auth/google/callback`, `GET /api/auth/google/id-token` (one-time), `POST /api/auth/google/cancel`,
+`DELETE /api/auth/google` (revoke + forget).
+
+Until Google verifies the app for the calendar scope, the consent screen shows its "unverified app" warning for
+calendar access and limits it to 100 users; identity-only sign-in has no such limit.
 
 ## Google Calendar sync
 
-Settings → Google Calendar, once connected, offers two things (they work in local and in cloud mode; in cloud mode
-the mirror follows the cloud tasks):
+Settings → Google Calendar, once calendar access is allowed, offers two things (they work in local and in cloud mode;
+in cloud mode the mirror follows the cloud tasks):
 
 - **Mirror tasks to Google Calendar**: every open task with a due date becomes an event in a dedicated "TodoEase"
   calendar (all-day, or 30 minutes at the due time; recurring tasks become recurring events with an RRULE). Creating,
@@ -211,8 +219,9 @@ the mirror follows the cloud tasks):
   events. Links between tasks and events live in the `calendar_links` collection; settings in
   `%LOCALAPPDATA%\TodoEase\calendar-sync.json`.
 - **Show these calendars**: events from the Google calendars you tick appear in the Calendar grid, and under the day
-  headings in Today and Upcoming (read-only; click one to open it in Google). The TodoEase mirror calendar is always
-  excluded so tasks never show twice.
+  headings in Today and Upcoming (read-only; click one to open it in Google). The TodoEase mirror calendar can be
+  ticked too: events the app mirrored are skipped so tasks never show twice, while events you add to that calendar
+  by hand appear like any other.
 
 Endpoints: `GET/PUT /api/calendar/sync`, `POST /api/calendar/sync/run`, `GET /api/calendar/calendars`,
 `GET /api/calendar/events?from&to` (local dates, at most 120 days).

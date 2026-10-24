@@ -60,7 +60,7 @@ public static class CalendarEndpoints
             }
         });
 
-        // Google events for a range of local calendar dates (inclusive), excluding the TodoEase mirror calendar.
+        // Google events for a range of local calendar dates (inclusive); events the app mirrored itself are left out.
         group.MapGet("/events", async (string? from, string? to, CalendarSyncService sync, CancellationToken ct) =>
         {
             if (!TryParse(from, out var fromDate) || !TryParse(to, out var toDate) || toDate < fromDate || toDate.DayNumber - fromDate.DayNumber > 120)

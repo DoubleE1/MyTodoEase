@@ -505,8 +505,7 @@ app.on('will-quit', (event) => {
   });
 });
 
-// Open a link in the system browser: Google consent pages, and the local API's sign-in page for cloud sync
-// (http://localhost:<port>/api/auth/firebase/page, which runs the Firebase Google popup the window itself cannot).
+// Open a link in the system browser (Google sign-in and consent pages). Only https links to Google hosts are allowed.
 ipcMain.handle('shell:open-external', async (_event, url) => {
   let parsed;
   try {
@@ -514,9 +513,7 @@ ipcMain.handle('shell:open-external', async (_event, url) => {
   } catch {
     return false;
   }
-  const apiHost = new URL(API_URL).hostname;
-  const loopback = parsed.protocol === 'http:' && ['localhost', '127.0.0.1', apiHost].includes(parsed.hostname);
-  const allowed = loopback || (parsed.protocol === 'https:' && /(^|\.)google\.com$/.test(parsed.hostname));
+  const allowed = parsed.protocol === 'https:' && /(^|\.)google\.com$/.test(parsed.hostname);
   if (!allowed) return false;
   await shell.openExternal(parsed.toString());
   return true;

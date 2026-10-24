@@ -181,7 +181,7 @@ export const api: Api = new Proxy(restApi, {
   },
 }) as Api;
 
-/** Firebase web config the renderer was built with (frontend/.env); also handed to the API for the sign-in page. */
+/** Firebase web config the renderer was built with (frontend/.env); the API gets project id and key with the session. */
 export function firebaseWebConfig() {
   const env = import.meta.env;
   return {
@@ -204,15 +204,8 @@ export interface CloudSessionStatus {
 
 /** Desktop-only endpoints of the local API that make cloud sync work (not part of the data surface). */
 export const desktopCloud = {
-  /** Registers a sign-in attempt; returns the loopback page to open in the system browser. */
-  startSignIn: () =>
-    request<{ state: string; url: string }>('/api/auth/firebase/start', { method: 'POST', ...json(firebaseWebConfig()) }),
-  /** The Google ID token once the browser page delivered it; null while still waiting. Throws 404 when expired. */
-  pollSignIn: (state: string) =>
-    request<{ idToken: string; email: string | null } | undefined>(`/api/auth/firebase/pending/${encodeURIComponent(state)}`).then(
-      (r) => r ?? null,
-    ),
-  cancelSignIn: () => request<void>('/api/auth/firebase/cancel', { method: 'POST' }),
+  /** The Google ID token of the sign-in that just completed, handed out once; null while nothing is waiting. */
+  takeGoogleIdToken: () => request<{ idToken: string } | undefined>('/api/auth/google/id-token').then((r) => r ?? null),
   session: () => request<CloudSessionStatus>('/api/cloud/session'),
   /** Shares the Firebase session so the API (MCP server, Calendar sync) reads the same cloud data. */
   setSession: (input: { projectId: string; apiKey: string; uid: string; email: string | null; name: string | null; refreshToken: string }) =>

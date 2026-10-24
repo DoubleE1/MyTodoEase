@@ -3373,6 +3373,18 @@ ul {
   flex-shrink: 0;
 }
 
+/* Quieter variant: a status row (connected / not connected) rather than a call to action */
+.settings-callout-quiet {
+  background: var(--bg-sidebar);
+  border-color: var(--border);
+}
+
+.settings-callout-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .settings-help a {
   color: var(--accent-text);
   display: inline-flex;

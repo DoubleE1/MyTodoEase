@@ -371,11 +371,11 @@ public sealed class CalendarSyncService : BackgroundService
         }
 
         var calendars = await _google.ListCalendarsAsync(ct);
-        var target = _settings.TargetCalendarId;
         var chosen = _settings.SourceCalendarIds.Count == 0
             ? calendars.Where(c => c.Primary).ToList()
             : calendars.Where(c => _settings.SourceCalendarIds.Contains(c.Id)).ToList();
-        chosen = chosen.Where(c => c.Id != target).ToList();
+        // The mirror calendar may be chosen too: events the app created there are skipped below (they are the
+        // tasks themselves), while events the user added to it by hand show like any other.
 
         var zone = TimeZoneInfo.Local;
         var fromUtc = TimeZoneInfo.ConvertTimeToUtc(from.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified), zone);

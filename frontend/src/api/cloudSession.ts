@@ -1,15 +1,15 @@
 /**
- * Cloud sync for the desktop app (and a plain-browser dev run): one Firebase session shared between this
- * renderer, which reads and writes Firestore directly, and the local API, which does the same for the MCP
- * server and Google Calendar sync.
+ * Cloud sync sign-in for the desktop app (and a plain-browser dev run). One Google sign-in does two things:
+ * the local API runs the OAuth code flow (PKCE, loopback redirect) and keeps the refresh token for Google
+ * Calendar, and the renderer opens the matching Firebase session from the ID token of that same sign-in. One
+ * consent screen; the calendar permission is a checkbox the user may leave unticked.
  *
- * Firebase's Google popup cannot run inside Electron, so sign-in goes through the system browser: the local
- * API serves a small page on http://localhost that runs the popup and hands the Google ID token back; the
- * renderer polls for it and finishes with signInWithCredential. See CloudEndpoints.cs.
+ * The desktop OAuth client lives in the Firebase project, which is what lets Firebase accept its ID token.
  */
 import { GoogleAuthProvider, signInWithCredential, signOut as firebaseSignOut, type User } from 'firebase/auth';
 import { IS_WEB_APP } from './backend';
-import { ApiError, desktopCloud, firebaseWebConfig } from './client';
+import { ApiError, desktopCloud, firebaseWebConfig, restApi } from './client';
+import { GOOGLE_CALENDAR_SCOPE } from './hooks';
 import { firebase } from '../firebase/app';
 
 const POLL_MS = 1500;
@@ -22,6 +22,8 @@ async function openInBrowser(url: string): Promise<boolean> {
   return window.open(url, '_blank', 'noopener') !== null;
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export class SignInCancelled extends Error {
   constructor() {
     super('Sign-in cancelled.');
@@ -30,40 +32,46 @@ export class SignInCancelled extends Error {
 }
 
 export interface DesktopSignIn {
-  /** Resolves with the signed-in user once the browser hands the token back. */
+  /** Resolves with the signed-in Firebase user once Google has called back and the session is open. */
   done: Promise<User>;
-  /** Stops waiting (the browser tab, if still open, says the attempt expired). */
+  /** Stops waiting; the browser tab, if still open, reports the attempt as expired. */
   cancel: () => void;
 }
 
-/** Desktop sign-in: opens the browser page and waits for it. Throws SignInCancelled when cancelled. */
-export function startDesktopSignIn(): DesktopSignIn {
+/**
+ * Desktop sign-in. Opens Google's consent page in the browser (identity plus, by default, calendar access),
+ * waits for the API to finish the code exchange, then signs the renderer into Firebase with the same ID token.
+ */
+export function startDesktopSignIn(options: { calendar?: boolean } = {}): DesktopSignIn {
+  const withCalendar = options.calendar ?? true;
   let cancelled = false;
-  let resolveCancel: (() => void) | undefined;
+  let rejectWithCancel: (() => void) | undefined;
   const cancelledPromise = new Promise<never>((_, reject) => {
-    resolveCancel = () => reject(new SignInCancelled());
+    rejectWithCancel = () => reject(new SignInCancelled());
   });
 
   const run = async (): Promise<User> => {
-    const { state, url } = await desktopCloud.startSignIn();
+    const { url } = await restApi.googleAuth.start(withCalendar ? [GOOGLE_CALENDAR_SCOPE] : []);
     if (!(await openInBrowser(url))) throw new Error('Could not open the browser. Open this link yourself: ' + url);
 
     const deadline = Date.now() + POLL_TIMEOUT_MS;
     while (!cancelled) {
       if (Date.now() > deadline) throw new Error('Sign-in timed out. Try again from Settings.');
-      await new Promise((r) => setTimeout(r, POLL_MS));
-      let delivered: { idToken: string } | null;
+      await sleep(POLL_MS);
       try {
-        delivered = await desktopCloud.pollSignIn(state);
+        // Success leaves the ID token waiting for us; the API hands it out exactly once.
+        const delivered = await desktopCloud.takeGoogleIdToken();
+        if (delivered?.idToken) {
+          const result = await signInWithCredential(firebase().auth, GoogleAuthProvider.credential(delivered.idToken));
+          return result.user;
+        }
+        // No token and nothing pending any more: the browser tab was cancelled or Google reported an error.
+        const status = await restApi.googleAuth.status();
+        if (!status.pending) throw new Error('Sign-in did not complete. The browser tab explains why; try again.');
       } catch (error) {
-        if (error instanceof ApiError && error.status === 404) throw new Error('The sign-in attempt expired. Try again.');
         if (error instanceof ApiError && error.status === 0) continue; // API hiccup: keep waiting
         throw error;
       }
-      if (!delivered) continue;
-      const credential = GoogleAuthProvider.credential(delivered.idToken);
-      const result = await signInWithCredential(firebase().auth, credential);
-      return result.user;
     }
     throw new SignInCancelled();
   };
@@ -72,8 +80,8 @@ export function startDesktopSignIn(): DesktopSignIn {
     done: Promise.race([run(), cancelledPromise]),
     cancel: () => {
       cancelled = true;
-      resolveCancel?.();
-      void desktopCloud.cancelSignIn().catch(() => undefined);
+      rejectWithCancel?.();
+      void restApi.googleAuth.cancel().catch(() => undefined);
     },
   };
 }
@@ -97,8 +105,14 @@ export async function shareSessionWithApi(user: User): Promise<void> {
   }
 }
 
-/** Sign out of cloud sync. The desktop goes back to its local data; the cloud data stays in the account. */
+/**
+ * Sign out everywhere: the Firebase session (renderer and API), and on the desktop the Google token the API
+ * holds for Calendar. The PC goes back to its local data; the cloud data stays in the account.
+ */
 export async function signOutOfCloud(): Promise<void> {
-  if (!IS_WEB_APP) await desktopCloud.clearSession().catch(() => undefined);
+  if (!IS_WEB_APP) {
+    await desktopCloud.clearSession().catch(() => undefined);
+    await restApi.googleAuth.signOut().catch(() => undefined);
+  }
   await firebaseSignOut(firebase().auth);
 }

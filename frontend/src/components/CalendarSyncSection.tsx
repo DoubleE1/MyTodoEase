@@ -25,8 +25,9 @@ function formatWhen(iso: string | null): string {
 }
 
 /**
- * Settings > Google Calendar. The connection is separate from the cloud account: it is an OAuth grant held by the
- * local API on this PC (refresh token for the Calendar API), so it is asked for here, with its own consent screen.
+ * Settings > Google Calendar. Calendar access is part of the Google sign-in under Account (one consent screen);
+ * this tab manages what the permission is used for, and offers the permission again when it was left unticked.
+ * The refresh token behind it is held by the local API on this PC.
  */
 export function CalendarSyncSection({ confirm }: { confirm: (options: ConfirmOptions) => Promise<boolean> }) {
   // Build-time constant, so the early return never changes between renders.
@@ -186,8 +187,10 @@ function CalendarSyncSectionDesktop({ confirm }: { confirm: (options: ConfirmOpt
         <>
           <p className="settings-help">
             Show your Google Calendar events next to your tasks, and mirror dated tasks into a “TodoEase” calendar so
-            they appear on your phone. Connecting asks Google for permission to read and write your calendars; the
-            connection is kept on this PC.
+            they appear on your phone.{' '}
+            {status.signedIn
+              ? 'Your Google sign-in did not include calendar access yet; allow it here. The permission is kept on this PC.'
+              : 'Calendar access is part of signing in with Google under Account: tick the calendar permission on Google’s screen, or allow it here afterwards.'}
           </p>
           <div className="settings-actions">
             {waiting ? (
@@ -207,7 +210,7 @@ function CalendarSyncSectionDesktop({ confirm }: { confirm: (options: ConfirmOpt
             ) : (
               <button type="button" className="btn google-btn" onClick={() => connect.mutate()} disabled={connect.isPending}>
                 <GoogleMark />
-                <span>{status.signedIn ? 'Allow calendar access' : 'Connect Google Calendar'}</span>
+                <span>Allow calendar access</span>
               </button>
             )}
           </div>
@@ -236,7 +239,7 @@ function CalendarSyncSectionDesktop({ confirm }: { confirm: (options: ConfirmOpt
                 onClick={async () => {
                   const ok = await confirm({
                     title: 'Disconnect Google Calendar?',
-                    message: 'Mirrored events are removed from Google Calendar and TodoEase forgets this calendar access. Your tasks are not affected.',
+                    message: 'Mirrored events are removed from Google Calendar and TodoEase forgets the calendar permission. Your account, cloud sync and tasks are not affected.',
                     confirmLabel: 'Disconnect',
                   });
                   if (ok) disconnect.mutate();
@@ -282,9 +285,7 @@ function CalendarSyncSectionDesktop({ confirm }: { confirm: (options: ConfirmOpt
             {calendars.error && <span className="settings-error">Could not load your calendars.</span>}
             {calendars.data && (
               <div className="calendar-choices">
-                {calendars.data
-                  .filter((c) => c.id !== data.targetCalendarId)
-                  .map((c) => {
+                {calendars.data.map((c) => {
                     const selected = data.sourceCalendarIds.length === 0 ? c.primary : data.sourceCalendarIds.includes(c.id);
                     return (
                       <label key={c.id} className="calendar-choice">

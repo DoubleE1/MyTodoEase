@@ -1,16 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CloudUpload, ExternalLink, LogOut } from 'lucide-react';
+import { CalendarCheck, CalendarOff, CloudUpload, ExternalLink, LogOut } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { IS_WEB_APP } from '../api/backend';
-import { desktopCloud } from '../api/client';
+import { api, desktopCloud } from '../api/client';
 import { signOutOfCloud, SignInCancelled, startDesktopSignIn, type DesktopSignIn } from '../api/cloudSession';
 import { firestoreApi } from '../api/firestoreClient';
+import { GOOGLE_CALENDAR_SCOPE, queryKeys } from '../api/hooks';
 import { showToast } from '../lib/toast';
 import type { ConfirmOptions } from './Dialogs';
 import { GoogleMark } from './GoogleMark';
 import { useCloudUser } from './SessionGate';
 
 const WEB_APP_URL = 'https://todoease.com';
+const GOOGLE_STATUS_KEY = ['google-auth'] as const;
 
 async function openInBrowser(url: string): Promise<void> {
   const desktop = window.mytodoease;
@@ -19,30 +21,35 @@ async function openInBrowser(url: string): Promise<void> {
 }
 
 /**
- * Settings > Account: the Google account whose cloud data this app uses.
- * Web app: just the account and sign-out. Desktop: sign in to switch from the local file to the cloud, sign out
- * to go back, and a one-time "move my local data to the cloud" when the local file still holds tasks.
+ * Settings > Account: the Google account the app works with.
+ * Web app: the account and sign-out. Desktop: one "Sign in with Google" that moves the data to the cloud and, if
+ * the user ticks it on Google's screen, connects Google Calendar in the same step; sign out returns to local data.
  */
 export function CloudAccountSection({ confirm }: { confirm: (options: ConfirmOptions) => Promise<boolean> }) {
   const user = useCloudUser();
+  const queryClient = useQueryClient();
   const [attempt, setAttempt] = useState<DesktopSignIn | null>(null);
   const attemptRef = useRef<DesktopSignIn | null>(null);
 
   // Leaving the dialog while the browser tab is open stops waiting; the tab says the attempt expired.
   useEffect(() => () => attemptRef.current?.cancel(), []);
 
+  const runSignIn = async () => {
+    const started = startDesktopSignIn({ calendar: true });
+    attemptRef.current = started;
+    setAttempt(started);
+    try {
+      return await started.done;
+    } finally {
+      attemptRef.current = null;
+      setAttempt(null);
+      void queryClient.invalidateQueries({ queryKey: GOOGLE_STATUS_KEY });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.calendarSync });
+    }
+  };
+
   const signIn = useMutation({
-    mutationFn: async () => {
-      const started = startDesktopSignIn();
-      attemptRef.current = started;
-      setAttempt(started);
-      try {
-        return await started.done;
-      } finally {
-        attemptRef.current = null;
-        setAttempt(null);
-      }
-    },
+    mutationFn: runSignIn,
     onSuccess: (signedIn) => showToast(`Signed in as ${signedIn.email}. Your tasks now sync through the cloud.`),
     onError: (error) => {
       if (error instanceof SignInCancelled) return;
@@ -50,11 +57,25 @@ export function CloudAccountSection({ confirm }: { confirm: (options: ConfirmOpt
     },
   });
 
+  const allowCalendar = useMutation({
+    mutationFn: runSignIn,
+    onSuccess: () => showToast('Google Calendar connected.'),
+    onError: (error) => {
+      if (error instanceof SignInCancelled) return;
+      showToast(error instanceof Error ? error.message : 'Could not connect Google Calendar.', 'error');
+    },
+  });
+
   const signOut = useMutation({
     mutationFn: signOutOfCloud,
-    onSuccess: () => showToast(IS_WEB_APP ? 'Signed out.' : 'Signed out. This PC is back to its local tasks.'),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: GOOGLE_STATUS_KEY });
+      showToast(IS_WEB_APP ? 'Signed out.' : 'Signed out. This PC is back to its local tasks.');
+    },
     onError: (error) => showToast(error instanceof Error ? error.message : 'Could not sign out.', 'error'),
   });
+
+  const waiting = attempt !== null;
 
   return (
     <section className="settings-section">
@@ -81,7 +102,7 @@ export function CloudAccountSection({ confirm }: { confirm: (options: ConfirmOpt
                   title: 'Sign out?',
                   message: IS_WEB_APP
                     ? 'You can sign in again any time; your tasks stay in your account.'
-                    : 'This PC goes back to the tasks stored locally on this computer. Your cloud tasks stay in your Google account and keep syncing to your other devices.',
+                    : 'This PC goes back to the tasks stored locally on this computer and Google Calendar is disconnected. Your cloud tasks stay in your Google account and keep syncing to your other devices.',
                   confirmLabel: 'Sign out',
                 });
                 if (ok) signOut.mutate();
@@ -99,19 +120,28 @@ export function CloudAccountSection({ confirm }: { confirm: (options: ConfirmOpt
             </a>
             .
           </p>
+          {!IS_WEB_APP && (
+            <CalendarPermissionRow
+              waiting={waiting}
+              busy={allowCalendar.isPending}
+              onAllow={() => allowCalendar.mutate()}
+              onCancel={() => attempt?.cancel()}
+            />
+          )}
           {!IS_WEB_APP && <MoveLocalDataCard confirm={confirm} />}
         </>
       ) : (
         <>
           <p className="settings-help">
             Right now your tasks live only on this computer. Sign in with Google to keep them in the cloud instead,
-            synced live to the web app and to every PC where you sign in. You can move the tasks on this PC over afterwards.
+            synced live to the web app and to every PC where you sign in. The same sign-in can connect your Google
+            Calendar: Google asks for that permission on its screen, and you can leave it unticked.
           </p>
           <div className="settings-actions">
-            {attempt ? (
+            {waiting ? (
               <>
                 <span className="settings-help">Finish signing in in your browser…</span>
-                <button type="button" className="btn" onClick={() => attempt.cancel()}>
+                <button type="button" className="btn" onClick={() => attempt?.cancel()}>
                   Cancel
                 </button>
               </>
@@ -125,6 +155,51 @@ export function CloudAccountSection({ confirm }: { confirm: (options: ConfirmOpt
         </>
       )}
     </section>
+  );
+}
+
+/** Desktop, signed in: whether the Google sign-in included calendar access, with a way to add it. */
+function CalendarPermissionRow({
+  waiting,
+  busy,
+  onAllow,
+  onCancel,
+}: {
+  waiting: boolean;
+  busy: boolean;
+  onAllow: () => void;
+  onCancel: () => void;
+}) {
+  const status = useQuery({ queryKey: GOOGLE_STATUS_KEY, queryFn: api.googleAuth.status, staleTime: 30_000 });
+  const data = status.data;
+  if (!data) return null;
+  const granted = data.signedIn && (data.account?.scopes ?? []).includes(GOOGLE_CALENDAR_SCOPE);
+
+  return (
+    <div className="settings-callout settings-callout-quiet">
+      <div>
+        <strong className="settings-callout-title">
+          {granted ? <CalendarCheck size={14} /> : <CalendarOff size={14} />}
+          <span>Google Calendar</span>
+        </strong>
+        <p className="muted small">
+          {granted
+            ? `Connected as ${data.account?.email}. Mirroring and shown calendars are under Google Calendar.`
+            : 'Not connected. Allow calendar access to see your events next to your tasks and mirror dated tasks to a “TodoEase” calendar.'}
+        </p>
+      </div>
+      {!granted &&
+        (waiting ? (
+          <button type="button" className="btn" onClick={onCancel}>
+            Cancel
+          </button>
+        ) : (
+          <button type="button" className="btn btn-primary" onClick={onAllow} disabled={busy}>
+            <GoogleMark size={14} />
+            <span>Allow calendar access</span>
+          </button>
+        ))}
+    </div>
   );
 }
 

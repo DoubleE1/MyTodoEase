@@ -31,7 +31,7 @@ export function TitleBar({
       <span className="titlebar-brand">
         <Logo size={16} />
         <span>
-          MyTodo<strong>Ease</strong>
+          Todo<strong>Ease</strong>
         </span>
       </span>
       <span className="spacer" />

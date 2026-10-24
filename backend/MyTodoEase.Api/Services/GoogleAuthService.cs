@@ -33,6 +33,8 @@ public sealed class GoogleAuthService
     private readonly ConcurrentDictionary<string, PendingLogin> _pending = new();
     private StoredState _state;
     private (string Token, DateTime ExpiresAt)? _accessToken;
+    /// <summary>ID token of the latest sign-in, waiting for the renderer to open the matching Firebase session.</summary>
+    private (string Token, DateTime ExpiresAt)? _pendingIdToken;
 
     private readonly IConfiguration _config;
 
@@ -139,6 +141,7 @@ public sealed class GoogleAuthService
                 ConnectedAt = DateTime.UtcNow,
             };
             _accessToken = (tokens.AccessToken, DateTime.UtcNow.AddSeconds(Math.Max(60, tokens.ExpiresIn - 60)));
+            _pendingIdToken = tokens.IdToken is null ? null : (tokens.IdToken, DateTime.UtcNow.AddMinutes(10));
             Save();
         }
         _log.LogInformation("Google account connected: {Email}", profile.Email);
@@ -146,6 +149,20 @@ public sealed class GoogleAuthService
     }
 
     public void CancelPending() => _pending.Clear();
+
+    /// <summary>
+    /// The Google ID token from the most recent sign-in, handed out once so the renderer can open the matching
+    /// Firebase session (signInWithCredential) without a second consent screen. Null when none is waiting.
+    /// </summary>
+    public string? TakeIdToken()
+    {
+        lock (_gate)
+        {
+            if (_pendingIdToken is not { } pending) return null;
+            _pendingIdToken = null;
+            return pending.ExpiresAt > DateTime.UtcNow ? pending.Token : null;
+        }
+    }
 
     /// <summary>Revokes the refresh token at Google (best effort) and forgets the account.</summary>
     public async Task SignOutAsync(CancellationToken ct)
@@ -205,7 +222,8 @@ public sealed class GoogleAuthService
         [property: JsonPropertyName("access_token")] string AccessToken,
         [property: JsonPropertyName("expires_in")] int ExpiresIn,
         [property: JsonPropertyName("refresh_token")] string? RefreshToken,
-        [property: JsonPropertyName("scope")] string? Scope);
+        [property: JsonPropertyName("scope")] string? Scope,
+        [property: JsonPropertyName("id_token")] string? IdToken);
 
     private sealed record UserInfo(
         [property: JsonPropertyName("email")] string Email,
@@ -268,22 +286,36 @@ public sealed class GoogleAuthService
 
     private StoredState Load()
     {
+        var state = new StoredState();
         try
         {
             if (File.Exists(_filePath))
-                return JsonSerializer.Deserialize<StoredState>(File.ReadAllText(_filePath)) ?? new StoredState();
+                state = JsonSerializer.Deserialize<StoredState>(File.ReadAllText(_filePath)) ?? new StoredState();
         }
         catch (Exception ex)
         {
             _log.LogWarning(ex, "Could not read {File}; starting without a Google account.", _filePath);
         }
-        // No client saved from the UI: fall back to the one that ships with the app.
-        var state = new StoredState();
+
+        // The client that ships with the app is authoritative. A refresh token only works with the client that
+        // issued it, so an account connected through a different client (an older build) has to sign in again.
         var shipped = BuiltInClient();
-        if (shipped is { } client)
+        if (shipped is { } client && !string.Equals(state.ClientId, client.Id, StringComparison.Ordinal))
         {
+            if (state.Account is { } old)
+                _log.LogWarning("The bundled Google OAuth client changed; {Email} must sign in again.", old.Email);
             state.ClientId = client.Id;
             state.ClientSecretProtected = client.Key is null ? null : Protect(client.Key);
+            state.Account = null;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
+                File.WriteAllText(_filePath, JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning(ex, "Could not update {File}.", _filePath);
+            }
         }
         return state;
     }

@@ -57,6 +57,11 @@ public static class AuthEndpoints
             }
         });
 
+        // One-time pickup of the Google ID token from the last sign-in: the renderer opens the matching Firebase
+        // session with it (signInWithCredential), so one consent screen covers cloud sync and the calendar.
+        group.MapGet("/id-token", (GoogleAuthService auth) =>
+            auth.TakeIdToken() is { } token ? Results.Ok(new { idToken = token }) : Results.NoContent());
+
         group.MapPost("/cancel", (GoogleAuthService auth) =>
         {
             auth.CancelPending();

@@ -39,6 +39,7 @@ desktop/renderer/
 
 # Google OAuth client downloaded from Google Cloud; shipped with the build, kept out of git
 backend/MyTodoEase.Api/google-client.json
+backend/MyTodoEase.Api/google-client*.json*
 
 # Bundled MCP server for packaging (npm run build:mcp)
 desktop/build/mcp/
