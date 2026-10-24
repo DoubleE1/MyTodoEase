@@ -16,79 +16,80 @@ public static class TasksEndpoints
 
         // Active tasks by default. The client filters views (Today, Upcoming, project, label) locally,
         // which keeps the API simple for a single-user app. completed=true returns the completed log, newest first.
-        group.MapGet("/", (bool? completed, int? limit, AppDb db, CalendarSyncService sync) =>
+        group.MapGet("/", async (bool? completed, int? limit, IDataStore store, CancellationToken ct) =>
         {
+            var all = await store.Tasks.AllAsync(ct);
             if (completed == true)
             {
-                var done = db.Tasks.Find(t => t.IsCompleted)
+                var done = all.Where(t => t.IsCompleted)
                     .OrderByDescending(t => t.CompletedAt)
                     .Take(Math.Clamp(limit ?? 200, 1, 1000))
                     .ToList();
                 return Results.Ok(done);
             }
-            var active = db.Tasks.Find(t => !t.IsCompleted).OrderBy(t => t.Order).ThenBy(t => t.CreatedAt).ToList();
+            var active = all.Where(t => !t.IsCompleted).OrderBy(t => t.Order).ThenBy(t => t.CreatedAt).ToList();
             return Results.Ok(active);
         });
 
-        group.MapGet("/{id}", (string id, AppDb db, CalendarSyncService sync) =>
+        group.MapGet("/{id}", async (string id, IDataStore store, CancellationToken ct) =>
         {
             if (!AppDb.IsValidId(id)) return Results.NotFound();
-            var task = db.Tasks.FindById(id);
+            var task = await store.Tasks.GetAsync(id, ct);
             return task is null ? Results.NotFound() : Results.Ok(task);
         });
 
-        group.MapPost("/", (TaskWriteRequest req, AppDb db, CalendarSyncService sync) =>
+        group.MapPost("/", async (TaskWriteRequest req, IDataStore store, CalendarSyncService sync, CancellationToken ct) =>
         {
-            var errors = Validate(req, db);
+            var errors = await ValidateAsync(req, store, ct);
             if (errors.Count > 0) return Results.ValidationProblem(errors);
 
-            var task = new TodoTask { Id = AppDb.NewId(), Order = req.Order ?? NextOrder(db, req.ProjectId) };
+            var task = new TodoTask { Id = AppDb.NewId(), Order = req.Order ?? await NextOrderAsync(store, req.ProjectId, ct) };
             Apply(task, req);
-            db.Tasks.Insert(task);
+            await store.Tasks.UpsertAsync(task, ct);
             sync.Enqueue(task.Id);
             return Results.Created($"/api/tasks/{task.Id}", task);
         });
 
-        group.MapPut("/{id}", (string id, TaskWriteRequest req, AppDb db, CalendarSyncService sync) =>
+        group.MapPut("/{id}", async (string id, TaskWriteRequest req, IDataStore store, CalendarSyncService sync, CancellationToken ct) =>
         {
             if (!AppDb.IsValidId(id)) return Results.NotFound();
-            var errors = Validate(req, db);
+            var errors = await ValidateAsync(req, store, ct);
             if (req.ParentId == id) errors["parentId"] = ["A task cannot be its own parent."];
             if (errors.Count > 0) return Results.ValidationProblem(errors);
 
-            var task = db.Tasks.FindById(id);
+            var task = await store.Tasks.GetAsync(id, ct);
             if (task is null) return Results.NotFound();
 
             Apply(task, req);
             if (req.Order is int order) task.Order = order;
-            db.Tasks.Update(task);
-            sync.Enqueue(task.Id);
 
             // Subtasks follow their parent when it moves to another project or section.
-            foreach (var child in db.Tasks.Find(t => t.ParentId == id).ToList())
+            var children = (await store.Tasks.AllAsync(ct)).Where(t => t.ParentId == id).ToList();
+            foreach (var child in children)
             {
                 child.ProjectId = task.ProjectId;
                 child.SectionId = task.SectionId;
-                db.Tasks.Update(child);
             }
+            await store.Tasks.UpsertManyAsync(children.Prepend(task), ct);
+            sync.Enqueue(task.Id);
             return Results.Ok(task);
         });
 
-        group.MapDelete("/{id}", (string id, AppDb db, CalendarSyncService sync) =>
+        group.MapDelete("/{id}", async (string id, IDataStore store, CalendarSyncService sync, CancellationToken ct) =>
         {
             if (!AppDb.IsValidId(id)) return Results.NotFound();
-            var childIds = db.Tasks.Find(t => t.ParentId == id).Select(t => t.Id).ToList();
-            if (!db.Tasks.Delete(id)) return Results.NotFound();
-            db.Tasks.DeleteMany(t => t.ParentId == id);
+            if (await store.Tasks.GetAsync(id, ct) is null) return Results.NotFound();
+            var childIds = (await store.Tasks.AllAsync(ct)).Where(t => t.ParentId == id).Select(t => t.Id).ToList();
+            await store.Tasks.DeleteManyAsync(childIds.Prepend(id), ct);
             sync.Enqueue(id);
             foreach (var childId in childIds) sync.Enqueue(childId);
             return Results.NoContent();
         });
 
-        group.MapPost("/{id}/complete", (string id, AppDb db, CalendarSyncService sync) =>
+        group.MapPost("/{id}/complete", async (string id, IDataStore store, CalendarSyncService sync, CancellationToken ct) =>
         {
             if (!AppDb.IsValidId(id)) return Results.NotFound();
-            var task = db.Tasks.FindById(id);
+            var task = await store.Tasks.GetAsync(id, ct);
             if (task is null) return Results.NotFound();
 
             var now = DateTime.UtcNow;
@@ -105,71 +106,71 @@ public static class TasksEndpoints
             if (task.Recurrence != Recurrence.None && TryParseDate(task.DueDate, out var due))
             {
                 var next = RecurrenceService.Next(due, task.Recurrence, DateOnly.FromDateTime(DateTime.Now));
-                db.Completions.Insert(Log(task));
+                await store.Completions.UpsertAsync(Log(task), ct);
                 task.DueDate = next.ToString(DateFormat, CultureInfo.InvariantCulture);
                 task.UpdatedAt = now;
-                db.Tasks.Update(task);
+                await store.Tasks.UpsertAsync(task, ct);
                 sync.Enqueue(task.Id);
                 return Results.Ok(task);
             }
 
-            var openChildren = db.Tasks.Find(t => t.ParentId == id && !t.IsCompleted).ToList();
-            var logs = new List<Completion> { Log(task) };
-            logs.AddRange(openChildren.Select(Log));
-            db.Completions.InsertBulk(logs);
-
-            foreach (var t in openChildren.Prepend(task))
+            var openChildren = (await store.Tasks.AllAsync(ct)).Where(t => t.ParentId == id && !t.IsCompleted).ToList();
+            var closing = openChildren.Prepend(task).ToList();
+            await store.Completions.UpsertManyAsync(closing.Select(Log), ct);
+            foreach (var t in closing)
             {
                 t.IsCompleted = true;
                 t.CompletedAt = now;
                 t.UpdatedAt = now;
-                db.Tasks.Update(t);
-                sync.Enqueue(t.Id);
             }
+            await store.Tasks.UpsertManyAsync(closing, ct);
+            foreach (var t in closing) sync.Enqueue(t.Id);
             return Results.Ok(task);
         });
 
-        group.MapPost("/{id}/reopen", (string id, AppDb db, CalendarSyncService sync) =>
+        group.MapPost("/{id}/reopen", async (string id, IDataStore store, CalendarSyncService sync, CancellationToken ct) =>
         {
             if (!AppDb.IsValidId(id)) return Results.NotFound();
-            var task = db.Tasks.FindById(id);
+            var task = await store.Tasks.GetAsync(id, ct);
             if (task is null) return Results.NotFound();
 
             var now = DateTime.UtcNow;
             Reopen(task, now);
-            db.Tasks.Update(task);
-            sync.Enqueue(task.Id);
-
-            // Undo the latest completion log entry so history matches what the user sees.
-            var latest = db.Completions.Find(c => c.TaskId == id).MaxBy(c => c.CompletedAt);
-            if (latest is not null) db.Completions.Delete(latest.Id);
+            var updates = new List<TodoTask> { task };
 
             // A reopened subtask needs its parent visible again.
-            if (task.ParentId is not null && db.Tasks.FindById(task.ParentId) is { } parent)
+            if (task.ParentId is not null && await store.Tasks.GetAsync(task.ParentId, ct) is { } parent)
             {
                 Reopen(parent, now);
-                db.Tasks.Update(parent);
-                sync.Enqueue(parent.Id);
+                updates.Add(parent);
             }
+            await store.Tasks.UpsertManyAsync(updates, ct);
+            foreach (var t in updates) sync.Enqueue(t.Id);
+
+            // Undo the latest completion log entry so history matches what the user sees.
+            var latest = (await store.Completions.AllAsync(ct)).Where(c => c.TaskId == id).MaxBy(c => c.CompletedAt);
+            if (latest is not null) await store.Completions.DeleteAsync(latest.Id, ct);
             return Results.Ok(task);
         });
 
-        group.MapPost("/reorder", (ReorderRequest req, AppDb db, CalendarSyncService sync) =>
+        group.MapPost("/reorder", async (ReorderRequest req, IDataStore store, CalendarSyncService sync, CancellationToken ct) =>
         {
             if (req.Items is null || req.Items.Count == 0) return Results.NoContent();
             var now = DateTime.UtcNow;
+            var updates = new List<TodoTask>();
             foreach (var item in req.Items)
             {
                 if (!AppDb.IsValidId(item.Id)) continue;
-                var task = db.Tasks.FindById(item.Id);
+                var task = await store.Tasks.GetAsync(item.Id, ct);
                 if (task is null) continue;
                 task.Order = item.Order;
                 task.UpdatedAt = now;
                 if (item.SectionId is not null) task.SectionId = item.SectionId == "" ? null : item.SectionId;
                 if (item.ParentId is not null) task.ParentId = item.ParentId == "" ? null : item.ParentId;
-                db.Tasks.Update(task);
-                sync.Enqueue(task.Id);
+                updates.Add(task);
             }
+            await store.Tasks.UpsertManyAsync(updates, ct);
+            foreach (var task in updates) sync.Enqueue(task.Id);
             return Results.NoContent();
         });
 
@@ -199,7 +200,7 @@ public static class TasksEndpoints
         task.UpdatedAt = DateTime.UtcNow;
     }
 
-    private static Dictionary<string, string[]> Validate(TaskWriteRequest req, AppDb db)
+    private static async Task<Dictionary<string, string[]>> ValidateAsync(TaskWriteRequest req, IDataStore store, CancellationToken ct)
     {
         var errors = new Dictionary<string, string[]>();
         if (string.IsNullOrWhiteSpace(req.Content)) errors["content"] = ["Content is required."];
@@ -210,13 +211,13 @@ public static class TasksEndpoints
             !TimeOnly.TryParseExact(req.DueTime, TimeFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
             errors["dueTime"] = ["Due time must be HH:mm."];
 
-        if (!AppDb.IsValidId(req.ProjectId) || db.Projects.FindById(req.ProjectId) is null)
+        if (!AppDb.IsValidId(req.ProjectId) || await store.Projects.GetAsync(req.ProjectId, ct) is null)
             errors["projectId"] = ["Project does not exist."];
         if (!string.IsNullOrEmpty(req.SectionId) &&
-            (!AppDb.IsValidId(req.SectionId) || db.Sections.FindById(req.SectionId) is null))
+            (!AppDb.IsValidId(req.SectionId) || await store.Sections.GetAsync(req.SectionId, ct) is null))
             errors["sectionId"] = ["Section does not exist."];
         if (!string.IsNullOrEmpty(req.ParentId) &&
-            (!AppDb.IsValidId(req.ParentId) || db.Tasks.FindById(req.ParentId) is null))
+            (!AppDb.IsValidId(req.ParentId) || await store.Tasks.GetAsync(req.ParentId, ct) is null))
             errors["parentId"] = ["Parent task does not exist."];
         return errors;
     }
@@ -224,9 +225,9 @@ public static class TasksEndpoints
     private static bool TryParseDate(string? value, out DateOnly date) =>
         DateOnly.TryParseExact(value, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
 
-    private static int NextOrder(AppDb db, string projectId)
+    private static async Task<int> NextOrderAsync(IDataStore store, string projectId, CancellationToken ct)
     {
-        var last = db.Tasks.Find(t => t.ProjectId == projectId).MaxBy(t => t.Order);
+        var last = (await store.Tasks.AllAsync(ct)).Where(t => t.ProjectId == projectId).MaxBy(t => t.Order);
         return last is null ? 0 : last.Order + 1;
     }
 }

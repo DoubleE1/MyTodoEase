@@ -3099,6 +3099,35 @@ ul {
   gap: 8px;
 }
 
+/* Settings: highlighted card with a text block and one primary action (move local data to the cloud) */
+
+.settings-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--accent-border, var(--border));
+  border-radius: 12px;
+  background: var(--accent-soft, var(--bg-sidebar));
+}
+
+.settings-callout p {
+  margin: 4px 0 0;
+  line-height: 1.45;
+}
+
+.settings-callout .btn {
+  flex-shrink: 0;
+}
+
+.settings-help a {
+  color: var(--accent-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
 .settings-setup {
   display: flex;
   flex-direction: column;

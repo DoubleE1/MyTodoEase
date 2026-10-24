@@ -1,39 +1,10 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { onAuthStateChanged, type User } from 'firebase/auth';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { signInWithGoogle } from '../api/firestoreClient';
-import { subscribeRealtime } from '../api/realtime';
-import { firebase } from '../firebase/app';
 import { GoogleMark } from './GoogleMark';
 import { Logo } from './Logo';
 
-/**
- * Web app entry gate: waits for Firebase to restore the session, shows the sign-in page when there is
- * none, and keeps the live Firestore listeners running while a user is signed in.
- */
-export function AuthGate({ children }: { children: ReactNode }) {
-  const queryClient = useQueryClient();
-  const [user, setUser] = useState<User | null | undefined>(undefined);
-
-  useEffect(() => onAuthStateChanged(firebase().auth, setUser), []);
-
-  const uid = user?.uid;
-  useEffect(() => {
-    if (!uid) return;
-    const stop = subscribeRealtime(queryClient);
-    return () => {
-      stop();
-      // Another account may sign in next; never show the previous user's cached data.
-      queryClient.clear();
-    };
-  }, [uid, queryClient]);
-
-  if (user === undefined) return <div className="signin-screen"><div className="loading">Loading…</div></div>;
-  if (!user) return <SignInScreen />;
-  return <>{children}</>;
-}
-
-function SignInScreen() {
+/** Web app sign-in page (the hosted build has no local data to fall back to). */
+export function SignInScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

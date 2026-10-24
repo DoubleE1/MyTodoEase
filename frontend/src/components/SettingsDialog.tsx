@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bot, CalendarDays, Check, Database, Download, Monitor, Moon, Palette, Pipette, Sun, Upload, UserRound } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
+import { IS_WEB_APP } from '../api/backend';
 import { api, ApiError } from '../api/client';
 import { ACCENT_PRESETS, DEFAULT_ACCENT } from '../lib/accent';
 import type { ThemePreference } from '../lib/theme';
@@ -8,8 +9,9 @@ import { showToast } from '../lib/toast';
 import type { ConfirmOptions } from './Dialogs';
 import { Modal } from './Dialogs';
 import { CalendarSyncSection } from './CalendarSyncSection';
-import { GoogleAccountSection } from './GoogleAccountSection';
+import { CloudAccountSection } from './CloudAccountSection';
 import { McpSection } from './McpSection';
+import { useCloudUser } from './SessionGate';
 
 const THEMES: { value: ThemePreference; label: string; icon: ReactNode }[] = [
   { value: 'light', label: 'Light', icon: <Sun size={15} /> },
@@ -68,7 +70,7 @@ export function SettingsDialog({
   const isPreset = ACCENT_PRESETS.some((p) => p.hex === accent);
   const queryClient = useQueryClient();
   const health = useQuery({ queryKey: ['health'], queryFn: api.health, staleTime: 60_000 });
-  const googleSignedIn = useQuery({ queryKey: ['google-auth'], queryFn: api.googleAuth.status }).data?.signedIn === true;
+  const cloudUser = useCloudUser();
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<'export' | 'import' | null>(null);
   const [tab, setTab] = useState<SettingsTab>('appearance');
@@ -202,16 +204,21 @@ export function SettingsDialog({
         </section>
         )}
 
-        {tab === 'account' && <GoogleAccountSection confirm={confirm} />}
-        {tab === 'calendar' && <CalendarSyncSection signedIn={googleSignedIn} />}
+        {tab === 'account' && <CloudAccountSection confirm={confirm} />}
+        {tab === 'calendar' && <CalendarSyncSection confirm={confirm} />}
         {tab === 'ai' && <McpSection />}
 
         {tab === 'data' && (
         <section className="settings-section">
           <h3>Data</h3>
           <p className="settings-help">
-            Your tasks are stored only on this computer. Export a backup to keep a copy or move to another PC;
-            importing a backup replaces everything currently here.
+            {cloudUser
+              ? `Your tasks are stored in the cloud under ${cloudUser.email} and synced to every device signed in with that account. ` +
+                'Export a backup to keep a copy; importing a backup replaces everything in the cloud.'
+              : IS_WEB_APP
+                ? 'Export a backup to keep a copy; importing a backup replaces everything currently here.'
+                : 'Your tasks are stored only on this computer. Export a backup to keep a copy or move to another PC; ' +
+                  'importing a backup replaces everything currently here. To have them follow you across devices, sign in under Account.'}
           </p>
           {health.data?.storage && (
             <p className="settings-path" title={health.data.storage}>

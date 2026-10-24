@@ -72,7 +72,7 @@ public static class AuthEndpoints
         return app;
     }
 
-    private static IResult Page(string title, string message, bool ok)
+    internal static IResult Page(string title, string message, bool ok)
     {
         var color = ok ? "#16a34a" : "#dc2626";
         var html = $$"""

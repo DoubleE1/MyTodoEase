@@ -23,6 +23,7 @@ public sealed class CalendarSyncService : BackgroundService
     private static readonly TimeSpan EventsCacheTtl = TimeSpan.FromSeconds(60);
 
     private readonly AppDb _db;
+    private readonly DataStoreProvider _stores;
     private readonly GoogleCalendarClient _google;
     private readonly ILogger<CalendarSyncService> _log;
     private readonly string _filePath;
@@ -32,9 +33,10 @@ public sealed class CalendarSyncService : BackgroundService
     private Settings _settings;
     private int _fullSyncRequested;
 
-    public CalendarSyncService(AppDb db, GoogleCalendarClient google, IOptions<StorageOptions> storage, ILogger<CalendarSyncService> log)
+    public CalendarSyncService(AppDb db, DataStoreProvider stores, GoogleCalendarClient google, IOptions<StorageOptions> storage, ILogger<CalendarSyncService> log)
     {
         _db = db;
+        _stores = stores;
         _google = google;
         _log = log;
         _filePath = Path.Combine(Path.GetDirectoryName(storage.Value.ResolvePath())!, "calendar-sync.json");
@@ -140,6 +142,13 @@ public sealed class CalendarSyncService : BackgroundService
         if (_settings.Enabled) _queue.Writer.TryWrite(taskId);
     }
 
+    /// <summary>Tasks changed outside this API (the desktop renderer writing straight to Firestore, or another device).</summary>
+    public void EnqueueMany(IEnumerable<string> taskIds)
+    {
+        if (!_settings.Enabled) return;
+        foreach (var id in taskIds.Where(AppDb.IsValidId).Distinct()) _queue.Writer.TryWrite(id);
+    }
+
     public void EnqueueFull()
     {
         Interlocked.Exchange(ref _fullSyncRequested, 1);
@@ -201,7 +210,8 @@ public sealed class CalendarSyncService : BackgroundService
         if (!_google.HasScope()) throw new InvalidOperationException("Google Calendar permission has not been granted yet.");
         var calendarId = await EnsureTargetCalendarAsync(ct);
 
-        var tasks = _db.Tasks.Find(t => !t.IsCompleted && t.DueDate != null).ToList();
+        // Current store: the LiteDB file, or Firestore while the app is signed in to the cloud.
+        var tasks = (await _stores.Current.Tasks.AllAsync(ct)).Where(t => !t.IsCompleted && t.DueDate != null).ToList();
         var wanted = tasks.ToDictionary(t => t.Id);
         foreach (var task in tasks)
         {
@@ -221,7 +231,7 @@ public sealed class CalendarSyncService : BackgroundService
     {
         if (!_google.HasScope()) return;
         var calendarId = await EnsureTargetCalendarAsync(ct);
-        var task = _db.Tasks.FindById(taskId);
+        var task = await _stores.Current.Tasks.GetAsync(taskId, ct);
         if (task is null || task.IsCompleted || task.DueDate is null)
         {
             var link = _db.CalendarLinks.FindById(taskId);

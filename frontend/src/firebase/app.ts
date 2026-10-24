@@ -1,7 +1,7 @@
 /**
- * Firebase bootstrap for the hosted web app. Initialised lazily so the desktop build, which never calls
- * it, carries no Firebase state. Config comes from VITE_FIREBASE_* (frontend/.env.web); these values are
- * public identifiers, not secrets: access is enforced by Firestore rules and Firebase Auth.
+ * Firebase bootstrap, shared by the hosted web app and the desktop renderer (which uses it once the user
+ * signs in for cloud sync). Config comes from VITE_FIREBASE_* (frontend/.env); these values are public
+ * identifiers, not secrets: access is enforced by Firestore rules and Firebase Auth.
  */
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
@@ -34,7 +34,7 @@ export function firebase(): FirebaseServices {
     appId: env.VITE_FIREBASE_APP_ID,
   };
   if (!config.apiKey || !config.projectId || !config.appId) {
-    throw new Error('Firebase is not configured. Copy frontend/.env.web.example to frontend/.env.web and fill in your web app config.');
+    throw new Error('Firebase is not configured. Fill in the VITE_FIREBASE_* values in frontend/.env with your Firebase web app config.');
   }
   const app = initializeApp(config);
   // Offline cache shared across tabs: the app keeps working without a connection and syncs when back.

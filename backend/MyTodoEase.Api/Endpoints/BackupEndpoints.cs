@@ -27,18 +27,13 @@ public static class BackupEndpoints
     {
         var group = app.MapGroup("/api/backup").WithTags("Backup");
 
-        group.MapGet("/", (AppDb db) => Results.Ok(new BackupDocument(
-            "MyTodoEase",
-            CurrentVersion,
-            DateTime.UtcNow,
-            db.Projects.FindAll().ToList(),
-            db.Sections.FindAll().ToList(),
-            db.Labels.FindAll().ToList(),
-            db.Tasks.FindAll().ToList(),
-            db.Completions.FindAll().ToList())));
+        group.MapGet("/", async (IDataStore store, CancellationToken ct) => Results.Ok(await ExportAsync(store, ct)));
+
+        // The LiteDB file as it is on this PC, regardless of mode: lets a signed-in user move local data to the cloud.
+        group.MapGet("/local", async (DataStoreProvider stores, CancellationToken ct) => Results.Ok(await ExportAsync(stores.Local, ct)));
 
         // Replaces everything. The client asks the user to confirm before calling this.
-        group.MapPost("/import", (BackupDocument? doc, AppDb db, Services.CalendarSyncService sync) =>
+        group.MapPost("/import", async (BackupDocument? doc, IDataStore store, Services.CalendarSyncService sync, CancellationToken ct) =>
         {
             if (doc is null) return Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = ["Not a MyTodoEase backup."] });
             var errors = Validate(doc);
@@ -78,13 +73,23 @@ public static class BackupEndpoints
             if (inboxes.Count == 0)
                 projects.Insert(0, new Project { Id = AppDb.NewId(), Name = "Inbox", Color = "grey", IsInbox = true, Order = -1 });
 
-            db.ReplaceAll(projects, sections, labels, tasks, completions);
+            await store.ReplaceAllAsync(projects, sections, labels, tasks, completions, ct);
             sync.EnqueueFull();
             return Results.Ok(new ImportResult(projects.Count, sections.Count, labels.Count, tasks.Count, completions.Count));
         });
 
         return app;
     }
+
+    private static async Task<BackupDocument> ExportAsync(IDataStore store, CancellationToken ct) => new(
+        "MyTodoEase",
+        CurrentVersion,
+        DateTime.UtcNow,
+        await store.Projects.AllAsync(ct),
+        await store.Sections.AllAsync(ct),
+        await store.Labels.AllAsync(ct),
+        await store.Tasks.AllAsync(ct),
+        await store.Completions.AllAsync(ct));
 
     private static Dictionary<string, string[]> Validate(BackupDocument doc)
     {

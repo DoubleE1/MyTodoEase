@@ -1,8 +1,9 @@
 # MyTodoEase
 
 A Todoist-style todo app: Windows desktop shell (Electron) around a React UI, backed by an ASP.NET Core API with an embedded LiteDB database. Nothing else to install.
-The same React code can later be served as a web app, and the API is the single source of truth for a future mobile app
-and for notification jobs (email, Telegram).
+The same React code is also served as a web app (https://mytodoease-883bf.web.app) backed by Firestore, and once you
+sign in with Google on the desktop both use the same cloud data, so tasks follow you across PCs and browsers
+(see [Cloud sync](#cloud-sync-desktop--web)). Without signing in the desktop keeps everything in its local file.
 
 ## Stack
 
@@ -44,7 +45,7 @@ The API also works from a browser at http://localhost:5173 without Electron.
 - Insights page (click the dashboard): GitHub-style year heatmap of completions with a year switcher, streaks, best day, weekday pattern, and top projects. Completions are kept in a separate log so recurring tasks and later-deleted tasks still count
 - Light, dark, or follow-system theme (toggle at the bottom of the sidebar, remembered between launches)
 - Pin on top: keeps the window above other windows (desktop only, button in the title bar next to minimize)
-- Settings (sidebar footer): theme choice, accent color (presets or any custom color; the whole palette, brand gradient and header halos are derived from it in OKLCH and remembered per device) plus Data backup. **Export backup…** writes one JSON file with every project, section, label, task and completion; **Import backup…** replaces all data with such a file (after confirmation). Data lives only on this computer, so this is how you back up, move to another PC, or recover after a reinstall (`GET /api/backup`, `POST /api/backup/import`)
+- Settings (sidebar footer): theme choice, accent color (presets or any custom color; the whole palette, brand gradient and header halos are derived from it in OKLCH and remembered per device), Account (cloud sync, below), Google Calendar, AI assistants, and Data backup. **Export backup…** writes one JSON file with every project, section, label, task and completion; **Import backup…** replaces all data with such a file (after confirmation). In local mode data lives only on this computer, so this is how you back up, move to another PC, or recover after a reinstall; in cloud mode the same buttons back up and restore the cloud data (`GET /api/backup`, `POST /api/backup/import`)
 - Dock (mini mode, Windows): a title bar button reserves the mini window as a Windows app bar on the right screen edge, like the taskbar, so maximized apps stop at its edge instead of covering it. While docked only Close is shown; dragging or snapping the window puts it back. Expanding to the full window releases the strip and going back to mini re-docks, until you undock explicitly. The dock state survives restarts. Uses the small .NET helper in `desktop/appbar` (built by `npm run build:appbar` as a self-contained exe)
 - Mini mode: shrinks the window to a small two-pane list. Today (with overdue) on top; below it a pane you choose (No date, Inbox, Upcoming, any project, any label, or hidden) with a draggable divider. Add, complete, edit, and delete work in both panes; the window size, pane choice, and split are remembered (title bar button; sidebar footer in the browser)
 - Quick add with natural-language parsing: `Pay rent tomorrow at 9am p1 #Home @finance every month`
@@ -88,7 +89,7 @@ alpha mask (radius about 23% of the side), and export 512px PNGs plus an ICO wit
 ## Configuration
 
 - API: `backend/MyTodoEase.Api/appsettings.json` → `Storage.Path` (LiteDB file; empty = `%LOCALAPPDATA%\MyTodoEase\mytodoease.db`), or the `MYTODOEASE_DATA_DIR` environment variable
-- UI: `frontend/.env` → `VITE_API_URL` (defaults to `http://localhost:5080`)
+- UI: `frontend/.env` holds the public Firebase web config (`VITE_FIREBASE_*`, used by both the desktop renderer and the web build; tracked in git). `VITE_API_URL` (default `http://localhost:5080`) can be overridden in the git-ignored `frontend/.env.local`
 
 ## Build a Windows installer
 
@@ -106,14 +107,44 @@ there), waits for it to become healthy, and stops it on exit. The database is an
 needs nothing else installed. If the API cannot start, the app shows a dialog saying so and keeps retrying in the
 window. Override the API address with the `MYTODOEASE_API_URL` environment variable.
 
-## Google sign-in
+## Cloud sync (desktop ↔ web)
 
-Settings → Account lets you connect a Google account (identity only for now; upcoming email reminders and
-email-to-task will ask for Gmail permissions incrementally). The app uses the OAuth 2.0 authorization-code flow with
+Settings → Account → **Sign in with Google** switches the desktop app from its local file to the cloud: tasks,
+projects, sections, labels and completion history then live in Firestore under your Google account (project
+`mytodoease-883bf`, `users/{uid}/…`, the same tree the web app uses), update live on every signed-in device, and the
+web app at https://mytodoease-883bf.web.app shows exactly the same data. Sign out and the PC goes back to its local
+file; the cloud data stays in your account.
+
+- **Sign-in flow.** Firebase's Google popup cannot run inside Electron, so the renderer asks the local API for a
+  one-time page (`POST /api/auth/firebase/start` → `http://localhost:5080/api/auth/firebase/page?state=…`) and
+  opens it in your default browser. That page loads the Firebase SDK, runs the normal Google popup and posts the
+  Google ID token back to the API (same origin); the app polls `GET /api/auth/firebase/pending/{state}` and finishes
+  with `signInWithCredential`. `localhost` is one of Firebase's default authorized domains, so no console setup is
+  needed. The Firebase session is persisted by the SDK inside the app (IndexedDB), like in the web app.
+- **Data layer.** `frontend/src/api/client.ts` exposes one `api` object that routes each call to the active backend:
+  the REST client (local) or the Firestore client (cloud, `firestoreClient.ts`). `SessionGate.tsx` flips it when the
+  Firebase user appears or leaves, clears the query cache and re-mounts the app. Google Calendar settings and sync
+  stay on the local API in both modes.
+- **Local API follows the session.** After signing in, the renderer shares the Firebase refresh token with the API
+  (`PUT /api/cloud/session`, stored DPAPI-encrypted in `%LOCALAPPDATA%\MyTodoEase\cloud-session.json`). While a
+  session exists every `/api/projects|sections|labels|tasks|stats|backup` call is served from Firestore through the
+  Firestore REST API (`Data/FirestoreStore.cs`, under the same security rules) instead of LiteDB
+  (`Data/LiteDbStore.cs`), so the **MCP server** and **Google Calendar sync** read and write the same cloud data as
+  the apps without changes. `GET /api/health` reports `cloud: true` and the account. The renderer's Firestore
+  listener also posts changed task ids to `POST /api/calendar/changed`, so the calendar mirror reacts to edits made
+  in the app or on another device right away (a full reconcile still runs on sign-in and every 15 minutes).
+- **Moving local data.** After the first sign-in, Settings → Account shows how many tasks the local file still holds
+  and offers **Move local data to the cloud** (local backup export `GET /api/backup/local` → cloud import, replacing
+  the cloud data after confirmation). The local file is left unchanged as a backup.
+
+## Google Calendar connection
+
+Settings → Google Calendar connects a Google account for calendar access (this is separate from the cloud account:
+it is an OAuth grant held by the local API on this PC). The app uses the OAuth 2.0 authorization-code flow with
 PKCE and a loopback redirect into the local API; the refresh token and client secret are stored in
 `%LOCALAPPDATA%\MyTodoEase\google-auth.json`, encrypted with Windows DPAPI for your user.
 
-The app ships with its OAuth client, so users just click **Sign in with Google**. To build with your own client (free):
+The app ships with its OAuth client, so users just click **Connect Google Calendar**. To build with your own client (free):
 
 1. Open [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials) and
    create a project if you have none.
@@ -131,7 +162,8 @@ URL), `GET /api/auth/google/callback`, `POST /api/auth/google/cancel`, `DELETE /
 
 ## Google Calendar sync
 
-Settings → Google Calendar (after signing in) asks for calendar permission incrementally, then offers two things:
+Settings → Google Calendar, once connected, offers two things (they work in local and in cloud mode; in cloud mode
+the mirror follows the cloud tasks):
 
 - **Mirror tasks to Google Calendar**: every open task with a due date becomes an event in a dedicated "MyTodoEase"
   calendar (all-day, or 30 minutes at the due time; recurring tasks become recurring events with an RRULE). Creating,
@@ -152,7 +184,8 @@ Live at **https://mytodoease-883bf.web.app** (Firebase project `mytodoease-883bf
 
 The same React code also runs as a hosted web app where data lives in Firestore under the user's Google account,
 so tasks follow the user to any PC or phone browser. `vite build --mode web` picks the Firebase backend
-(`frontend/.env.web`, `VITE_BACKEND=firebase`); the desktop app and `npm run dev` keep using the local API.
+(`frontend/.env.web`, `VITE_BACKEND=firebase`); the desktop app and `npm run dev` start on the local API and switch
+to the same Firestore data when the user signs in (see Cloud sync above).
 
 - **Sign-in:** Firebase Auth with Google (popup). Everything is stored under `users/{uid}/…` and
   `firestore.rules` lets a user read and write only their own tree.
@@ -161,10 +194,11 @@ so tasks follow the user to any PC or phone browser. `vite build --mode web` pic
   shape, so a backup exported on the desktop imports on the web and back.
 - **Live updates:** `frontend/src/api/realtime.ts` feeds Firestore snapshots into the query cache; the SDK's
   persistent cache keeps the app usable offline.
-- **Desktop-only for now:** Google Calendar sync and the MCP copy buttons; Settings says so on the web.
+- **Desktop-only for now:** Google Calendar sync and the MCP copy buttons; Settings says so on the web. Both work
+  against the cloud data once the desktop app is signed in with the same account.
 
 Setup once: create a Firebase project (Authentication → Google enabled, Firestore in production mode), register a
-web app, copy its config into `frontend/.env.web` (see `.env.web.example`), put the project id in `.firebaserc`,
+web app, copy its config into `frontend/.env` (see `.env.web.example`), put the project id in `.firebaserc`,
 then:
 
 ```bash
@@ -179,6 +213,7 @@ emulators (needs Java 21+) and `frontend/.env.web.local` with `VITE_FIREBASE_EMU
 
 `mcp/` holds an MCP server that exposes the same API as tools, so an AI assistant can list what is due, add and
 reschedule tasks, complete them and review your week. It starts the bundled API itself when the desktop app is closed.
+It always talks to the local API, which serves the local file or, while the desktop app is signed in, the cloud data.
 
 The easiest way to connect is **Settings → AI assistants**, Figma-style: one click copies a ready-to-paste snippet
 for this machine. "Copy setup prompt" produces a natural-language prompt (with the config embedded) that you paste
@@ -192,7 +227,7 @@ the manual commands and the tool list.
 
 ## Not yet
 
-- Authentication / multi-user (single local user for now; the API has no auth and CORS is wide open)
+- The local API itself has no auth and CORS is wide open (it only listens on localhost; cloud data is protected by Firebase Auth and Firestore rules)
 - Reordering projects, sections, or sub-tasks by drag (only top-level tasks are draggable)
 - Comments, attachments, reminders, notifications
 - Email / Telegram integration and email-to-task analysis

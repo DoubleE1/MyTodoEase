@@ -9,16 +9,16 @@ public static class LabelsEndpoints
     {
         var group = app.MapGroup("/api/labels").WithTags("Labels");
 
-        group.MapGet("/", (AppDb db) =>
-            Results.Ok(db.Labels.FindAll().OrderBy(l => l.Order).ThenBy(l => l.Name).ToList()));
+        group.MapGet("/", async (IDataStore store, CancellationToken ct) =>
+            Results.Ok((await store.Labels.AllAsync(ct)).OrderBy(l => l.Order).ThenBy(l => l.Name).ToList()));
 
-        group.MapPost("/", (LabelWriteRequest req, AppDb db) =>
+        group.MapPost("/", async (LabelWriteRequest req, IDataStore store, CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(req.Name))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["name"] = ["Name is required."] });
 
             var name = req.Name.Trim();
-            var all = db.Labels.FindAll().ToList();
+            var all = await store.Labels.AllAsync(ct);
             var existing = all.FirstOrDefault(l => string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase));
             if (existing is not null) return Results.Ok(existing); // idempotent: labels are unique by name
 
@@ -30,37 +30,36 @@ public static class LabelsEndpoints
                 Color = req.Color ?? "grey",
                 Order = req.Order ?? (last is null ? 0 : last.Order + 1),
             };
-            db.Labels.Insert(label);
+            await store.Labels.UpsertAsync(label, ct);
             return Results.Created($"/api/labels/{label.Id}", label);
         });
 
-        group.MapPut("/{id}", (string id, LabelWriteRequest req, AppDb db) =>
+        group.MapPut("/{id}", async (string id, LabelWriteRequest req, IDataStore store, CancellationToken ct) =>
         {
             if (!AppDb.IsValidId(id)) return Results.NotFound();
             if (string.IsNullOrWhiteSpace(req.Name))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["name"] = ["Name is required."] });
 
-            var label = db.Labels.FindById(id);
+            var label = await store.Labels.GetAsync(id, ct);
             if (label is null) return Results.NotFound();
 
             label.Name = req.Name.Trim();
             label.Color = req.Color ?? "grey";
             if (req.Order is int order) label.Order = order;
-            db.Labels.Update(label);
+            await store.Labels.UpsertAsync(label, ct);
             return Results.Ok(label);
         });
 
-        group.MapDelete("/{id}", (string id, AppDb db) =>
+        group.MapDelete("/{id}", async (string id, IDataStore store, CancellationToken ct) =>
         {
             if (!AppDb.IsValidId(id)) return Results.NotFound();
-            if (!db.Labels.Delete(id)) return Results.NotFound();
+            if (await store.Labels.GetAsync(id, ct) is null) return Results.NotFound();
+            await store.Labels.DeleteAsync(id, ct);
 
             // Array membership is filtered in memory: the data set is one user's tasks.
-            foreach (var task in db.Tasks.FindAll().Where(t => t.LabelIds.Contains(id)).ToList())
-            {
-                task.LabelIds.Remove(id);
-                db.Tasks.Update(task);
-            }
+            var tagged = (await store.Tasks.AllAsync(ct)).Where(t => t.LabelIds.Contains(id)).ToList();
+            foreach (var task in tagged) task.LabelIds.Remove(id);
+            await store.Tasks.UpsertManyAsync(tagged, ct);
             return Results.NoContent();
         });
 

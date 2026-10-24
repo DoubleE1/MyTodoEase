@@ -15,7 +15,7 @@ public static class StatsEndpoints
 
         // Completion history for a calendar-date range. Dates are the client's local days, so the UTC window is
         // widened by 14 hours on each side; the client buckets by its own local date.
-        group.MapGet("/completions", (string? from, string? to, AppDb db) =>
+        group.MapGet("/completions", async (string? from, string? to, IDataStore store, CancellationToken ct) =>
         {
             if (!TryParseDate(from, out var fromDate) || !TryParseDate(to, out var toDate) || toDate < fromDate)
                 return Results.ValidationProblem(new Dictionary<string, string[]>
@@ -26,13 +26,14 @@ public static class StatsEndpoints
             var start = fromDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddHours(-14);
             var end = toDate.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc).AddHours(14);
 
-            var items = db.Completions
-                .Find(c => c.CompletedAt >= start && c.CompletedAt <= end)
+            var all = await store.Completions.AllAsync(ct);
+            var items = all
+                .Where(c => c.CompletedAt >= start && c.CompletedAt <= end)
                 .OrderBy(c => c.CompletedAt)
                 .Select(c => new CompletionItem(c.TaskId, c.Content, c.ProjectId, c.CompletedAt))
                 .ToList();
 
-            var first = db.Completions.Query().OrderBy(c => c.CompletedAt).FirstOrDefault();
+            var first = all.MinBy(c => c.CompletedAt);
             var years = new List<int>();
             if (first is not null)
             {

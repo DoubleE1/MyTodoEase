@@ -17,7 +17,7 @@ import type {
   TaskInput,
 } from './types';
 
-import { BACKEND } from './backend';
+import { IS_WEB_APP } from './backend';
 import { ApiError } from './errors';
 import { firestoreApi } from './firestoreClient';
 
@@ -61,8 +61,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 const json = (body: unknown): RequestInit => ({ body: JSON.stringify(body) });
 
-const restApi = {
-  health: () => request<{ status: string; storage?: string }>('/api/health'),
+export const restApi = {
+  health: () => request<{ status: string; storage?: string; cloud?: boolean }>('/api/health'),
 
   googleAuth: {
     status: () => request<GoogleAuthStatus>('/api/auth/google'),
@@ -134,5 +134,93 @@ const restApi = {
 /** The data API surface; the REST client defines it and the Firestore client must match it. */
 export type Api = typeof restApi;
 
-/** Local ASP.NET API in the desktop app and dev server; Firestore in the hosted web app. */
-export const api: Api = BACKEND === 'firebase' ? firestoreApi : restApi;
+/**
+ * Desktop app while signed in: tasks, projects, labels, stats and backups live in Firestore (shared with the web
+ * app and other PCs), while the Google Calendar connection and its sync keep running in the local API.
+ */
+const desktopCloudApi: Api = {
+  ...firestoreApi,
+  googleAuth: restApi.googleAuth,
+  calendar: restApi.calendar,
+};
+
+/** Where data is read and written right now. 'cloud' needs a signed-in Firebase user. */
+export type DataMode = 'local' | 'cloud';
+
+let dataMode: DataMode = IS_WEB_APP ? 'cloud' : 'local';
+
+export const getDataMode = (): DataMode => dataMode;
+
+/** Flipped by the session gate when the Firebase user appears or leaves; the web app is always 'cloud'. */
+export function setDataMode(mode: DataMode): void {
+  dataMode = IS_WEB_APP ? 'cloud' : mode;
+}
+
+function activeApi(): Api {
+  if (dataMode === 'local') return restApi;
+  return IS_WEB_APP ? firestoreApi : desktopCloudApi;
+}
+
+type ApiGroup = { [method: string]: (...args: never[]) => unknown };
+
+/**
+ * The API the UI talks to. Every call is resolved against the active backend at call time, so references taken
+ * early (query functions, mutation functions) follow a mode switch without re-rendering.
+ */
+export const api: Api = new Proxy(restApi, {
+  get(_target, key: keyof Api) {
+    if (key === 'health') return () => activeApi().health();
+    return new Proxy({} as ApiGroup, {
+      get(_group, method: string) {
+        return (...args: unknown[]) => {
+          const group = activeApi()[key] as unknown as ApiGroup;
+          return group[method](...(args as never[]));
+        };
+      },
+    });
+  },
+}) as Api;
+
+/** Firebase web config the renderer was built with (frontend/.env); also handed to the API for the sign-in page. */
+export function firebaseWebConfig() {
+  const env = import.meta.env;
+  return {
+    apiKey: env.VITE_FIREBASE_API_KEY ?? '',
+    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN ?? '',
+    projectId: env.VITE_FIREBASE_PROJECT_ID ?? '',
+    appId: env.VITE_FIREBASE_APP_ID ?? '',
+  };
+}
+
+export interface CloudSessionStatus {
+  active: boolean;
+  projectId: string | null;
+  uid: string | null;
+  email: string | null;
+  name: string | null;
+  connectedAt: string | null;
+  lastError: string | null;
+}
+
+/** Desktop-only endpoints of the local API that make cloud sync work (not part of the data surface). */
+export const desktopCloud = {
+  /** Registers a sign-in attempt; returns the loopback page to open in the system browser. */
+  startSignIn: () =>
+    request<{ state: string; url: string }>('/api/auth/firebase/start', { method: 'POST', ...json(firebaseWebConfig()) }),
+  /** The Google ID token once the browser page delivered it; null while still waiting. Throws 404 when expired. */
+  pollSignIn: (state: string) =>
+    request<{ idToken: string; email: string | null } | undefined>(`/api/auth/firebase/pending/${encodeURIComponent(state)}`).then(
+      (r) => r ?? null,
+    ),
+  cancelSignIn: () => request<void>('/api/auth/firebase/cancel', { method: 'POST' }),
+  session: () => request<CloudSessionStatus>('/api/cloud/session'),
+  /** Shares the Firebase session so the API (MCP server, Calendar sync) reads the same cloud data. */
+  setSession: (input: { projectId: string; apiKey: string; uid: string; email: string | null; name: string | null; refreshToken: string }) =>
+    request<CloudSessionStatus>('/api/cloud/session', { method: 'PUT', ...json(input) }),
+  clearSession: () => request<CloudSessionStatus>('/api/cloud/session', { method: 'DELETE' }),
+  /** The LiteDB file on this PC, whatever mode the API is in (to move local data to the cloud). */
+  exportLocal: () => request<BackupDocument>('/api/backup/local'),
+  /** Tasks that changed in Firestore, so the local Calendar mirror pushes them without waiting for the next reconcile. */
+  notifyTaskChanges: (taskIds: string[]) =>
+    request<void>('/api/calendar/changed', { method: 'POST', ...json({ taskIds }) }),
+};

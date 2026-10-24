@@ -13,8 +13,7 @@ obj/
 *.user
 .vs/
 
-# Env
-.env
+# Env (frontend/.env holds the public Firebase config and is tracked; local overrides are not)
 .env.local
 appsettings.Development.local.json
 

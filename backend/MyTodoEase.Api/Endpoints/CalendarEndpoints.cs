@@ -7,6 +7,8 @@ public static class CalendarEndpoints
 {
     public sealed record SyncSettingsRequest(bool? Enabled, List<string>? SourceCalendarIds);
 
+    public sealed record ChangedRequest(List<string>? TaskIds);
+
     public static IEndpointRouteBuilder MapCalendar(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/calendar").WithTags("Calendar");
@@ -35,6 +37,14 @@ public static class CalendarEndpoints
             {
                 return Results.Problem(ex.Message, statusCode: StatusCodes.Status502BadGateway);
             }
+        });
+
+        // Change feed from the desktop renderer: in cloud mode it writes to Firestore directly (and hears other
+        // devices' writes), so it tells this API which tasks changed and the mirror pushes them right away.
+        group.MapPost("/changed", (ChangedRequest req, CalendarSyncService sync) =>
+        {
+            if (req.TaskIds is { Count: > 0 }) sync.EnqueueMany(req.TaskIds);
+            return Results.NoContent();
         });
 
         group.MapGet("/calendars", async (CalendarSyncService sync, GoogleCalendarClient google, CancellationToken ct) =>

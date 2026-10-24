@@ -5,7 +5,8 @@ list what is due, add and reschedule tasks, complete them, create projects and l
 
 It talks to the MyTodoEase API on this computer (`http://localhost:5080`). When the desktop app is closed, nothing is
 listening, so the server starts the bundled API executable itself (looked up in the installed app folder, or set
-`MYTODOEASE_API_EXE`). Your data never leaves the machine.
+`MYTODOEASE_API_EXE`). The API serves the local file, or the user's Firestore data while the desktop app is signed in to
+cloud sync, so the assistant always sees the same tasks as the app.
 
 ## Build
 
