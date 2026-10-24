@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "mytodoease-883bf"
-  }
+  },
+  "targets": {
+    "mytodoease-883bf": {
+      "hosting": {
+        "app": [
+          "todoease-app"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

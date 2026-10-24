@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "target": "app",
     "public": "frontend/dist-web",
     "ignore": [
       "firebase.json",

@@ -20,7 +20,9 @@ export function SignInScreen() {
           ? null
           : code === 'auth/popup-blocked'
             ? 'Your browser blocked the sign-in window. Allow pop-ups for this site and try again.'
-            : (e as Error).message || 'Sign-in failed.',
+            : code === 'auth/unauthorized-domain'
+              ? `${window.location.hostname} is not yet allowed to sign in. Add it under Authentication → Settings → Authorized domains in the Firebase console.`
+              : (e as Error).message || 'Sign-in failed.',
       );
     } finally {
       setBusy(false);

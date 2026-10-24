@@ -1,7 +1,7 @@
 # MyTodoEase
 
 A Todoist-style todo app: Windows desktop shell (Electron) around a React UI, backed by an ASP.NET Core API with an embedded LiteDB database. Nothing else to install.
-The same React code is also served as a web app (https://mytodoease-883bf.web.app) backed by Firestore, and once you
+The same React code is also served as a web app (https://todoease-app.web.app) backed by Firestore, and once you
 sign in with Google on the desktop both use the same cloud data, so tasks follow you across PCs and browsers
 (see [Cloud sync](#cloud-sync-desktop--web)). Without signing in the desktop keeps everything in its local file.
 
@@ -112,7 +112,7 @@ window. Override the API address with the `MYTODOEASE_API_URL` environment varia
 Settings → Account → **Sign in with Google** switches the desktop app from its local file to the cloud: tasks,
 projects, sections, labels and completion history then live in Firestore under your Google account (project
 `mytodoease-883bf`, `users/{uid}/…`, the same tree the web app uses), update live on every signed-in device, and the
-web app at https://mytodoease-883bf.web.app shows exactly the same data. Sign out and the PC goes back to its local
+web app at https://todoease-app.web.app shows exactly the same data. Sign out and the PC goes back to its local
 file; the cloud data stays in your account.
 
 - **Sign-in flow.** Firebase's Google popup cannot run inside Electron, so the renderer asks the local API for a
@@ -180,7 +180,7 @@ Endpoints: `GET/PUT /api/calendar/sync`, `POST /api/calendar/sync/run`, `GET /ap
 
 ## Web app (Firebase Hosting + Firestore)
 
-Live at **https://mytodoease-883bf.web.app** (Firebase project `mytodoease-883bf`, Firestore in asia-southeast1).
+Live at **https://todoease-app.web.app** (Firebase project `mytodoease-883bf`, Hosting site `todoease-app`, Firestore in asia-southeast1).
 
 The same React code also runs as a hosted web app where data lives in Firestore under the user's Google account,
 so tasks follow the user to any PC or phone browser. `vite build --mode web` picks the Firebase backend
