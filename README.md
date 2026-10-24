@@ -89,7 +89,7 @@ alpha mask (radius about 23% of the side), and export 512px PNGs plus an ICO wit
 ## Configuration
 
 - API: `backend/MyTodoEase.Api/appsettings.json` → `Storage.Path` (LiteDB file; empty = `%LOCALAPPDATA%\TodoEase\mytodoease.db`), or the `MYTODOEASE_DATA_DIR` environment variable
-- UI: `frontend/.env` holds the public Firebase web config (`VITE_FIREBASE_*`, used by both the desktop renderer and the web build; tracked in git). `VITE_API_URL` (default `http://localhost:5080`) can be overridden in the git-ignored `frontend/.env.local`
+- UI: `frontend/.env` holds the public Firebase web config (`VITE_FIREBASE_*`, used by both the desktop renderer and the web build; tracked in git). The `apiKey` in it is a Firebase web API key: it only identifies the project, every visitor's browser receives it anyway, and it is restricted to Firebase APIs in Google Cloud; data access is enforced by Firebase Auth and `firestore.rules`, so secret-scanning alerts about it are expected. `VITE_API_URL` (default `http://localhost:5080`) can be overridden in the git-ignored `frontend/.env.local`
 
 ## Publish a release
 
