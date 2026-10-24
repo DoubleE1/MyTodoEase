@@ -1028,10 +1028,31 @@ ul {
   margin-top: 8px;
 }
 
+.world-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .world-hint {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+.world-theme-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.world-theme-pick select {
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg);
 }
 
 .world-legend {

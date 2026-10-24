@@ -1,7 +1,9 @@
 import { format } from 'date-fns';
 import { Flame } from 'lucide-react';
-import { useMemo, type CSSProperties, type ReactNode } from 'react';
-import { BLOCK_WIDTH, GROVE_SPRITES, type GroveSpriteName } from '../assets/world/grove/sprites';
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import * as city from '../assets/world/city/sprites';
+import * as grove from '../assets/world/grove/sprites';
+import type { Sprite } from '../assets/world/sprite';
 import { parseDateStr, todayStr } from '../lib/dates';
 import { celebratedStreakDays, completionLevel, type WorldLevel } from '../lib/world';
 
@@ -66,49 +68,86 @@ const GLOW = diamond(TOP_W * 1.9, TOP_H * 1.9);
 const FACE_LEFT = `${-TOP_W / 2},0 0,${TOP_H / 2} 0,${TOP_H / 2 + DEPTH} ${-TOP_W / 2},${DEPTH}`;
 const FACE_RIGHT = `0,${TOP_H / 2} ${TOP_W / 2},0 ${TOP_W / 2},${DEPTH} 0,${TOP_H / 2 + DEPTH}`;
 
-// ---- Grove theme: the owner's rendered sprites (design/world/grove, cut by frontend/scripts/world-sprites.py) ----
-
-const SPRITE_SCALE = TOP_W / BLOCK_WIDTH; // sprite px -> grid units, so every block is TOP_W wide
+// ---- Sprite themes: the owner's rendered blocks (design/world/<theme>, cut by frontend/scripts/world-sprites.py) ----
 
 const marker: CSSProperties = { fill: 'var(--world-marker)' };
 
-function spriteArt(name: GroveSpriteName): PlotArt {
-  const sprite = GROVE_SPRITES[name];
-  return { symbol: `grove-${name}`, height: sprite.anchorY * SPRITE_SCALE, sway: false, ground: true };
+interface SpriteSet {
+  BLOCK_WIDTH: number;
+  SPRITES: Record<string, Sprite>;
 }
 
-const GROVE: WorldTheme = {
-  id: 'grove',
-  name: 'Grove',
-  defs: (
-    <>
-      {(Object.keys(GROVE_SPRITES) as GroveSpriteName[]).map((name) => {
-        const sprite = GROVE_SPRITES[name];
-        return (
-          <symbol key={name} id={`grove-${name}`} overflow="visible">
+/**
+ * A theme whose symbols are rendered sprites that include their own block. `pick` names the sprite for a
+ * growth tier, using the day's seed to vary the look (a species, a style) between days of the same tier.
+ */
+function spriteTheme(id: string, name: string, set: SpriteSet, pick: (level: WorldLevel, seed: number) => string): WorldTheme {
+  const scale = TOP_W / set.BLOCK_WIDTH; // sprite px -> grid units, so every block is TOP_W wide
+  const art = (sprite: string): PlotArt => ({
+    symbol: `${id}-${sprite}`,
+    height: set.SPRITES[sprite].anchorY * scale,
+    sway: false,
+    ground: true,
+  });
+  return {
+    id,
+    name,
+    defs: (
+      <>
+        {Object.entries(set.SPRITES).map(([sprite, s]) => (
+          <symbol key={sprite} id={`${id}-${sprite}`} overflow="visible">
             <image
-              href={sprite.url}
-              x={-sprite.anchorX * SPRITE_SCALE}
-              y={-sprite.anchorY * SPRITE_SCALE}
-              width={sprite.width * SPRITE_SCALE}
-              height={sprite.height * SPRITE_SCALE}
+              href={s.url}
+              x={-s.anchorX * scale}
+              y={-s.anchorY * scale}
+              width={s.width * scale}
+              height={s.height * scale}
             />
           </symbol>
-        );
-      })}
-    </>
-  ),
-  plotArt(level, flags) {
-    if (level === 0) return spriteArt('bare');
-    // Two species so a busy month does not look like a plantation; the seed keeps a day's tree stable.
-    const species = flags.seed < 0.62 ? 'leafy' : 'pine';
-    if (species === 'leafy' && level === 1) return spriteArt((flags.seed * 100) % 1 < 0.5 ? 'leafy-1a' : 'leafy-1b');
-    return spriteArt(`${species}-${level}` as GroveSpriteName);
-  },
-};
+        ))}
+      </>
+    ),
+    plotArt: (level, flags) => art(level === 0 ? 'bare' : pick(level, flags.seed)),
+  };
+}
 
-export const WORLD_THEMES = { grove: GROVE } as const;
+/** Spread days over variants by seed, with the given weights (they need not sum to 1). */
+function weighted<T extends string>(seed: number, options: [T, number][]): T {
+  const total = options.reduce((sum, [, w]) => sum + w, 0);
+  let cursor = seed * total;
+  for (const [value, weight] of options) {
+    cursor -= weight;
+    if (cursor < 0) return value;
+  }
+  return options[options.length - 1][0];
+}
+
+/** Grove: leafy, pine or blossom trees, so a busy month does not look like a plantation. */
+const GROVE = spriteTheme('grove', 'Grove', grove, (level, seed) => {
+  const species = weighted(seed, [['leafy', 45], ['pine', 30], ['blossom', 25]]);
+  if (species === 'leafy' && level === 1) return (seed * 100) % 1 < 0.5 ? 'leafy-1a' : 'leafy-1b';
+  return `${species}-${level}`;
+});
+
+/** City: a modern district, a castle town or a pagoda village grows on each day. */
+const CITY = spriteTheme('city', 'City', city, (level, seed) => {
+  const style = weighted(seed, [['modern', 1], ['castle', 1], ['pagoda', 1]]);
+  return `${style}-${level}`;
+});
+
+export const WORLD_THEMES = { grove: GROVE, city: CITY } as const;
 export type WorldThemeId = keyof typeof WORLD_THEMES;
+
+const THEME_KEY = 'mytodoease.insights.theme';
+
+function readStoredTheme(): WorldThemeId {
+  try {
+    const value = window.localStorage.getItem(THEME_KEY);
+    return value && value in WORLD_THEMES ? (value as WorldThemeId) : 'grove';
+  } catch {
+    return 'grove';
+  }
+}
 
 // ---- The view ----
 
@@ -121,7 +160,6 @@ interface WorldViewProps {
   perDay: Map<string, number>;
   /** Total completed in the year, for the empty-state hint. */
   total: number;
-  themeId?: WorldThemeId;
 }
 
 function plural(n: number, word: string): string {
@@ -140,8 +178,17 @@ function dateSeed(date: string): number {
 
 const LEGEND_FLAGS: PlotFlags = { isToday: false, inStreak: false, isFuture: false, seed: 0.1 };
 
-export function WorldView({ year, weeks, monthLabels, cells, perDay, total, themeId = 'grove' }: WorldViewProps) {
+export function WorldView({ year, weeks, monthLabels, cells, perDay, total }: WorldViewProps) {
+  const [themeId, setThemeId] = useState<WorldThemeId>(readStoredTheme);
   const theme: WorldTheme = WORLD_THEMES[themeId];
+  const selectTheme = (next: WorldThemeId) => {
+    setThemeId(next);
+    try {
+      window.localStorage.setItem(THEME_KEY, next);
+    } catch {
+      // Not persisted; fine.
+    }
+  };
   const today = todayStr();
   const streak = useMemo(() => celebratedStreakDays(perDay), [perDay]);
 
@@ -255,15 +302,27 @@ export function WorldView({ year, weeks, monthLabels, cells, perDay, total, them
         </div>
       </div>
       <div className="world-footer">
-        <span className="muted small world-hint">
-          {total === 0 ? (
-            `Complete tasks to grow your ${theme.name.toLowerCase()}.`
-          ) : streak.size > 0 ? (
-            <>
-              <Flame size={13} aria-hidden="true" /> {streak.size}-day streak
-            </>
-          ) : null}
-        </span>
+        <div className="world-footer-left">
+          <label className="world-theme-pick muted small">
+            Theme
+            <select value={themeId} onChange={(e) => selectTheme(e.target.value as WorldThemeId)}>
+              {(Object.keys(WORLD_THEMES) as WorldThemeId[]).map((id) => (
+                <option key={id} value={id}>
+                  {WORLD_THEMES[id].name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="muted small world-hint">
+            {total === 0 ? (
+              `Complete tasks to grow your ${theme.name.toLowerCase()}.`
+            ) : streak.size > 0 ? (
+              <>
+                <Flame size={13} aria-hidden="true" /> {streak.size}-day streak
+              </>
+            ) : null}
+          </span>
+        </div>
         <div className="world-legend">
           <span className="muted small">Less</span>
           {([0, 1, 2, 3, 4] as WorldLevel[]).map((level) => {
