@@ -104,6 +104,16 @@ gh release create v0.1.0 release/MyTodoEase-Setup.exe --title "MyTodoEase 0.1.0"
 (or create the release on GitHub and drag `release/MyTodoEase-Setup.exe` into it). Bump `version` in the three
 `package.json` files first so the installer and the tag agree.
 
+Easier: push a version tag and let GitHub Actions do it. `.github/workflows/release.yml` builds the installer on a
+Windows runner and attaches it to a release for that tag (also runnable by hand from the Actions tab):
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+Add the repository secret `GOOGLE_CLIENT_JSON` (the contents of `backend/MyTodoEase.Api/google-client.json`) so the
+built installer ships the Google Calendar OAuth client; without it users are asked to paste one.
+
 ## Build a Windows installer
 
 ```bash
