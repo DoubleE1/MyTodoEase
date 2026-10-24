@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "dev:site": "vite --mode web",
-    "build:site": "tsc -b && vite build --mode web && node scripts/copy-installer.mjs",
+    "build:site": "tsc -b && vite build --mode web",
     "typecheck": "tsc -b"
   },
   "dependencies": {

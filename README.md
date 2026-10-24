@@ -91,6 +91,19 @@ alpha mask (radius about 23% of the side), and export 512px PNGs plus an ICO wit
 - API: `backend/MyTodoEase.Api/appsettings.json` → `Storage.Path` (LiteDB file; empty = `%LOCALAPPDATA%\MyTodoEase\mytodoease.db`), or the `MYTODOEASE_DATA_DIR` environment variable
 - UI: `frontend/.env` holds the public Firebase web config (`VITE_FIREBASE_*`, used by both the desktop renderer and the web build; tracked in git). `VITE_API_URL` (default `http://localhost:5080`) can be overridden in the git-ignored `frontend/.env.local`
 
+## Publish a release
+
+The installer is distributed through [GitHub Releases](https://github.com/DoubleE1/MyTodoEase/releases); the landing
+page's **Download for Windows** button always fetches `releases/latest/download/MyTodoEase-Setup.exe`, so the asset
+name must stay `MyTodoEase-Setup.exe` (the release tag carries the version). After `npm run build`:
+
+```bash
+gh release create v0.1.0 release/MyTodoEase-Setup.exe --title "MyTodoEase 0.1.0" --generate-notes
+```
+
+(or create the release on GitHub and drag `release/MyTodoEase-Setup.exe` into it). Bump `version` in the three
+`package.json` files first so the installer and the tag agree.
+
 ## Build a Windows installer
 
 ```bash
@@ -99,7 +112,7 @@ npm run build
 
 This publishes the API (`desktop/build/api`) and the app-bar helper (`desktop/build/appbar`) as self-contained
 Windows executables (no .NET runtime needed on the target PC), builds the UI into `desktop/renderer/`, and runs
-electron-builder, which writes `release/MyTodoEase-Setup-<version>.exe` (NSIS, per-user, choosable install folder,
+electron-builder, which writes `release/MyTodoEase-Setup.exe` (NSIS, per-user, choosable install folder,
 desktop + Start Menu shortcuts) plus the unpacked app in `release/win-unpacked/`.
 
 The installed `MyTodoEase.exe` starts the bundled API on `http://localhost:5080` (unless something already answers
@@ -188,12 +201,10 @@ so tasks follow the user to any PC or phone browser. `vite build --mode web` pic
 to the same Firestore data when the user signs in (see Cloud sync above).
 
 - **Landing page:** signed-out visitors see a landing page (`frontend/src/components/SignIn.tsx`) with
-  **Continue with Google** and download buttons; the app itself only renders after sign-in. The Windows installer is
-  served by Hosting as `/downloads/MyTodoEase-Setup-Windows.zip` (zipped: the Hosting free plan refuses `.exe` files): `npm run build:site` zips the newest
-  `release/MyTodoEase-Setup-*.exe` into `frontend/dist-web/downloads/` (so run `npm run build` first), and
-  `VITE_DOWNLOAD_WINDOWS_URL` / `VITE_DOWNLOAD_MAC_URL` in `frontend/.env.web` set the links (an empty URL shows the
-  button as "coming soon"; there is no macOS build yet). Note the Hosting free tier allows about 360 MB of download
-  per day, roughly two installer downloads; move the file to a release host if that becomes a problem.
+  **Continue with Google** and download buttons; the app itself only renders after sign-in. The download links come
+  from `VITE_DOWNLOAD_WINDOWS_URL` / `VITE_DOWNLOAD_MAC_URL` in `frontend/.env.web`; the Windows one points at the
+  newest GitHub release asset (see "Publish a release" below) and an empty URL shows the button as "coming soon"
+  (there is no macOS build yet).
 - **Sign-in:** Firebase Auth with Google (popup). Everything is stored under `users/{uid}/…` and
   `firestore.rules` lets a user read and write only their own tree.
 - **Data client:** `frontend/src/api/firestoreClient.ts` implements the same `Api` surface as the REST client,
