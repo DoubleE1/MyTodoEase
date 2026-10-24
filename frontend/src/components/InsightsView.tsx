@@ -8,14 +8,16 @@ import {
   parseISO,
   startOfWeek,
 } from 'date-fns';
-import { Award, CalendarCheck, Flame, Sparkles, TrendingUp } from 'lucide-react';
+import { Award, CalendarCheck, Flame, LayoutGrid, Sparkles, TreePine, TrendingUp } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useCompletions } from '../api/hooks';
 import type { CompletionItem, Project } from '../api/types';
 import { colorHex } from '../lib/colors';
 import { parseDateStr, toDateStr, todayStr } from '../lib/dates';
 import { completionsPerDay, currentStreak, longestStreak } from '../lib/stats';
+import { completionLevel } from '../lib/world';
 import { ProjectIcon } from './Pickers';
+import { WorldView } from './WorldView';
 
 interface InsightsViewProps {
   /** Compact layout for a narrow host such as the mini window's lower pane: no page title, stacked header. */
@@ -26,13 +28,24 @@ interface InsightsViewProps {
 const WEEK_STARTS_ON = 1; // Monday
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-/** Heat level 0–4 for a day's count, GitHub style. */
-function level(count: number): number {
-  if (count <= 0) return 0;
-  if (count === 1) return 1;
-  if (count <= 3) return 2;
-  if (count <= 6) return 3;
-  return 4;
+/** How the year is drawn: the classic heat grid or the isometric world. Remembered across sessions. */
+type InsightsMode = 'grid' | 'world';
+const MODE_KEY = 'mytodoease.insights.mode';
+
+function readStoredMode(): InsightsMode {
+  try {
+    return window.localStorage.getItem(MODE_KEY) === 'world' ? 'world' : 'grid';
+  } catch {
+    return 'grid';
+  }
+}
+
+function storeMode(mode: InsightsMode) {
+  try {
+    window.localStorage.setItem(MODE_KEY, mode);
+  } catch {
+    // Not persisted; fine.
+  }
 }
 
 function plural(n: number, word: string): string {
@@ -42,6 +55,12 @@ function plural(n: number, word: string): string {
 export function InsightsView({ projects, embedded = false }: InsightsViewProps) {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
+  // The mini window always shows the grid: there is no room for the world and no toggle.
+  const [mode, setMode] = useState<InsightsMode>(() => (embedded ? 'grid' : readStoredMode()));
+  const selectMode = (next: InsightsMode) => {
+    setMode(next);
+    storeMode(next);
+  };
   const query = useCompletions(`${year}-01-01`, `${year}-12-31`);
   const items = useMemo(
     () => (query.data?.items ?? []).filter((c) => parseISO(c.completedAt).getFullYear() === year),
@@ -69,72 +88,109 @@ export function InsightsView({ projects, embedded = false }: InsightsViewProps) 
               : `${plural(stats.total, 'task')} completed in ${year} across ${plural(stats.activeDays, 'day')}.`}
           </p>
         </div>
-        <div className="segmented" role="radiogroup" aria-label="Year">
-          {years.map((y) => (
-            <button
-              key={y}
-              type="button"
-              role="radio"
-              aria-checked={y === year}
-              className={`segmented-option ${y === year ? 'is-selected' : ''}`}
-              onClick={() => setYear(y)}
-            >
-              {y}
-            </button>
-          ))}
+        <div className="insights-controls">
+          {!embedded && (
+            <div className="segmented" role="radiogroup" aria-label="View">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={mode === 'grid'}
+                className={`segmented-option ${mode === 'grid' ? 'is-selected' : ''}`}
+                onClick={() => selectMode('grid')}
+              >
+                <LayoutGrid size={14} aria-hidden="true" />
+                Grid
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={mode === 'world'}
+                className={`segmented-option ${mode === 'world' ? 'is-selected' : ''}`}
+                onClick={() => selectMode('world')}
+              >
+                <TreePine size={14} aria-hidden="true" />
+                World
+              </button>
+            </div>
+          )}
+          <div className="segmented" role="radiogroup" aria-label="Year">
+            {years.map((y) => (
+              <button
+                key={y}
+                type="button"
+                role="radio"
+                aria-checked={y === year}
+                className={`segmented-option ${y === year ? 'is-selected' : ''}`}
+                onClick={() => setYear(y)}
+              >
+                {y}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
-      <section className="heatmap-card" aria-label={`Completions in ${year}`}>
-        <div className="heatmap-scroll">
-          <div className="heatmap">
-            <div className="heatmap-months" style={{ gridTemplateColumns: `repeat(${stats.weeks}, minmax(0, 1fr))` }}>
-              {stats.monthLabels.map((m) => (
-                <span key={m.label + m.column} style={{ gridColumnStart: m.column + 1 }}>
-                  {m.label}
-                </span>
-              ))}
-            </div>
-            <div className="heatmap-body">
-              <div className="heatmap-weekdays">
-                {WEEKDAY_LABELS.map((d, i) => (
-                  <span key={d} className={i % 2 === 0 ? '' : 'is-hidden'}>
-                    {d}
+      {mode === 'world' && !embedded ? (
+        <WorldView
+          year={year}
+          weeks={stats.weeks}
+          monthLabels={stats.monthLabels}
+          cells={stats.cells}
+          perDay={stats.perDay}
+          total={stats.total}
+        />
+      ) : (
+        <section className="heatmap-card" aria-label={`Completions in ${year}`}>
+          <div className="heatmap-scroll">
+            <div className="heatmap">
+              <div className="heatmap-months" style={{ gridTemplateColumns: `repeat(${stats.weeks}, minmax(0, 1fr))` }}>
+                {stats.monthLabels.map((m) => (
+                  <span key={m.label + m.column} style={{ gridColumnStart: m.column + 1 }}>
+                    {m.label}
                   </span>
                 ))}
               </div>
-              <div className="heatmap-grid" style={{ gridTemplateColumns: `repeat(${stats.weeks}, minmax(0, 1fr))` }}>
-                {stats.cells.map((cell) =>
-                  cell.inYear ? (
-                    <div
-                      key={cell.date}
-                      className={`heat-cell level-${level(cell.count)} ${cell.date === todayStr() ? 'is-today' : ''}`}
-                      style={{ gridColumn: cell.column + 1, gridRow: cell.row + 1 }}
-                      title={`${plural(cell.count, 'task')} on ${format(parseDateStr(cell.date)!, 'EEE d MMM yyyy')}`}
-                      role="img"
-                      aria-label={`${plural(cell.count, 'task')} on ${format(parseDateStr(cell.date)!, 'EEEE d MMMM yyyy')}`}
-                    />
-                  ) : (
-                    <div
-                      key={cell.date}
-                      className="heat-cell is-outside"
-                      style={{ gridColumn: cell.column + 1, gridRow: cell.row + 1 }}
-                      aria-hidden="true"
-                    />
-                  ),
-                )}
+              <div className="heatmap-body">
+                <div className="heatmap-weekdays">
+                  {WEEKDAY_LABELS.map((d, i) => (
+                    <span key={d} className={i % 2 === 0 ? '' : 'is-hidden'}>
+                      {d}
+                    </span>
+                  ))}
+                </div>
+                <div className="heatmap-grid" style={{ gridTemplateColumns: `repeat(${stats.weeks}, minmax(0, 1fr))` }}>
+                  {stats.cells.map((cell) =>
+                    cell.inYear ? (
+                      <div
+                        key={cell.date}
+                        className={`heat-cell level-${completionLevel(cell.count)} ${cell.date === todayStr() ? 'is-today' : ''}`}
+                        style={{ gridColumn: cell.column + 1, gridRow: cell.row + 1 }}
+                        title={`${plural(cell.count, 'task')} on ${format(parseDateStr(cell.date)!, 'EEE d MMM yyyy')}`}
+                        role="img"
+                        aria-label={`${plural(cell.count, 'task')} on ${format(parseDateStr(cell.date)!, 'EEEE d MMMM yyyy')}`}
+                      />
+                    ) : (
+                      <div
+                        key={cell.date}
+                        className="heat-cell is-outside"
+                        style={{ gridColumn: cell.column + 1, gridRow: cell.row + 1 }}
+                        aria-hidden="true"
+                      />
+                    ),
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div className="heatmap-legend">
-          <span className="muted small">Less</span>
-          {[0, 1, 2, 3, 4].map((l) => (
-            <span key={l} className={`heat-cell level-${l}`} />
-          ))}
-          <span className="muted small">More</span>
-        </div>
-      </section>
+          <div className="heatmap-legend">
+            <span className="muted small">Less</span>
+            {[0, 1, 2, 3, 4].map((l) => (
+              <span key={l} className={`heat-cell level-${l}`} />
+            ))}
+            <span className="muted small">More</span>
+          </div>
+        </section>
+      )}
 
       <section className="insight-tiles">
         <div className="insight-tile">

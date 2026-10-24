@@ -795,6 +795,293 @@ ul {
   margin: 0 4px;
 }
 
+.insights-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Insights: World view. The same weeks × weekdays grid as the heatmap, but every day is an isometric
+   block with something growing on it. Month and weekday labels are HTML (fixed size) around a fluid SVG;
+   the weekday column is absolutely positioned so its 7 slots line up with the SVG's rows. */
+.world-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-sidebar);
+  margin-bottom: 16px;
+}
+
+.world-scroll {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.world {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 760px;
+}
+
+.world-months {
+  display: grid;
+  grid-auto-flow: column;
+  margin-left: calc(32px + 8px);
+  height: 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.world-months span {
+  grid-row: 1;
+  white-space: nowrap;
+}
+
+.world-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.world-weekdays {
+  position: absolute;
+  left: 0;
+  width: 32px;
+  display: grid;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.world-weekdays span {
+  display: flex;
+  align-items: center;
+}
+
+.world-weekdays .is-hidden {
+  visibility: hidden;
+}
+
+.world-svg {
+  grid-column: 2;
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.world-svg symbol,
+.world-legend-glyph symbol {
+  overflow: visible;
+}
+
+/* Grove theme palette. Blocks and labels follow the app theme; the foliage is the theme's own. */
+.world-theme-grove {
+  --world-top: #d3e4cb;
+  --world-top-grown: #bedcb1;
+  --world-side-left: #a9c59e;
+  --world-side-right: #8fae85;
+  --world-trunk: #8b6b4e;
+  --world-shadow: rgba(40, 60, 30, 0.16);
+  --world-leaf-shine: rgba(255, 255, 255, 0.38);
+  --world-leaf-1: #8fcf6b;
+  --world-leaf-2: #6cbd58;
+  --world-leaf-3: #4aa64a;
+  --world-leaf-4: #2f8f40;
+  --world-marker: var(--brand-3);
+  --world-glow: var(--brand-3);
+  --world-today: var(--accent);
+}
+
+:root[data-theme='dark'] .world-theme-grove {
+  --world-top: #3d4c3a;
+  --world-top-grown: #4a6442;
+  --world-side-left: #2d3b2b;
+  --world-side-right: #232e22;
+  --world-trunk: #a3825f;
+  --world-shadow: rgba(0, 0, 0, 0.32);
+  --world-leaf-shine: rgba(255, 255, 255, 0.22);
+  --world-leaf-1: #9bd877;
+  --world-leaf-2: #78c663;
+  --world-leaf-3: #57b152;
+  --world-leaf-4: #3d9c48;
+}
+
+.world-top {
+  fill: var(--world-top);
+}
+
+.world-cell.is-grown .world-top {
+  fill: var(--world-top-grown);
+}
+
+.world-face-left {
+  fill: var(--world-side-left);
+}
+
+.world-face-right {
+  fill: var(--world-side-right);
+}
+
+.world-cell.is-future {
+  opacity: 0.4;
+}
+
+.world-cell:hover .world-top {
+  stroke: var(--text);
+  stroke-width: 0.8;
+}
+
+.world-cell.is-today .world-top {
+  stroke: var(--world-today);
+  stroke-width: 1.2;
+}
+
+.world-art.level-1 {
+  --world-leaf: var(--world-leaf-1);
+}
+
+.world-art.level-2 {
+  --world-leaf: var(--world-leaf-2);
+}
+
+.world-art.level-3 {
+  --world-leaf: var(--world-leaf-3);
+}
+
+.world-art.level-4 {
+  --world-leaf: var(--world-leaf-4);
+}
+
+/* Streak: the whole run glows and sparkles. */
+.world-glow {
+  fill: var(--world-glow);
+  opacity: 0.28;
+}
+
+.world-cell.is-streak .world-top {
+  fill: color-mix(in srgb, var(--world-glow) 28%, var(--world-top-grown));
+}
+
+.world-sparkle {
+  animation: world-twinkle 1.6s ease-in-out infinite alternate;
+  animation-delay: calc(var(--c) * -0.21s + var(--r) * -0.5s);
+}
+
+.world-sparkle.is-second {
+  animation-delay: calc(var(--c) * -0.21s + var(--r) * -0.5s - 0.8s);
+}
+
+/* Today: a soft pulse rippling out of the block. */
+.world-pulse {
+  fill: none;
+  stroke: var(--world-today);
+  stroke-width: 1.2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: world-pulse 2.2s ease-out infinite;
+}
+
+/* Motion: everything grows in from the ground in a left-to-right wave, then trees idle in a slow sway. */
+.world-obj {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: world-grow 480ms cubic-bezier(0.3, 1.45, 0.5, 1) both;
+  animation-delay: calc(var(--c) * 16ms + var(--r) * 6ms);
+}
+
+.world-art.is-swaying {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: world-sway 4s ease-in-out infinite alternate;
+  animation-delay: calc(var(--c) * -0.37s + var(--r) * -0.9s);
+}
+
+@keyframes world-grow {
+  from {
+    transform: scale(0.3, 0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1, 1);
+    opacity: 1;
+  }
+}
+
+@keyframes world-sway {
+  from {
+    transform: rotate(-1.8deg);
+  }
+  to {
+    transform: rotate(1.8deg);
+  }
+}
+
+@keyframes world-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  to {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+@keyframes world-twinkle {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .world-obj,
+  .world-art.is-swaying,
+  .world-sparkle {
+    animation: none;
+  }
+
+  .world-pulse {
+    display: none;
+  }
+}
+
+.world-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.world-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.world-legend {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.world-legend .muted {
+  margin: 0 4px;
+}
+
+.world-legend-glyph {
+  width: 20px;
+  height: 36px;
+  overflow: visible;
+}
+
 .insight-tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
