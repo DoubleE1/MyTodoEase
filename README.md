@@ -5,7 +5,7 @@ the day fill in around your meetings. It runs in the browser and as a Windows ap
 tasks follow you to every device.
 
 - **Web:** https://todoease.com
-- **Windows:** [download the installer](https://github.com/DoubleE1/TodoEase/releases/latest/download/TodoEase-Setup.exe)
+- **Windows:** [download the installer](https://github.com/dbo-e/TodoEase/releases/latest/download/TodoEase-Setup.exe)
   (Windows may show a SmartScreen warning until the app is code-signed; choose *More info → Run anyway*)
 
 ## Features
@@ -60,4 +60,4 @@ its own [README](mcp/README.md).
 
 ## License
 
-[MIT](LICENSE). Issues and pull requests are welcome at https://github.com/DoubleE1/TodoEase.
+[MIT](LICENSE). Issues and pull requests are welcome at https://github.com/dbo-e/TodoEase.

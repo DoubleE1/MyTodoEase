@@ -59,7 +59,7 @@ window. Override the API address with the `MYTODOEASE_API_URL` environment varia
 ## Publish a release
 
 
-The installer is distributed through [GitHub Releases](https://github.com/DoubleE1/TodoEase/releases); the landing
+The installer is distributed through [GitHub Releases](https://github.com/dbo-e/TodoEase/releases); the landing
 page's **Download for Windows** button always fetches `releases/latest/download/TodoEase-Setup.exe`, so the asset
 name must stay `TodoEase-Setup.exe` (the release tag carries the version). After `npm run build`:
 
