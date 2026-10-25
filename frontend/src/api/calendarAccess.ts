@@ -1,6 +1,7 @@
 /**
  * Where the in-app calendar sync gets its Google access token, and how a user connects their calendar in cloud
- * mode. Tokens are short-lived (about an hour) and cached in memory for the session.
+ * mode. Tokens are short-lived (about an hour); the web keeps its token in the browser for that hour (per
+ * account, per browser), so Sync now and the pushes on task changes stay silent until it expires.
  *
  * - Web app: Firebase's Google popup, re-run with the calendar scope. The first time Google asks for consent;
  *   later it just confirms the account and closes. No refresh token ever reaches the browser or the server.
@@ -24,6 +25,40 @@ interface CachedToken {
 
 let cached: CachedToken | null = null;
 
+const storageKey = () => `todoease.calendarToken.${firebase().auth.currentUser?.uid ?? 'anonymous'}`;
+
+function readStoredToken(): CachedToken | null {
+  if (!IS_WEB_APP) return null;
+  try {
+    const raw = localStorage.getItem(storageKey());
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<CachedToken>;
+    if (typeof parsed.token !== 'string' || typeof parsed.expiresAt !== 'number') return null;
+    return parsed.expiresAt > Date.now() ? { token: parsed.token, expiresAt: parsed.expiresAt } : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeToken(value: CachedToken | null): void {
+  cached = value;
+  if (!IS_WEB_APP) return;
+  try {
+    if (value) localStorage.setItem(storageKey(), JSON.stringify(value));
+    else localStorage.removeItem(storageKey());
+  } catch {
+    // Storage unavailable (private mode): the token lives in memory only.
+  }
+}
+
+/** The valid token at hand, from memory or (web) the browser's storage; null when none. */
+function validToken(): string | null {
+  if (cached && cached.expiresAt > Date.now()) return cached.token;
+  const stored = readStoredToken();
+  if (stored) cached = stored;
+  return stored?.token ?? null;
+}
+
 export class CalendarAccessCancelled extends Error {
   constructor() {
     super('The Google window was closed before access was granted.');
@@ -40,13 +75,14 @@ export class CalendarAccessMissing extends Error {
 }
 
 export function forgetCalendarAccessToken(): void {
-  cached = null;
+  storeToken(null);
 }
 
 // ----- Web: Firebase popup -----
 
 async function webAccessToken(interactive: boolean): Promise<string> {
-  if (cached && cached.expiresAt > Date.now()) return cached.token;
+  const atHand = validToken();
+  if (atHand) return atHand;
   if (!interactive) throw new CalendarAccessMissing();
   const user = firebase().auth.currentUser;
   if (!user) throw new Error('Sign in to continue.');
@@ -66,7 +102,7 @@ async function webAccessToken(interactive: boolean): Promise<string> {
   const token = GoogleAuthProvider.credentialFromResult(result)?.accessToken;
   if (!token) throw new Error('Google did not return an access token.');
   if (!(await tokenHasCalendarScope(token))) throw new Error('Calendar access was not granted on Google’s screen. Tick the calendar permission and try again.');
-  cached = { token, expiresAt: Date.now() + WEB_TOKEN_TTL_MS };
+  storeToken({ token, expiresAt: Date.now() + WEB_TOKEN_TTL_MS });
   return token;
 }
 
@@ -82,8 +118,8 @@ async function tokenHasCalendarScope(token: string): Promise<boolean> {
 }
 
 async function revokeWebToken(): Promise<void> {
-  const token = cached?.token;
-  cached = null;
+  const token = validToken();
+  storeToken(null);
   if (!token) return;
   try {
     await fetch('https://oauth2.googleapis.com/revoke', {
@@ -154,6 +190,6 @@ export function queueCalendarPush(taskIds: string[]): void {
 export async function disconnectCloudCalendar(): Promise<CalendarSyncStatus> {
   const status = await disconnectCalendar(quietAccessToken);
   if (IS_WEB_APP) await revokeWebToken();
-  else cached = null;
+  else storeToken(null);
   return status;
 }

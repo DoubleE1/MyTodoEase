@@ -9,6 +9,7 @@
 import { GoogleAuthProvider, signInWithCredential, signOut as firebaseSignOut, type User } from 'firebase/auth';
 import { IS_WEB_APP } from './backend';
 import { ApiError, desktopCloud, firebaseWebConfig, restApi } from './client';
+import { forgetCalendarAccessToken } from './calendarAccess';
 import { GOOGLE_CALENDAR_SCOPE } from './hooks';
 import { firebase } from '../firebase/app';
 
@@ -110,6 +111,7 @@ export async function shareSessionWithApi(user: User): Promise<void> {
  * holds for Calendar. The PC goes back to its local data; the cloud data stays in the account.
  */
 export async function signOutOfCloud(): Promise<void> {
+  forgetCalendarAccessToken();
   if (!IS_WEB_APP) {
     await desktopCloud.clearSession().catch(() => undefined);
     await restApi.googleAuth.signOut().catch(() => undefined);
