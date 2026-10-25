@@ -4102,3 +4102,63 @@ ul {
 .group-chevron.is-collapsed {
   transform: rotate(-90deg);
 }
+
+/* Desktop auto-update: "Restart to update" banner, same overlay layer as the toasts */
+
+.update-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 10px 10px 14px;
+  border: 1px solid var(--accent-border, var(--border));
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font-size: 13px;
+  z-index: 199; /* just under the toasts, which stack above it */
+}
+
+.update-banner-icon {
+  color: var(--accent-text, var(--accent));
+  flex-shrink: 0;
+}
+
+.update-banner-text {
+  white-space: nowrap;
+}
+
+.update-banner .icon-btn {
+  opacity: 0.7;
+}
+
+/* Keep the toasts clear of the banner when both are up. */
+.update-banner ~ .toasts {
+  bottom: 84px;
+}
+
+.is-spinning {
+  animation: update-spin 1s linear infinite;
+}
+
+@keyframes update-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 480px) {
+  .update-banner {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .update-banner-text {
+    white-space: normal;
+    flex: 1 1 100%;
+  }
+}

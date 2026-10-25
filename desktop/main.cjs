@@ -554,3 +554,106 @@ ipcMain.handle('file:save-text', async (_event, { defaultName, content }) => {
   await fs.promises.writeFile(filePath, String(content), 'utf8');
   return filePath;
 });
+
+// ---------------------------------------------------------------------------------------------------------
+// Automatic updates (electron-updater, fed by GitHub Releases: desktop/package.json "build.publish").
+// Once per launch the installed app checks for a newer release in the background and downloads it silently;
+// nothing is installed until the user clicks "Restart to update" (no install on a plain quit either). Offline
+// or with GitHub unreachable the check fails quietly: the state carries the error for Settings > About, but
+// nothing pops up. In a development run electron-updater is a no-op (there is no app-update.yml), logged only.
+// ---------------------------------------------------------------------------------------------------------
+const { autoUpdater } = require('electron-updater');
+
+/** Mirrored to the page over 'update:state'. status: idle | checking | up-to-date | downloading | ready | error | unavailable */
+const updateState = {
+  status: app.isPackaged ? 'idle' : 'unavailable',
+  currentVersion: app.getVersion(),
+  version: null, // the newer version once one is known
+  progress: 0, // download percentage
+  error: null,
+};
+let quitting = false;
+
+function setUpdateState(patch) {
+  Object.assign(updateState, patch);
+  if (win && !win.isDestroyed()) win.webContents.send('update:state', { ...updateState });
+}
+
+/** Short, user-facing reason; the full error goes to the log. */
+function updateErrorMessage(error) {
+  const text = String(error?.message ?? error ?? 'Unknown error');
+  if (/ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNREFUSED|ECONNRESET|net::ERR_|ERR_INTERNET_DISCONNECTED|socket hang up/i.test(text)) {
+    return 'Could not reach the update server. Check your connection and try again.';
+  }
+  if (/latest\.yml|HttpError: 404|status code 404/i.test(text)) {
+    return 'No update information has been published for the latest release yet.';
+  }
+  return text.length > 200 ? `${text.slice(0, 200)}…` : text;
+}
+
+autoUpdater.autoDownload = true;
+autoUpdater.autoInstallOnAppQuit = false; // only on the user's explicit "Restart to update"
+autoUpdater.logger = {
+  info: (message) => console.log('[update]', message),
+  warn: (message) => console.warn('[update]', message),
+  error: (message) => console.error('[update]', message),
+  debug: () => {},
+};
+
+autoUpdater.on('checking-for-update', () => setUpdateState({ status: 'checking', error: null }));
+autoUpdater.on('update-available', (info) => setUpdateState({ status: 'downloading', version: info.version, progress: 0, error: null }));
+autoUpdater.on('update-not-available', () => setUpdateState({ status: 'up-to-date', version: null, progress: 0, error: null }));
+autoUpdater.on('download-progress', (progress) => setUpdateState({ status: 'downloading', progress: Math.round(progress.percent) }));
+autoUpdater.on('update-downloaded', (info) => setUpdateState({ status: 'ready', version: info.version, progress: 100, error: null }));
+autoUpdater.on('error', (error) => {
+  console.error('[update] failed:', error);
+  if (updateState.status === 'ready') return; // a downloaded update stays installable
+  setUpdateState({ status: 'error', error: updateErrorMessage(error), progress: 0 });
+});
+
+/** Ask GitHub for a newer release; resolves to the state reached so far (the download continues in the background). */
+async function checkForUpdates() {
+  if (!app.isPackaged) {
+    console.log('[update] skipped: not a packaged build (electron-updater is a no-op in development)');
+    return { ...updateState };
+  }
+  if (['checking', 'downloading', 'ready'].includes(updateState.status)) return { ...updateState };
+  try {
+    await autoUpdater.checkForUpdates();
+  } catch (error) {
+    // Also reported through the 'error' event above; this keeps a rejected promise from going unhandled.
+    console.error('[update] check failed:', error?.message ?? error);
+    if (updateState.status !== 'ready') setUpdateState({ status: 'error', error: updateErrorMessage(error), progress: 0 });
+  }
+  return { ...updateState };
+}
+
+app.on('before-quit', () => {
+  quitting = true;
+});
+
+app.whenReady().then(() => {
+  // Background work: give the window a few seconds to load first. Once per start, no retries, no nagging.
+  setTimeout(() => void checkForUpdates(), 5000);
+});
+
+ipcMain.handle('update:get-state', () => ({ ...updateState }));
+ipcMain.handle('update:check', () => checkForUpdates());
+
+// "Restart to update": stop the bundled API first, exactly as a normal quit does (so LiteDB flushes and the
+// installer can replace resources/api), then hand over to the silently running installer, which relaunches the app.
+ipcMain.handle('update:install', async () => {
+  if (updateState.status !== 'ready') return false;
+  await stopApi();
+  apiStopped = true; // will-quit must not hold the quit again
+  autoUpdater.quitAndInstall(true, true);
+  setTimeout(() => {
+    if (quitting) return;
+    // The installer could not be started (electron-updater reported it on 'error'); bring the API back so the app keeps working.
+    console.error('[update] install did not start; restarting the API');
+    apiStopped = false;
+    void ensureApi();
+    if (updateState.status === 'ready') setUpdateState({ status: 'error', error: 'The update could not be installed. Try again later.' });
+  }, 5000);
+  return true;
+});

@@ -6,7 +6,9 @@ tasks follow you to every device.
 
 - **Web:** https://todoease.com
 - **Windows:** [download the installer](https://github.com/dbo-e/TodoEase/releases/latest/download/TodoEase-Setup.exe)
-  (Windows may show a SmartScreen warning until the app is code-signed; choose *More info → Run anyway*)
+  (Windows may show a SmartScreen warning until the app is code-signed; choose *More info → Run anyway*).
+  The app keeps itself current: it checks for a new version when it starts, downloads it in the background and
+  shows **Restart to update** when it is ready. *Settings → About* shows the version and has a manual check.
 
 ## Features
 

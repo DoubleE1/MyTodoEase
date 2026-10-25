@@ -2,6 +2,10 @@
 # or on demand from the Actions tab. The landing page's "Download for Windows" button fetches
 # releases/latest/download/TodoEase-Setup.exe, so the asset name must not change.
 #
+# The release also carries latest.yml (and the .blockmap when unsigned): installed apps read it through
+# electron-updater to find and download the next version (see "Automatic updates" in docs/DEVELOPMENT.md).
+# When SignPath signs the installer its hash changes, so latest.yml is rewritten from the file actually published.
+#
 # Optional secrets / variables:
 # - GOOGLE_CLIENT_JSON (secret): contents of backend/MyTodoEase.Api/google-client.json, the desktop OAuth client for
 #   the Google Calendar connection. Without it the installer still works; Settings > Google Calendar then asks the
@@ -78,11 +82,29 @@ jobs:
           "path=$path" >> $env:GITHUB_OUTPUT
           Write-Host "Publishing $path"
 
+      # Everything the release needs in one folder: the installer, latest.yml with the hash and size of that very
+      # file (electron-updater refuses a download whose sha512 differs), and the blockmap for differential
+      # downloads, which only matches the unsigned build.
+      - name: Stage release assets with update metadata
+        shell: pwsh
+        run: |
+          $installer = '${{ steps.installer.outputs.path }}'
+          New-Item -ItemType Directory -Force release/publish | Out-Null
+          Copy-Item $installer release/publish/TodoEase-Setup.exe
+          $sha512 = [Convert]::ToBase64String([Security.Cryptography.SHA512]::Create().ComputeHash([IO.File]::ReadAllBytes($installer)))
+          $size = (Get-Item $installer).Length
+          $yml = Get-Content release/latest.yml -Raw
+          $yml = $yml -replace 'sha512: \S+', "sha512: $sha512" -replace 'size: \d+', "size: $size"
+          [IO.File]::WriteAllText("$PWD/release/publish/latest.yml", $yml)
+          if ($installer -eq 'release/TodoEase-Setup.exe') { Copy-Item release/TodoEase-Setup.exe.blockmap release/publish/ }
+          Get-ChildItem release/publish
+          Get-Content release/publish/latest.yml
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: ${{ steps.installer.outputs.path }}
+          files: release/publish/*
           generate_release_notes: true
           fail_on_unmatched_files: true
           # "Latest" follows the highest version, not the most recently built tag (re-pushing an old tag must not

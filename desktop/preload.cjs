@@ -20,4 +20,13 @@ contextBridge.exposeInMainWorld('mytodoease', {
   openExternal: (url) => ipcRenderer.invoke('shell:open-external', String(url)),
   getMcpSetup: () => ipcRenderer.invoke('mcp:get-setup'),
   copyText: (text) => ipcRenderer.invoke('clipboard:write-text', String(text)),
+  // Automatic updates (main.cjs, electron-updater): current state, a manual check, and "Restart to update".
+  getUpdateState: () => ipcRenderer.invoke('update:get-state'),
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  onUpdateState: (callback) => {
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('update:state', listener);
+    return () => ipcRenderer.removeListener('update:state', listener);
+  },
 });

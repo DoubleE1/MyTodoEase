@@ -17,6 +17,22 @@ interface DesktopMcpSetup {
   env: Record<string, string>;
 }
 
+/** Progress of the desktop app's automatic update, pushed by the shell (electron-updater). */
+interface DesktopUpdateState {
+  /** 'unavailable' in a development run, where electron-updater does nothing. */
+  status: 'idle' | 'checking' | 'up-to-date' | 'downloading' | 'ready' | 'error' | 'unavailable';
+  currentVersion: string;
+  /** The newer version, once one has been found. */
+  version: string | null;
+  /** Download percentage while status is 'downloading'. */
+  progress: number;
+  /** Short reason while status is 'error'. */
+  error: string | null;
+}
+
+/** App version baked in at build time (frontend/vite.config.ts); the desktop shell reports its own in DesktopUpdateState. */
+declare const __APP_VERSION__: string;
+
 interface Window {
   mytodoease?: {
     platform: string;
@@ -35,5 +51,12 @@ interface Window {
     getMcpSetup?: () => Promise<DesktopMcpSetup>;
     /** Put text on the system clipboard. */
     copyText?: (text: string) => Promise<boolean>;
+    getUpdateState?: () => Promise<DesktopUpdateState>;
+    /** Ask for a newer release now; resolves with the state reached (a download continues in the background). */
+    checkForUpdates?: () => Promise<DesktopUpdateState>;
+    /** Quit and install the downloaded update; the installer relaunches the app. False when nothing is ready. */
+    installUpdate?: () => Promise<boolean>;
+    /** Subscribe to update state pushed by the shell; returns an unsubscribe function. */
+    onUpdateState?: (callback: (state: DesktopUpdateState) => void) => () => void;
   };
 }

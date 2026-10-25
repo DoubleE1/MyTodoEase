@@ -61,24 +61,72 @@ window. Override the API address with the `MYTODOEASE_API_URL` environment varia
 
 The installer is distributed through [GitHub Releases](https://github.com/dbo-e/TodoEase/releases); the landing
 page's **Download for Windows** button always fetches `releases/latest/download/TodoEase-Setup.exe`, so the asset
-name must stay `TodoEase-Setup.exe` (the release tag carries the version). After `npm run build`:
+name must stay `TodoEase-Setup.exe` (the release tag carries the version). Installed apps update themselves from the
+same release (see [Automatic updates](#automatic-updates)), which needs two more assets next to the installer:
+`latest.yml` (version, size and sha512 of the installer) and, optionally, `TodoEase-Setup.exe.blockmap` for
+differential downloads. electron-builder writes all three into `release/`.
+
+First bump `version` in the four `package.json` files (root, `frontend`, `desktop`, `mcp`) so the installer, the
+About tab and the tag agree, commit, and push. Then either:
+
+**A. Build and publish from this machine.** Needs a GitHub token with `repo` (classic) or *Contents: read and write*
+(fine-grained) access to `dbo-e/TodoEase` in `GH_TOKEN`:
 
 ```bash
-gh release create v0.1.3 release/TodoEase-Setup.exe --title "TodoEase 0.1.3" --generate-notes
+GH_TOKEN=ghp_xxx npm run release
 ```
 
-(or create the release on GitHub and drag `release/TodoEase-Setup.exe` into it). Bump `version` in the three
-`package.json` files first so the installer and the tag agree.
+This runs the full build and then `electron-builder --publish always`, which creates the GitHub release `v<version>`
+(tagging the default branch if the tag does not exist yet) and uploads the installer, the blockmap and `latest.yml`.
+The release is published immediately, not as a draft (`build.publish.releaseType` in `desktop/package.json`); change
+that to `draft` if you prefer to review and publish by hand. Set `GH_TOKEN` in the environment, never in a file
+that is committed.
 
-Easier: push a version tag and let GitHub Actions do it. `.github/workflows/release.yml` builds the installer on a
-Windows runner and attaches it to a release for that tag (also runnable by hand from the Actions tab):
+**B. Push a version tag and let GitHub Actions do it.** `.github/workflows/release.yml` builds the installer on a
+Windows runner and attaches it, `latest.yml` and the blockmap to a release for that tag (also runnable by hand from
+the Actions tab):
 
 ```bash
-git tag v0.1.3 && git push origin v0.1.3
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+The manual fallback still works, as long as `latest.yml` goes up too:
+
+```bash
+gh release create v0.2.0 release/TodoEase-Setup.exe release/TodoEase-Setup.exe.blockmap release/latest.yml --title "TodoEase 0.2.0" --generate-notes
 ```
 
 Add the repository secret `GOOGLE_CLIENT_JSON` (the contents of `backend/MyTodoEase.Api/google-client.json`) so the
 built installer ships the Google Calendar OAuth client; without it users are asked to paste one.
+
+### Automatic updates
+
+The desktop app uses [electron-updater](https://www.electron.build/auto-update) with the GitHub Releases provider
+(`build.publish` in `desktop/package.json`, baked into the installed app as `resources/app-update.yml`). GitHub
+Releases is the right host for this: it is free and has no bandwidth cap, while Firebase Hosting's free tier
+(360 MB of transfer per day) would be exhausted by a couple of downloads of a ~150 MB installer.
+
+How it behaves (`desktop/main.cjs`, bottom):
+
+- Five seconds after start the installed app asks `https://api.github.com/repos/dbo-e/TodoEase/releases/latest`
+  for the newest tag, reads that release's `latest.yml` and, if the version is newer, downloads the installer
+  silently (to `%LOCALAPPDATA%\todoease-desktop-updater`). Once per start; no retries, no dialogs.
+- When the download is complete the UI shows a **Restart to update** banner and Settings → About says the same.
+  Nothing is installed until the user clicks it: not on the automatic check, and not on a normal quit either
+  (`autoInstallOnAppQuit` is off). A dismissed banner comes back on the next start.
+- **Restart to update** stops the bundled API first (the same graceful shutdown as closing the app, so LiteDB flushes
+  and the installer can replace `resources/api`), then runs the installer silently, which relaunches the app.
+- Offline, or when GitHub is unreachable, the check fails quietly: it is logged to the console and shown as a status
+  line in Settings → About, nothing else. The app works as usual.
+- In a development run (`npm run dev`) electron-updater does nothing (there is no `app-update.yml`); the shell logs
+  that it skipped the check and About shows the version with the check disabled.
+- The pre-release and prerelease channels are not used: only the release GitHub marks as *latest* counts, which
+  with `make_latest: legacy` in the workflow is the highest version.
+
+Gotchas: electron-updater verifies the installer's sha512 against `latest.yml`, so a release whose installer was
+replaced after the fact (code signing included) needs `latest.yml` regenerated from the final file; the workflow
+does this. A release without `latest.yml` makes every installed app report "No update information has been
+published for the latest release yet" in About; the public download link keeps working regardless.
 
 ### Code signing (SignPath Foundation)
 

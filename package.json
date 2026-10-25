@@ -1,7 +1,7 @@
 {
   "name": "mytodoease",
   "private": true,
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "TodoEase - a planner that keeps tasks and calendar on one screen: ASP.NET Core + embedded LiteDB backend, React front end, Electron desktop shell, Firebase web app.",
   "workspaces": [
     "frontend",
@@ -21,6 +21,7 @@
     "deploy:site": "npm run build:site && firebase deploy --only hosting,firestore",
     "build": "npm run build:api && npm run build:appbar && npm run build:mcp && npm run build:web && npm run build -w desktop",
     "dist": "npm run build",
+    "release": "npm run build:api && npm run build:appbar && npm run build:mcp && npm run build:web && npm run release -w desktop",
     "build:mcp": "npm run build -w mcp && npm run bundle -w mcp",
     "mcp": "node mcp/dist/index.js",
     "emulators": "firebase emulators:start --only auth,firestore --project demo-mytodoease"

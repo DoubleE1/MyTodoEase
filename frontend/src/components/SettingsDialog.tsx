@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bot, CalendarDays, Check, Database, Download, Monitor, Moon, Palette, Pipette, Sun, Upload, UserRound } from 'lucide-react';
+import { Bot, CalendarDays, Check, Database, Download, Info, Monitor, Moon, Palette, Pipette, Sun, Upload, UserRound } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { IS_WEB_APP } from '../api/backend';
 import { api, ApiError } from '../api/client';
@@ -12,6 +12,7 @@ import { CalendarSyncSection } from './CalendarSyncSection';
 import { CloudAccountSection } from './CloudAccountSection';
 import { McpSection } from './McpSection';
 import { useCloudUser } from './SessionGate';
+import { AboutSection } from './AboutSection';
 
 const THEMES: { value: ThemePreference; label: string; icon: ReactNode }[] = [
   { value: 'light', label: 'Light', icon: <Sun size={15} /> },
@@ -19,7 +20,7 @@ const THEMES: { value: ThemePreference; label: string; icon: ReactNode }[] = [
   { value: 'system', label: 'System', icon: <Monitor size={15} /> },
 ];
 
-type SettingsTab = 'appearance' | 'account' | 'calendar' | 'ai' | 'data';
+type SettingsTab = 'appearance' | 'account' | 'calendar' | 'ai' | 'data' | 'about';
 
 const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
   { id: 'appearance', label: 'Appearance', icon: <Palette size={16} /> },
@@ -27,6 +28,7 @@ const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
   { id: 'calendar', label: 'Google Calendar', icon: <CalendarDays size={16} /> },
   { id: 'ai', label: 'AI assistants', icon: <Bot size={16} /> },
   { id: 'data', label: 'Data', icon: <Database size={16} /> },
+  { id: 'about', label: 'About', icon: <Info size={16} /> },
 ];
 
 function backupFileName() {
@@ -207,6 +209,7 @@ export function SettingsDialog({
         {tab === 'account' && <CloudAccountSection confirm={confirm} />}
         {tab === 'calendar' && <CalendarSyncSection confirm={confirm} />}
         {tab === 'ai' && <McpSection />}
+        {tab === 'about' && <AboutSection />}
 
         {tab === 'data' && (
         <section className="settings-section">
