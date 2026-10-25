@@ -5,7 +5,6 @@
  */
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
-import { connectFunctionsEmulator, getFunctions, type Functions } from 'firebase/functions';
 import {
   connectFirestoreEmulator,
   initializeFirestore,
@@ -18,13 +17,8 @@ interface FirebaseServices {
   app: FirebaseApp;
   auth: Auth;
   db: Firestore;
-  /** Cloud Functions (Google Calendar sync), deployed next to the Firestore database. */
-  functions: Functions;
   projectId: string;
 }
-
-/** Must match setGlobalOptions in functions/src/index.ts. */
-export const FUNCTIONS_REGION = 'asia-southeast1';
 
 let services: FirebaseServices | undefined;
 
@@ -48,14 +42,12 @@ export function firebase(): FirebaseServices {
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
   });
   const auth = getAuth(app);
-  const functions = getFunctions(app, FUNCTIONS_REGION);
   if (env.VITE_FIREBASE_EMULATOR === '1') {
     // Local Firebase emulators (npm run emulators); never set in a production build.
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
-    connectFunctionsEmulator(functions, '127.0.0.1', 5001);
   }
-  services = { app, auth, db, functions, projectId: config.projectId };
+  services = { app, auth, db, projectId: config.projectId };
   return services;
 }
 

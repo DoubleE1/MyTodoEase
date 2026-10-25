@@ -199,9 +199,9 @@ file; the cloud data stays in your account.
   session exists every `/api/projects|sections|labels|tasks|stats|backup` call is served from Firestore through the
   Firestore REST API (`Data/FirestoreStore.cs`, under the same security rules) instead of LiteDB
   (`Data/LiteDbStore.cs`), so the **MCP server** reads and writes the same cloud data as the apps without changes.
-  `GET /api/health` reports `cloud: true` and the account. The API also uploads its Google Calendar permission to
-  `users/{uid}/private/googleCalendar` (`Services/CloudCalendarBridge.cs`), which hands the calendar sync over to
-  the Cloud Functions; its own mirror stands aside while a session exists.
+  `GET /api/health` reports `cloud: true` and the account. While a session exists the API's own calendar mirror
+  stands aside: the renderer runs the sync for the cloud data (see Google Calendar sync below) and only asks the
+  API for a Google access token (`GET /api/auth/google/access-token`).
 - **Moving local data.** After the first sign-in, Settings → Account shows how many tasks the local file still holds
   and offers **Move local data to the cloud** (local backup export `GET /api/backup/local` → cloud import, replacing
   the cloud data after confirmation). The local file is left unchanged as a backup.
@@ -252,37 +252,34 @@ Settings → Google Calendar is the same on every platform. Once calendar access
 
 Where it runs depends on the mode:
 
-- **Signed in (web app, or desktop in cloud mode): the Cloud Functions in `functions/`** (TypeScript, 2nd gen,
-  region `asia-southeast1` next to the Firestore database). The sync then runs for the account, not for a device:
-  every 15 minutes (`calendarSyncEvery15Minutes`, Cloud Scheduler), within seconds of a task write
-  (`calendarOnTaskWritten`, a Firestore trigger on `users/{uid}/tasks/{id}`), when a connection is written
-  (`calendarOnConnectionWritten`) and on **Sync now** (`calendarRunSync`, callable). Clients only read Firestore:
-  `users/{uid}/calendarSync/status` (what is true), `calendarSync/settings` (what the user wants: `enabled`,
-  `sourceCalendarIds`, `timeZone`; the only calendar document a client writes), `calendarSync/calendars` (the
-  picker) and `users/{uid}/calendarEvents` (pulled events, about two weeks back and three months ahead, in the
-  app's `ExternalEvent` shape), all pushed into the query cache live by `realtime.ts`. Task↔event links are in
-  `users/{uid}/calendarLinks`, a per-user lease in `calendarSync/lock` keeps the scheduled run and a task push from
-  creating the same event twice, and `calendarAccounts/{uid}` (no client access) is the list the scheduler walks.
-  The Google refresh token lives in `users/{uid}/private/googleCalendar`, which `firestore.rules` lets the user
-  create, update and delete but never read.
-  - *Granting access on the web:* **Allow calendar access** opens Google's consent popup (Google Identity
-    Services code client, `frontend/src/api/calendarConnect.ts`) and passes the authorization code to the
-    `calendarConnect` callable, which exchanges it with the project's own Google sign-in web client (read from the
-    Identity Platform config at run time, so nothing is configured by hand) and stores the refresh token.
-  - *Granting access on the desktop:* the usual browser sign-in; the local API then uploads its refresh token
-    together with the desktop OAuth client that issued it (a refresh token only works with its own client).
-  - **Disconnect** (`calendarDisconnect`) removes the mirrored events, revokes the token and clears everything.
-    Signing the desktop app out of the cloud does *not* disconnect the calendar: the API only forgets its copy.
-  - Deploy with `firebase deploy --only functions` (needs the Blaze plan: Cloud Functions, Cloud Scheduler and
-    Cloud Build are not on Spark; the free quotas cover this usage). The **Google Calendar API** must be enabled
-    in the project, and until the app is verified for the calendar scope only test users listed on the OAuth
-    consent screen can grant it. `npm --prefix functions run typecheck` checks the code without deploying.
+- **Signed in (web app, or desktop in cloud mode): in the app, on demand.** Pressing **Sync now** (or changing
+  the mirror switch or the calendar choice) runs the sync in that app (`frontend/src/api/calendarSync.ts`, the
+  same logic as the API's `CalendarSyncService`) and records everything in Firestore under `users/{uid}`:
+  `calendarSync/settings` (what the user wants: `enabled`, `sourceCalendarIds`), `calendarSync/status` (the
+  result: `scopeGranted`, `lastSyncAt`, `lastError`, `linkedTasks`, the account), `calendarSync/calendars` (the
+  picker), `calendarLinks/{taskId}` (task → event, shared by every device so two devices never create the same
+  event twice; a short lease in `calendarSync/lock` serialises concurrent syncs) and `calendarEvents` (pulled
+  events, about two weeks back and three months ahead, in the app's `ExternalEvent` shape). `realtime.ts` feeds
+  these into the query cache live, so a sync pressed on one device updates Settings and the calendar on every
+  other one. Nothing syncs on a timer in cloud mode: a device presses Sync now when it wants the calendar up to
+  date, and no Google credential is stored in Firestore.
+  - *Access token on the web:* `frontend/src/api/calendarAccess.ts` re-runs Firebase's Google popup with the
+    calendar scope (`reauthenticateWithPopup`); the first time Google asks for consent, afterwards the popup just
+    confirms the account and closes. The access token lives in memory for about an hour; Google may ask again
+    on a later Sync now. No refresh token exists on the web.
+  - *Access token on the desktop:* the local API holds a refresh token from the browser sign-in and mints access
+    tokens. A PC whose API has no calendar permission yet sees **Allow on this PC** in Settings.
+  - **Disconnect** removes the mirrored events, clears the derived documents, switches mirroring off and (web)
+    revokes the access token; on the desktop the local API also forgets its refresh token.
+  - Until Google verifies the app for the calendar scope, only test users listed on the OAuth consent screen can
+    grant it, and the **Google Calendar API** must be enabled in the project.
 - **Desktop, local mode (not signed in): the local API**, as before. Pushes are queued per task
-  (`Services/CalendarSyncService.cs`); links live in the `calendar_links` collection and settings in
-  `%LOCALAPPDATA%\TodoEase\calendar-sync.json`. Endpoints: `GET/PUT /api/calendar/sync`,
-  `POST /api/calendar/sync/run`, `GET /api/calendar/calendars`, `GET /api/calendar/events?from&to` (local dates, at
-  most 120 days). Signing in moves the mirror to the cloud (the local mirror's events are removed and the cloud
-  creates its own for the cloud tasks); signing out brings it back for the local file.
+  (`Services/CalendarSyncService.cs`), a full reconcile runs on enable and every 15 minutes while the app is
+  open; links live in the `calendar_links` collection and settings in `%LOCALAPPDATA%\TodoEase\calendar-sync.json`.
+  Endpoints: `GET/PUT /api/calendar/sync`, `POST /api/calendar/sync/run`, `GET /api/calendar/calendars`,
+  `GET /api/calendar/events?from&to` (local dates, at most 120 days). Signing in moves the mirror to the cloud
+  (the local mirror's events are removed and the next cloud sync creates its own for the cloud tasks); signing
+  out brings it back for the local file.
 
 ## Web app (Firebase Hosting + Firestore)
 
@@ -306,8 +303,8 @@ to the same Firestore data when the user signs in (see Cloud sync above).
   shape, so a backup exported on the desktop imports on the web and back.
 - **Live updates:** `frontend/src/api/realtime.ts` feeds Firestore snapshots into the query cache; the SDK's
   persistent cache keeps the app usable offline.
-- **Google Calendar:** the same Settings tab as on the desktop; the sync runs in the Cloud Functions (see Google
-  Calendar sync above). Only the MCP copy buttons remain desktop-only.
+- **Google Calendar:** the same Settings tab as on the desktop; the sync runs in the browser on Sync now and
+  lands in Firestore (see Google Calendar sync above). Only the MCP copy buttons remain desktop-only.
 
 Setup once: create a Firebase project (Authentication → Google enabled, Firestore in production mode), register a
 web app, copy its config into `frontend/.env` (see `.env.web.example`), put the project id in `.firebaserc`,
@@ -316,7 +313,6 @@ then:
 ```bash
 npx firebase login
 npm run deploy:site      # builds frontend/dist-web, deploys hosting + Firestore rules
-firebase deploy --only functions   # the Google Calendar sync (Blaze plan)
 ```
 
 `npm run dev:site` runs the web build locally on port 5174; `npm run emulators` starts the Auth and Firestore

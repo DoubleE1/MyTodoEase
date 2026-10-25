@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, LogOut, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { IS_WEB_APP } from '../api/backend';
-import { CalendarConnectCancelled, connectCalendarWeb } from '../api/calendarConnect';
+import { CalendarAccessCancelled, CalendarAccessMissing, connectCalendar } from '../api/calendarAccess';
 import { api, getDataMode } from '../api/client';
 import { GOOGLE_CALENDAR_SCOPE, queryKeys, useCalendarSync } from '../api/hooks';
 import type { GoogleAuthStatus } from '../api/types';
@@ -12,8 +12,6 @@ import { GoogleMark } from './GoogleMark';
 
 const STATUS_KEY = ['google-auth'] as const;
 const SETUP_URL = 'https://console.cloud.google.com/apis/credentials';
-/** Desktop, cloud mode: how long to wait for the cloud to pick up a permission the local API just received. */
-const CLOUD_PICKUP_TIMEOUT_MS = 60_000;
 
 async function openInBrowser(url: string): Promise<boolean> {
   const desktop = window.mytodoease;
@@ -29,13 +27,12 @@ function formatWhen(iso: string | null): string {
 
 /**
  * Settings > Google Calendar, the same on every platform. The status, the mirror switch, "Sync now" and the
- * calendar picker all go through `api.calendar`: in the cloud (web app, or desktop while signed in) that is the
- * Firestore documents the Cloud Functions maintain, so a sync that ran server-side shows up here by itself;
- * in the desktop's local mode it is the local API, which syncs while the app is open.
+ * calendar picker all go through `api.calendar`: in cloud mode (web app, or desktop while signed in) the sync
+ * runs in this app on demand and its results live in Firestore, so a sync pressed on one device shows up on
+ * every other one; in the desktop's local mode it is the local API, which syncs while the app is open.
  *
- * Granting the permission differs: the web app opens Google's consent popup and hands the code to a function;
- * the desktop opens the same Google sign-in in the browser, and its local API keeps the token (and uploads it
- * to the cloud when signed in).
+ * Granting the permission differs: the web app opens Google's consent popup; the desktop opens the Google
+ * sign-in in the browser and its local API keeps the token.
  */
 export function CalendarSyncSection({ confirm }: { confirm: (options: ConfirmOptions) => Promise<boolean> }) {
   const queryClient = useQueryClient();
@@ -63,9 +60,24 @@ export function CalendarSyncSection({ confirm }: { confirm: (options: ConfirmOpt
     staleTime: 5 * 60_000,
   });
 
+  const grantedLocally = !IS_WEB_APP && (googleStatus.data?.account?.scopes ?? []).includes(GOOGLE_CALENDAR_SCOPE);
+
+  // Desktop: the browser tab finished. Local mode: the API's status now says so. Cloud mode: run the first sync
+  // from here, which records the connection in Firestore for every device.
+  const finishDesktop = useMutation({
+    mutationFn: connectCalendar,
+    onSuccess: (next) => {
+      queryClient.setQueryData(queryKeys.calendarSync, next);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.calendarList });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.calendarEvents });
+      showToast(`Google Calendar connected${next.account?.email ? ` as ${next.account.email}` : ''}.`);
+    },
+    onError: (error) => showToast(error instanceof Error ? error.message : 'Could not finish connecting.', 'error'),
+  });
+
   useEffect(() => {
     if (!waiting) return;
-    if (sync.data?.scopeGranted) {
+    if (!cloud && sync.data?.scopeGranted) {
       setWaitingSince(null);
       void queryClient.invalidateQueries({ queryKey: queryKeys.calendarList });
       showToast(`Google Calendar connected${sync.data.account?.email ? ` as ${sync.data.account.email}` : ''}.`);
@@ -73,18 +85,16 @@ export function CalendarSyncSection({ confirm }: { confirm: (options: ConfirmOpt
     }
     const status = googleStatus.data;
     if (!status) return;
-    const grantedLocally = (status.account?.scopes ?? []).includes(GOOGLE_CALENDAR_SCOPE);
     if (grantedLocally) {
-      // Cloud mode: the local API uploads the token and the cloud syncs once; the status document then flips.
-      if (cloud && Date.now() - waitingSince > CLOUD_PICKUP_TIMEOUT_MS) {
-        setWaitingSince(null);
-        showToast('Google granted access, but the cloud sync has not picked it up yet. Try Sync now in a minute.', 'error');
-      }
+      setWaitingSince(null);
+      if (cloud) finishDesktop.mutate();
     } else if (!status.pending) {
       // The callback ran but failed or was cancelled; the browser tab explains why.
       setWaitingSince(null);
     }
-  }, [waiting, waitingSince, cloud, sync.data, googleStatus.data, queryClient]);
+    // finishDesktop is a stable mutation object; only the inputs above should re-run this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waiting, cloud, grantedLocally, sync.data, googleStatus.data, queryClient]);
 
   const updateGoogleStatus = (next: GoogleAuthStatus) => queryClient.setQueryData(STATUS_KEY, next);
   const invalidateAll = () => {
@@ -107,8 +117,9 @@ export function CalendarSyncSection({ confirm }: { confirm: (options: ConfirmOpt
 
   const connect = useMutation({
     mutationFn: async () => {
-      if (IS_WEB_APP) {
-        const status = await connectCalendarWeb();
+      // Web: Google's popup. Desktop in cloud mode whose local API already holds the permission: just the first sync.
+      if (IS_WEB_APP || (cloud && grantedLocally)) {
+        const status = await connectCalendar();
         queryClient.setQueryData(queryKeys.calendarSync, status);
         return 'connected' as const;
       }
@@ -123,10 +134,10 @@ export function CalendarSyncSection({ confirm }: { confirm: (options: ConfirmOpt
         return;
       }
       invalidateAll();
-      showToast('Google Calendar connected. Your calendar now syncs in the cloud.');
+      showToast('Google Calendar connected.');
     },
     onError: (error) => {
-      if (error instanceof CalendarConnectCancelled) return;
+      if (error instanceof CalendarAccessCancelled) return;
       showToast(error instanceof Error ? error.message : 'Could not connect Google Calendar.', 'error');
     },
   });
@@ -159,8 +170,18 @@ export function CalendarSyncSection({ confirm }: { confirm: (options: ConfirmOpt
       else if (next.enabled) showToast(`Synced ${next.linkedTasks} task${next.linkedTasks === 1 ? '' : 's'} to Google Calendar.`);
       else showToast('Calendar events refreshed.');
     },
-    onError: (error) => showToast(error instanceof Error ? error.message : 'Sync failed.', 'error'),
+    onError: (error) => {
+      if (error instanceof CalendarAccessCancelled) return;
+      if (error instanceof CalendarAccessMissing) {
+        void queryClient.invalidateQueries({ queryKey: STATUS_KEY });
+      }
+      showToast(error instanceof Error ? error.message : 'Sync failed.', 'error');
+    },
   });
+
+  // Desktop, cloud mode: the account's calendar is connected (from the web or another PC), but this PC's local
+  // API has no Google permission of its own yet, which "Sync now" here needs.
+  const needsLocalGrant = !IS_WEB_APP && cloud && sync.data?.scopeGranted === true && googleStatus.data !== undefined && !grantedLocally;
 
   const data = sync.data;
   const desktopStatus = googleStatus.data;
@@ -203,8 +224,8 @@ export function CalendarSyncSection({ confirm }: { confirm: (options: ConfirmOpt
   );
 
   const whereItRuns = cloud
-    ? 'Sync runs in the cloud for your account: it works on every device signed in with it, every 15 minutes and whenever a task changes, even while no app is open.'
-    : 'In local mode the permission is kept on this PC and sync runs while the app is open; sign in under Account to have it run in the cloud for every device instead.';
+    ? 'Press Sync now whenever you want it up to date; the result is shared with every device signed in with your account.'
+    : 'In local mode the permission is kept on this PC and the app syncs while it is open.';
 
   return (
     <section className="settings-section">
@@ -246,6 +267,26 @@ export function CalendarSyncSection({ confirm }: { confirm: (options: ConfirmOpt
 
       {data?.scopeGranted && (
         <>
+          {needsLocalGrant && (
+            <div className="settings-callout">
+              <div>
+                <strong>Allow calendar access on this PC</strong>
+                <p className="muted small">
+                  Your calendar is connected to your account, but syncing from this PC needs Google&rsquo;s permission here too.
+                </p>
+              </div>
+              {waiting ? (
+                <button type="button" className="btn" onClick={() => { setWaitingSince(null); void api.googleAuth.cancel(); }}>
+                  Cancel
+                </button>
+              ) : (
+                <button type="button" className="btn btn-primary" onClick={() => connect.mutate()} disabled={connect.isPending}>
+                  <GoogleMark size={14} />
+                  <span>Allow on this PC</span>
+                </button>
+              )}
+            </div>
+          )}
           {data.account && (
             <div className="account-card">
               {data.account.picture ? (
@@ -289,7 +330,7 @@ export function CalendarSyncSection({ confirm }: { confirm: (options: ConfirmOpt
               <strong>Mirror tasks to Google Calendar</strong>
               <span className="muted small">
                 Open tasks with a date become events in a “TodoEase” calendar; completing or deleting removes them.
-                {cloud ? ' Changes reach Google within seconds, from any device.' : ''}
+                {cloud ? ' Changes reach Google on the next Sync now.' : ''}
               </span>
             </span>
           </label>
@@ -297,14 +338,16 @@ export function CalendarSyncSection({ confirm }: { confirm: (options: ConfirmOpt
             <span className="muted small">
               Last sync {formatWhen(data.lastSyncAt)}
               {data.enabled && data.linkedTasks > 0 && ` · ${data.linkedTasks} task${data.linkedTasks === 1 ? '' : 's'} mirrored`}
-              {cloud ? ' · automatic every 15 minutes' : ''}
             </span>
-            <button type="button" className="btn" onClick={() => run.mutate()} disabled={run.isPending || update.isPending}>
+            <button type="button" className="btn" onClick={() => run.mutate()} disabled={run.isPending || update.isPending || needsLocalGrant}>
               <RefreshCw size={14} className={run.isPending || update.isPending ? 'is-spinning' : ''} />
               <span>{run.isPending || update.isPending ? 'Syncing…' : 'Sync now'}</span>
             </button>
           </div>
           {data.lastError && <p className="settings-error">Last sync problem: {data.lastError}</p>}
+          {cloud && IS_WEB_APP && (
+            <p className="settings-help">Google may ask you to confirm access when you sync; the permission itself is never stored in the browser.</p>
+          )}
 
           <div className="settings-field">
             <span className="settings-field-label">Show these calendars in TodoEase</span>

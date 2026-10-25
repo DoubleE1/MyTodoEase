@@ -1,12 +1,13 @@
 /**
  * Live updates while signed in: Firestore listeners push each collection straight into the query cache, so a
- * change made on another device (or tab) shows up without a refresh. The Google Calendar documents the Cloud
- * Functions maintain (sync status, the user's calendars, pulled events) arrive the same way, which is how a
- * sync that ran server-side shows up in Settings and on the calendar without anyone pressing anything.
+ * change made on another device (or tab) shows up without a refresh. The Google Calendar documents a sync
+ * writes (status, the user's calendars, pulled events) arrive the same way, which is how "Sync now" pressed on
+ * one device updates Settings and the calendar on every other one.
  */
 import type { QueryClient } from '@tanstack/react-query';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { calendarStatusFrom, sortActiveTasks, sortCompletedTasks, sortLabels, sortProjects, sortSections, userCollection, userDoc } from './firestoreClient';
+import { calendarStatusFrom } from './calendarSync';
+import { sortActiveTasks, sortCompletedTasks, sortLabels, sortProjects, sortSections, userCollection, userDoc } from './firestoreClient';
 import { queryKeys } from './hooks';
 import type { GoogleCalendarInfo, Label, Project, Section, Task } from './types';
 

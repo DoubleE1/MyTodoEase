@@ -14,7 +14,6 @@ builder.Services.AddSingleton<DataStoreProvider>();
 builder.Services.AddScoped<IDataStore>(sp => sp.GetRequiredService<DataStoreProvider>().Current);
 builder.Services.AddSingleton<MyTodoEase.Api.Services.GoogleAuthService>();
 builder.Services.AddSingleton<MyTodoEase.Api.Services.GoogleCalendarClient>();
-builder.Services.AddSingleton<MyTodoEase.Api.Services.CloudCalendarBridge>();
 builder.Services.AddSingleton<MyTodoEase.Api.Services.CalendarSyncService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<MyTodoEase.Api.Services.CalendarSyncService>());
 builder.Services.AddOpenApi();

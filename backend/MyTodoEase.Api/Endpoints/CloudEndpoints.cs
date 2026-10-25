@@ -5,8 +5,7 @@ namespace MyTodoEase.Api.Endpoints;
 /// <summary>
 /// Cloud session shared by the desktop renderer. The renderer signs into Firebase itself, with the ID token of the
 /// Google sign-in that <see cref="AuthEndpoints"/> runs, and then hands this API the Firebase refresh token, so the
-/// API can read and write the same Firestore data for the MCP server, and upload its Google Calendar permission
-/// for the cloud-side calendar sync.
+/// API can read and write the same Firestore data for the MCP server.
 /// </summary>
 public static class CloudEndpoints
 {
@@ -18,7 +17,7 @@ public static class CloudEndpoints
 
         cloud.MapGet("/session", (CloudSessionService session) => Results.Ok(session.GetStatus()));
 
-        cloud.MapPut("/session", async (SessionRequest req, CloudSessionService session, CalendarSyncService sync, CloudCalendarBridge bridge, CancellationToken ct) =>
+        cloud.MapPut("/session", (SessionRequest req, CloudSessionService session, CalendarSyncService sync) =>
         {
             var errors = new Dictionary<string, string[]>();
             if (string.IsNullOrWhiteSpace(req.ProjectId)) errors["projectId"] = ["Project id is required."];
@@ -29,9 +28,8 @@ public static class CloudEndpoints
 
             var before = session.GetStatus();
             session.Set(new CloudSessionService.SessionInput(req.ProjectId, req.ApiKey, req.Uid, req.Email, req.Name, req.RefreshToken));
-            // The cloud sync owns the calendar from here: hand it this PC's Google permission (if any) and clear the
-            // events the local mirror created for the local tasks.
-            await bridge.UploadConnectionAsync(ct);
+            // The renderer runs the account's calendar sync from here (links shared in Firestore): the events this
+            // PC's local mirror created for the local tasks are removed.
             if (!before.Active || before.Uid != req.Uid) sync.OnCloudSessionStarted();
             return Results.Ok(session.GetStatus());
         });

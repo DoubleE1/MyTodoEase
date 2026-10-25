@@ -39,7 +39,7 @@ public static class AuthEndpoints
             }
         });
 
-        group.MapGet("/callback", async (string? code, string? state, string? error, GoogleAuthService auth, CloudCalendarBridge bridge, CancellationToken ct) =>
+        group.MapGet("/callback", async (string? code, string? state, string? error, GoogleAuthService auth, CancellationToken ct) =>
         {
             if (!string.IsNullOrEmpty(error) || string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state))
             {
@@ -49,8 +49,6 @@ public static class AuthEndpoints
             try
             {
                 var account = await auth.CompleteLoginAsync(code, state, ct);
-                // Already signed in to the cloud (e.g. "Allow calendar access" later): the cloud sync gets the token now.
-                await bridge.UploadConnectionAsync(ct);
                 return Page("Signed in", $"TodoEase is now connected to <strong>{WebUtility.HtmlEncode(account.Email)}</strong>. You can close this tab.", true);
             }
             catch (Exception ex)
@@ -70,11 +68,25 @@ public static class AuthEndpoints
             return Results.NoContent();
         });
 
-        // Signed in to the cloud: the Cloud Functions keep syncing the account's calendar with their copy of the
-        // token, so it is only forgotten here, not revoked (Settings > Google Calendar > Disconnect revokes it).
-        group.MapDelete("/", async (GoogleAuthService auth, CloudSessionService session, CancellationToken ct) =>
+        // Cloud mode: the renderer runs the Google Calendar sync itself and needs a token for Google's API.
+        // Local only (the API listens on localhost), handed out while the calendar permission exists.
+        group.MapGet("/access-token", async (GoogleAuthService auth, GoogleCalendarClient calendar, CancellationToken ct) =>
         {
-            await auth.SignOutAsync(ct, revoke: !session.IsActive);
+            if (!calendar.HasScope()) return Results.NoContent();
+            try
+            {
+                var (token, expiresAt) = await auth.GetAccessTokenWithExpiryAsync(ct);
+                return Results.Ok(new { accessToken = token, expiresAt });
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status502BadGateway);
+            }
+        });
+
+        group.MapDelete("/", async (GoogleAuthService auth, CancellationToken ct) =>
+        {
+            await auth.SignOutAsync(ct);
             return Results.Ok(auth.GetStatus());
         });
 

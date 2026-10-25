@@ -15,8 +15,8 @@ namespace MyTodoEase.Api.Services;
 /// (recurring tasks become recurring events). Pull: events from the calendars the user picked are
 /// served to the UI for the Calendar, Today and Upcoming views. Pushes are queued per task and run on a
 /// background worker, with a full reconcile on enable and every 15 minutes.
-/// While the app is signed in to the cloud the same work is done by the Cloud Functions (functions/) for the
-/// account's Firestore data, on every platform; this service then stands aside (see CloudCalendarBridge).
+/// While the app is signed in to the cloud the renderer does the same work for the account's Firestore data on
+/// demand (frontend/src/api/calendarSync.ts), with links shared by every device; this service then stands aside.
 /// </summary>
 public sealed class CalendarSyncService : BackgroundService
 {
@@ -71,7 +71,7 @@ public sealed class CalendarSyncService : BackgroundService
         /// <summary>True while the cloud sync owns the calendar (desktop signed in); this status is then idle.</summary>
         bool CloudManaged);
 
-    /// <summary>Signed in to the cloud: the Cloud Functions mirror the cloud tasks, not this service.</summary>
+    /// <summary>Signed in to the cloud: the renderer mirrors the cloud tasks, not this service.</summary>
     private bool CloudManaged => _stores.Current.IsCloud;
 
     public SyncStatus GetStatus()
@@ -117,8 +117,8 @@ public sealed class CalendarSyncService : BackgroundService
     public Task DisableAndCleanAsync(CancellationToken ct) => RemoveLinkedEventsAsync(ct, disable: true);
 
     /// <summary>
-    /// The app just signed in to the cloud: the Cloud Functions now mirror the account's tasks, so the events this
-    /// PC created for its local tasks are removed (the setting itself is kept for when the PC signs out again).
+    /// The app just signed in to the cloud: the account's tasks are mirrored from the renderer now, so the events
+    /// this PC created for its local tasks are removed (the setting itself is kept for when the PC signs out again).
     /// </summary>
     public void OnCloudSessionStarted()
     {

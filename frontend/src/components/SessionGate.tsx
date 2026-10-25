@@ -17,8 +17,7 @@ export const useCloudUser = () => useContext(CloudUserContext);
  * Entry gate for both builds. It waits for Firebase to restore a persisted session, then:
  * - web app: requires a user (sign-in page otherwise) and keeps the live Firestore listeners running;
  * - desktop: runs in local mode (LiteDB through the API) with no user, and switches the data layer to Firestore
- *   when one signs in, sharing the session with the local API so the MCP server follows (Google Calendar sync
- *   for cloud data runs in the Cloud Functions).
+ *   when one signs in, sharing the session with the local API so the MCP server follows.
  * The app tree is re-keyed per user so no view state or cached rows leak from one account (or mode) to another.
  */
 export function SessionGate({ children }: { children: ReactNode }) {

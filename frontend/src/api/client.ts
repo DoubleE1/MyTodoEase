@@ -141,8 +141,9 @@ export type Api = typeof restApi;
 
 /**
  * Desktop app while signed in: tasks, projects, labels, stats and backups live in Firestore (shared with the web
- * app and other PCs) and Google Calendar sync runs in the Cloud Functions, exactly as on the web. The Google
- * sign-in itself (and so the calendar permission) still goes through the local API, which uploads the token.
+ * app and other PCs), and the Google Calendar sync runs in the app and lands in Firestore, exactly as on the web.
+ * The Google sign-in itself (and so the calendar permission) still goes through the local API, which also mints
+ * the access tokens the sync uses.
  */
 const desktopCloudApi: Api = {
   ...firestoreApi,
@@ -220,10 +221,13 @@ export const desktopCloud = {
   /** The Google ID token of the sign-in that just completed, handed out once; null while nothing is waiting. */
   takeGoogleIdToken: () => request<{ idToken: string } | undefined>('/api/auth/google/id-token').then((r) => r ?? null),
   session: () => request<CloudSessionStatus>('/api/cloud/session'),
-  /** Shares the Firebase session so the API (MCP server) reads the same cloud data and uploads its Google Calendar token. */
+  /** Shares the Firebase session so the API (MCP server) reads the same cloud data. */
   setSession: (input: { projectId: string; apiKey: string; uid: string; email: string | null; name: string | null; refreshToken: string }) =>
     request<CloudSessionStatus>('/api/cloud/session', { method: 'PUT', ...json(input) }),
   clearSession: () => request<CloudSessionStatus>('/api/cloud/session', { method: 'DELETE' }),
   /** The LiteDB file on this PC, whatever mode the API is in (to move local data to the cloud). */
   exportLocal: () => request<BackupDocument>('/api/backup/local'),
+  /** A short-lived Google Calendar access token from the API's refresh token; null when no permission was granted. */
+  accessToken: () =>
+    request<{ accessToken: string; expiresAt: string } | undefined>('/api/auth/google/access-token').then((r) => r ?? null),
 };
