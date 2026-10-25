@@ -15,6 +15,8 @@ interface ImportMetaEnv {
   readonly VITE_DOWNLOAD_MAC_URL?: string;
   /** '1' connects to the local Auth and Firestore emulators. */
   readonly VITE_FIREBASE_EMULATOR?: string;
+  /** reCAPTCHA v3 site key for Firebase App Check on the hosted web app; empty = App Check off. */
+  readonly VITE_RECAPTCHA_SITE_KEY?: string;
 }
 
 interface ImportMeta {

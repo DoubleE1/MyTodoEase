@@ -1,15 +1,142 @@
 rules_version = '2';
 
 // Every document lives under users/{uid}/...; a signed-in user can read and write only their own tree.
-// That tree holds the task data and, in cloud mode, what the in-app Google Calendar sync records for the
-// account: calendarSync/{settings,status,calendars,lock}, calendarLinks (task -> event) and calendarEvents
-// (events pulled from Google). No Google credential is ever stored here.
+// Writes are also checked against the document shapes the apps use (known fields only, sane types and
+// sizes), so a misbehaving or scripted client cannot fill the account with junk or oversized documents.
+// No Google credential is ever stored here.
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{uid}/{collection}/{document} {
-      allow read, write: if request.auth != null && request.auth.uid == uid
-        && collection in ['projects', 'sections', 'labels', 'tasks', 'completions',
-                          'calendarSync', 'calendarLinks', 'calendarEvents'];
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function str(value, max) {
+      return value is string && value.size() <= max;
+    }
+
+    function nullOrStr(value, max) {
+      return value == null || str(value, max);
+    }
+
+    function nullOrNumber(value) {
+      return value == null || value is number;
+    }
+
+    function strList(value, max) {
+      return value is list && value.size() <= max;
+    }
+
+    // ---- Task data (same shape on the web, the desktop renderer and the desktop API) ----
+
+    function validProject(d, id) {
+      return d.keys().hasOnly(['id', 'name', 'color', 'order', 'isInbox', 'isFavorite', 'createdAt'])
+        && d.id == id
+        && str(d.name, 200) && str(d.color, 32) && d.order is number
+        && d.isInbox is bool && d.isFavorite is bool && str(d.createdAt, 40);
+    }
+
+    function validSection(d, id) {
+      return d.keys().hasOnly(['id', 'projectId', 'name', 'order', 'createdAt'])
+        && d.id == id
+        && str(d.projectId, 64) && str(d.name, 200) && d.order is number && str(d.createdAt, 40);
+    }
+
+    function validLabel(d, id) {
+      return d.keys().hasOnly(['id', 'name', 'color', 'order', 'createdAt'])
+        && d.id == id
+        && str(d.name, 100) && str(d.color, 32) && d.order is number && str(d.createdAt, 40);
+    }
+
+    function validTask(d, id) {
+      return d.keys().hasOnly(['id', 'content', 'description', 'projectId', 'sectionId', 'parentId', 'labelIds',
+                               'priority', 'dueDate', 'dueTime', 'durationMinutes', 'recurrence', 'isCompleted',
+                               'completedAt', 'order', 'createdAt', 'updatedAt'])
+        && d.id == id
+        && str(d.content, 2000) && str(d.description, 20000) && str(d.projectId, 64)
+        && nullOrStr(d.sectionId, 64) && nullOrStr(d.parentId, 64)
+        && strList(d.labelIds, 100)
+        && d.priority is number && d.priority >= 1 && d.priority <= 4
+        && nullOrStr(d.dueDate, 10) && nullOrStr(d.dueTime, 5) && nullOrNumber(d.durationMinutes)
+        && d.recurrence in ['none', 'daily', 'weekdays', 'weekly', 'biweekly', 'monthly', 'yearly']
+        && d.isCompleted is bool && nullOrStr(d.completedAt, 40)
+        && d.order is number && str(d.createdAt, 40) && str(d.updatedAt, 40);
+    }
+
+    function validCompletion(d, id) {
+      return d.keys().hasOnly(['id', 'taskId', 'content', 'projectId', 'completedAt'])
+        && d.id == id
+        && str(d.taskId, 64) && str(d.content, 2000) && str(d.projectId, 64) && str(d.completedAt, 40);
+    }
+
+    // ---- Google Calendar sync (written by the app that presses Sync now) ----
+
+    function validCalendarSync(d, id) {
+      return (id == 'settings'
+                && d.keys().hasOnly(['enabled', 'sourceCalendarIds', 'timeZone'])
+                && (!('enabled' in d) || d.enabled is bool)
+                && (!('sourceCalendarIds' in d) || strList(d.sourceCalendarIds, 100))
+                && (!('timeZone' in d) || str(d.timeZone, 64)))
+          || (id == 'status'
+                && d.keys().hasOnly(['scopeGranted', 'enabled', 'targetCalendarId', 'sourceCalendarIds', 'lastSyncAt',
+                                     'lastError', 'linkedTasks', 'account', 'updatedAt'])
+                && d.scopeGranted is bool && d.enabled is bool
+                && nullOrStr(d.targetCalendarId, 256) && strList(d.sourceCalendarIds, 100)
+                && nullOrStr(d.lastSyncAt, 40) && nullOrStr(d.lastError, 2000)
+                && d.linkedTasks is number && (d.account == null || d.account is map))
+          || (id == 'calendars'
+                && d.keys().hasOnly(['items', 'updatedAt'])
+                && d.items is list && d.items.size() <= 200 && str(d.updatedAt, 40))
+          || (id == 'lock'
+                && d.keys().hasOnly(['owner', 'until', 'since'])
+                && str(d.owner, 64) && d.until is number && str(d.since, 40));
+    }
+
+    function validCalendarLink(d) {
+      return d.keys().hasOnly(['calendarId', 'eventId', 'hash', 'updatedAt'])
+        && str(d.calendarId, 256) && str(d.eventId, 256) && str(d.hash, 64) && str(d.updatedAt, 40);
+    }
+
+    function validCalendarEvent(d) {
+      return d.keys().hasOnly(['id', 'calendarId', 'calendarName', 'color', 'title', 'location', 'date', 'endDate',
+                               'startTime', 'endTime', 'allDay', 'htmlLink'])
+        && str(d.id, 256) && str(d.calendarId, 256) && str(d.calendarName, 200) && nullOrStr(d.color, 32)
+        && str(d.title, 1000) && nullOrStr(d.location, 2000)
+        && str(d.date, 10) && str(d.endDate, 10) && nullOrStr(d.startTime, 5) && nullOrStr(d.endTime, 5)
+        && d.allDay is bool && nullOrStr(d.htmlLink, 2000);
+    }
+
+    match /users/{uid}/projects/{id} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validProject(request.resource.data, id);
+    }
+    match /users/{uid}/sections/{id} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validSection(request.resource.data, id);
+    }
+    match /users/{uid}/labels/{id} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validLabel(request.resource.data, id);
+    }
+    match /users/{uid}/tasks/{id} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validTask(request.resource.data, id);
+    }
+    match /users/{uid}/completions/{id} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validCompletion(request.resource.data, id);
+    }
+    match /users/{uid}/calendarSync/{id} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validCalendarSync(request.resource.data, id);
+    }
+    match /users/{uid}/calendarLinks/{id} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validCalendarLink(request.resource.data);
+    }
+    match /users/{uid}/calendarEvents/{id} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validCalendarEvent(request.resource.data);
     }
   }
 }

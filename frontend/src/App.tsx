@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { API_BASE_URL } from './api/client';
 import { subDays } from 'date-fns';
 import {
@@ -17,17 +17,20 @@ import {
 } from './api/hooks';
 import type { Label, Project, Task } from './api/types';
 import { AccountMenu } from './components/AccountMenu';
-import { CalendarView } from './components/CalendarView';
 import { CompactView } from './components/CompactView';
 import { ConfirmDialog, LabelDialog, Modal, ProjectDialog, type ConfirmOptions } from './components/Dialogs';
-import { InsightsView } from './components/InsightsView';
-import { SettingsDialog } from './components/SettingsDialog';
 import { Sidebar } from './components/Sidebar';
 import { TaskDetail } from './components/TaskDetail';
 import { TaskEditor } from './components/TaskEditor';
 import { TaskList } from './components/TaskList';
 import { TitleBar } from './components/TitleBar';
 import { Toasts } from './components/Toasts';
+
+// Loaded on first use: the calendar grid, Insights (with the World view and its sprites) and Settings are a large
+// share of the bundle and most sessions never open all three, so the first paint ships without them.
+const CalendarView = lazy(() => import('./components/CalendarView').then((m) => ({ default: m.CalendarView })));
+const InsightsView = lazy(() => import('./components/InsightsView').then((m) => ({ default: m.InsightsView })));
+const SettingsDialog = lazy(() => import('./components/SettingsDialog').then((m) => ({ default: m.SettingsDialog })));
 import { toDateStr, todayStr } from './lib/dates';
 import { useWindowMode } from './lib/desktop';
 import { useTheme } from './lib/theme';
@@ -311,14 +314,16 @@ export default function App() {
       )}
 
       {dialog?.kind === 'settings' && (
-        <SettingsDialog
-          onClose={closeDialog}
-          themePreference={theme.preference}
-          onSetTheme={theme.setPreference}
-          accent={theme.accent}
-          onSetAccent={theme.setAccent}
-          confirm={confirm}
-        />
+        <Suspense fallback={null}>
+          <SettingsDialog
+            onClose={closeDialog}
+            themePreference={theme.preference}
+            onSetTheme={theme.setPreference}
+            accent={theme.accent}
+            onSetAccent={theme.setAccent}
+            confirm={confirm}
+          />
+        </Suspense>
       )}
 
       {openTaskId && (
@@ -430,14 +435,18 @@ export default function App() {
         ) : loading ? (
           <div className="loading">Loading…</div>
         ) : effectiveView.kind === 'insights' ? (
-          <InsightsView projects={projects.data ?? []} />
+          <Suspense fallback={<div className="loading">Loading…</div>}>
+            <InsightsView projects={projects.data ?? []} />
+          </Suspense>
         ) : effectiveView.kind === 'calendar' ? (
-          <CalendarView
-            tasks={tasks.data ?? []}
-            projects={projects.data ?? []}
-            onOpenTask={setOpenTaskId}
-            onAddTask={(dueDate, dueTime) => setDialog({ kind: 'quick-add', dueDate, dueTime })}
-          />
+          <Suspense fallback={<div className="loading">Loading…</div>}>
+            <CalendarView
+              tasks={tasks.data ?? []}
+              projects={projects.data ?? []}
+              onOpenTask={setOpenTaskId}
+              onAddTask={(dueDate, dueTime) => setDialog({ kind: 'quick-add', dueDate, dueTime })}
+            />
+          </Suspense>
         ) : (
           <TaskList
             view={effectiveView}

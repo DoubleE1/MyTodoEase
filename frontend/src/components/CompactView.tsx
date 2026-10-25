@@ -1,13 +1,15 @@
 import { addDays, format } from 'date-fns';
 import { Activity, CalendarDays, Check, ChevronDown, ChevronUp, EyeOff, Inbox, Maximize2, Plus, Tag } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { useTaskMutations } from '../api/hooks';
 import type { CompletionItem, Label, Project, Section, Task, TaskInput } from '../api/types';
 import { colorHex } from '../lib/colors';
 import { toDateStr, todayStr, tomorrowStr } from '../lib/dates';
 import { isOverdue, sortByOrder, sortForAgenda } from '../lib/views';
 import { Dashboard } from './Dashboard';
-import { InsightsView } from './InsightsView';
+
+// Loaded on first use, like in the main window: Insights carries the World view and its sprites.
+const InsightsView = lazy(() => import('./InsightsView').then((m) => ({ default: m.InsightsView })));
 import { Popover } from './Popover';
 import { TaskEditor, taskToInput } from './TaskEditor';
 import { TaskItem } from './TaskItem';
@@ -456,7 +458,9 @@ export function CompactView({
               // The sidebar's overview card (static here) followed by the full Insights page in a narrow layout.
               <div className="pane-body pane-dashboard">
                 <Dashboard tasks={tasks} completions={completions} active={false} />
-                <InsightsView projects={projects} embedded />
+                <Suspense fallback={<div className="loading">Loading…</div>}>
+                  <InsightsView projects={projects} embedded />
+                </Suspense>
               </div>
             ) : (
               <>

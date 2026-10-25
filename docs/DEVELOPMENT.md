@@ -346,6 +346,41 @@ The source artwork is `desktop/build/source-icon.webp`. The in-app logo (`fronte
 tile with transparent rounded corners. To regenerate after replacing the artwork, crop the tile, apply a rounded-rect
 alpha mask (radius about 23% of the side), and export 512px PNGs plus an ICO with 16 to 256px entries.
 
+## Abuse protection and free-plan limits
+
+
+The Firebase project stays on the free Spark plan on purpose: there is no card on file, so a crowd or a bot can
+cause a one-day outage but never a bill. Firebase refuses requests once a daily quota is used up and resets at
+midnight Pacific. The limits that matter, in the order they would be hit:
+
+1. **Hosting transfer, 360 MB/day.** A first visit downloads about 0.5 MB compressed (returning visitors are
+   cached: assets are immutable and the vendor chunk only changes when a dependency does), so roughly 600 new
+   visitors in a day take the site offline until the reset. The calendar grid, Insights, Settings and the privacy
+   page are loaded on first use (`React.lazy` in `App.tsx` / `main.tsx`) to keep the first paint small.
+2. **Firestore reads, 50,000/day.** About 30 to 50 typical daily active users; every app open loads the user's
+   whole tree once, after that only changed documents count.
+3. **Firestore writes, 20,000/day.** The one a hostile client could exhaust on purpose.
+
+Two defences are in place or ready:
+
+- **`firestore.rules` validates every write.** Besides confining each account to its own `users/{uid}` tree, the
+  rules accept only the known fields of each document shape (projects, sections, labels, tasks, completions and
+  the calendar documents), with type and size limits, so no client can store junk or oversized documents. Keep
+  the field lists in step with `frontend/src/api/types.ts` and the API's `Models/` when a field is added; a write
+  that fails the rules surfaces in the app as "Missing or insufficient permissions".
+- **Firebase App Check (web)**, off until configured. `frontend/src/firebase/app.ts` starts App Check with
+  reCAPTCHA v3 when `VITE_RECAPTCHA_SITE_KEY` is set in `frontend/.env.web`; Firestore and Auth requests then
+  carry a token proving they come from the real site, and scripted clients can be rejected. To turn it on:
+  1. Firebase console → App Check → Apps → register the web app with the **reCAPTCHA v3** provider (the console
+     creates the site key; the free reCAPTCHA tier covers this usage once the token lifetime is set to a day or
+     more under the provider's settings).
+  2. Put the site key in `frontend/.env.web` as `VITE_RECAPTCHA_SITE_KEY` and redeploy (`npm run deploy:site`).
+  3. Watch App Check → APIs for a few days: the share of verified requests should approach 100% for the web.
+  4. Only then switch **Enforce** on for Firestore and Authentication. Before enforcing, the desktop app needs
+     work: its renderer runs from `file://` (no reCAPTCHA) and its local API calls Firestore's REST API without an
+     App Check token, so enforcement would block both until they carry a token (a custom provider plus the
+     `X-Firebase-AppCheck` header). Until that is done, leave enforcement off; the rules above still apply.
+
 ## Not yet
 
 

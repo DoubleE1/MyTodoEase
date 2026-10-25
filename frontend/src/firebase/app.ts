@@ -4,6 +4,7 @@
  * identifiers, not secrets: access is enforced by Firestore rules and Firebase Auth.
  */
 import { initializeApp, type FirebaseApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { connectAuthEmulator, getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
 import {
   connectFirestoreEmulator,
@@ -37,6 +38,16 @@ export function firebase(): FirebaseServices {
     throw new Error('Firebase is not configured. Fill in the VITE_FIREBASE_* values in frontend/.env with your Firebase web app config.');
   }
   const app = initializeApp(config);
+  // App Check (web only): with a reCAPTCHA v3 site key configured, every Firestore and Auth request carries a
+  // token proving it comes from this app, so scripted clients cannot spend the project's quota. Until
+  // enforcement is switched on in the Firebase console this only reports; see docs/DEVELOPMENT.md.
+  if (env.VITE_RECAPTCHA_SITE_KEY && env.VITE_BACKEND === 'firebase') {
+    try {
+      initializeAppCheck(app, { provider: new ReCaptchaV3Provider(env.VITE_RECAPTCHA_SITE_KEY), isTokenAutoRefreshEnabled: true });
+    } catch (error) {
+      console.warn('App Check could not start:', error);
+    }
+  }
   // Offline cache shared across tabs: the app keeps working without a connection and syncs when back.
   const db = initializeFirestore(app, {
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
