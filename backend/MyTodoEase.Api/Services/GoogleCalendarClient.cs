@@ -29,6 +29,9 @@ public sealed class GoogleCalendarClient
 
     public bool HasScope() => _auth.GetStatus().Account?.Scopes.Contains(Scope) == true;
 
+    /// <summary>The connected Google account, scope or not.</summary>
+    public GoogleAuthService.AccountInfo? Account => _auth.GetStatus().Account;
+
     // ----- Models (only the fields we use) -----
 
     public sealed record CalendarInfo(

@@ -22,6 +22,7 @@ import {
   type DocumentReference,
   type WriteBatch,
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { firebase, googleProvider } from '../firebase/app';
 import { parseDateStr, toDateStr } from '../lib/dates';
 import { stepDate } from '../lib/recurrence';
@@ -31,7 +32,9 @@ import { isValidId, newId } from './ids';
 import type {
   BackupDocument,
   CalendarSyncStatus,
+  ExternalEvent,
   GoogleAuthStatus,
+  GoogleCalendarInfo,
   Label,
   LabelInput,
   Project,
@@ -43,7 +46,7 @@ import type {
   TaskInput,
 } from './types';
 
-type CollectionName = 'projects' | 'sections' | 'labels' | 'tasks' | 'completions';
+type CollectionName = 'projects' | 'sections' | 'labels' | 'tasks' | 'completions' | 'calendarEvents';
 
 /** One completion log entry, as stored and as exported in backups. */
 interface Completion {
@@ -66,8 +69,13 @@ function currentUser(): User {
   return user;
 }
 
+/** users/{uid}: the signed-in user's document, root of everything the app stores. */
+export function userDoc(): DocumentReference {
+  return doc(firebase().db, 'users', currentUser().uid);
+}
+
 export function userCollection(name: CollectionName): CollectionReference {
-  return collection(firebase().db, 'users', currentUser().uid, name);
+  return collection(userDoc(), name);
 }
 
 const ref = (name: CollectionName, id: string): DocumentReference => doc(userCollection(name), id);
@@ -620,11 +628,9 @@ const googleAuth: Api['googleAuth'] = {
   },
 };
 
-const noCalendar = (): never => {
-  throw new ApiError(400, 'Google Calendar sync runs in the desktop app for now.');
-};
+// ---- Google Calendar (synced by the Cloud Functions; the client reads Firestore and calls two functions) ----
 
-const calendarStatus: CalendarSyncStatus = {
+const emptyCalendarStatus = (): CalendarSyncStatus => ({
   scopeGranted: false,
   enabled: false,
   targetCalendarId: null,
@@ -632,14 +638,67 @@ const calendarStatus: CalendarSyncStatus = {
   lastSyncAt: null,
   lastError: null,
   linkedTasks: 0,
-};
+  account: null,
+});
+
+/** The status document as written by the functions, with defaults for a user who never connected. */
+export function calendarStatusFrom(data: Record<string, unknown> | undefined): CalendarSyncStatus {
+  return { ...emptyCalendarStatus(), ...(data as Partial<CalendarSyncStatus> | undefined) };
+}
+
+const calendarSyncDoc = (name: 'settings' | 'status' | 'calendars'): DocumentReference => doc(userDoc(), 'calendarSync', name);
+
+function callFunction<TIn, TOut>(name: string, timeout = 180_000): (data: TIn) => Promise<TOut> {
+  return (data) => httpsCallable<TIn, TOut>(firebase().functions, name, { timeout })(data).then((result) => result.data);
+}
+
+const runCalendarSync = callFunction<void, CalendarSyncStatus>('calendarRunSync');
+const disconnectCalendar = callFunction<void, CalendarSyncStatus>('calendarDisconnect', 120_000);
+
+const localTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+/** The zone is shared once per session so the server's "today" and local dates match this device. */
+let timeZoneShared = false;
 
 const calendar: Api['calendar'] = {
-  syncStatus: async () => calendarStatus,
-  updateSync: async () => noCalendar(),
-  runSync: async () => noCalendar(),
-  calendars: async () => [],
-  events: async () => [],
+  syncStatus: async () => {
+    const snap = await getDoc(calendarSyncDoc('status'));
+    const status = calendarStatusFrom(snap.exists() ? snap.data() : undefined);
+    if (status.scopeGranted && !timeZoneShared) {
+      timeZoneShared = true;
+      void setDoc(calendarSyncDoc('settings'), { timeZone: localTimeZone() }, { merge: true }).catch(() => undefined);
+    }
+    return status;
+  },
+
+  // Settings are the user's wish; the function applies them (mirror on/off, chosen calendars) and reports back.
+  updateSync: async (input) => {
+    const patch: Record<string, unknown> = { timeZone: localTimeZone() };
+    if (input.enabled !== undefined) patch.enabled = input.enabled;
+    if (input.sourceCalendarIds) patch.sourceCalendarIds = [...new Set(input.sourceCalendarIds)];
+    await setDoc(calendarSyncDoc('settings'), patch, { merge: true });
+    return runCalendarSync();
+  },
+
+  runSync: () => runCalendarSync(),
+
+  calendars: async () => {
+    const snap = await getDoc(calendarSyncDoc('calendars'));
+    return snap.exists() ? ((snap.data().items as GoogleCalendarInfo[] | undefined) ?? []) : [];
+  },
+
+  // The functions keep a window of about two weeks back and three months ahead; outside it there is nothing.
+  events: async (from: string, to: string) => {
+    if (!DATE_RE.test(from) || !DATE_RE.test(to) || to < from) invalid({ range: ['from and to must be yyyy-MM-dd.'] });
+    const snap = await getDocs(userCollection('calendarEvents'));
+    return snap.docs
+      .map((d) => d.data() as ExternalEvent)
+      .filter((e) => e.date <= to && e.endDate >= from)
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime ?? '').localeCompare(b.startTime ?? ''));
+  },
+
+  disconnect: async () => {
+    await disconnectCalendar();
+  },
 };
 
 export const firestoreApi: Api = {

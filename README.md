@@ -31,6 +31,8 @@ tasks follow you to every device.
 - Mirror dated tasks into a dedicated “TodoEase” calendar so they show on your phone; edits, completions and
   deletions keep the events in step
 - Show events from the calendars you choose next to your tasks
+- Allow it once, on the web app or in the Windows app: when you are signed in the sync runs in the cloud, every
+  15 minutes and whenever a task changes, so every device shows the same calendar even while no app is open
 
 **Your data, everywhere**
 - One Google sign-in: tasks sync live between the Windows app, the web app and any other PC you sign in on

@@ -82,6 +82,11 @@ export const restApi = {
     calendars: () => request<GoogleCalendarInfo[]>('/api/calendar/calendars'),
     /** Events from the chosen Google calendars between two local dates (inclusive). */
     events: (from: string, to: string) => request<ExternalEvent[]>(`/api/calendar/events?from=${from}&to=${to}`),
+    /** Removes the mirrored events and forgets the calendar permission (the Google account stays signed in). */
+    disconnect: async () => {
+      await request<CalendarSyncStatus>('/api/calendar/sync', { method: 'PUT', ...json({ enabled: false }) });
+      await request<GoogleAuthStatus>('/api/auth/google', { method: 'DELETE' });
+    },
   },
 
   backup: {
@@ -136,12 +141,20 @@ export type Api = typeof restApi;
 
 /**
  * Desktop app while signed in: tasks, projects, labels, stats and backups live in Firestore (shared with the web
- * app and other PCs), while the Google Calendar connection and its sync keep running in the local API.
+ * app and other PCs) and Google Calendar sync runs in the Cloud Functions, exactly as on the web. The Google
+ * sign-in itself (and so the calendar permission) still goes through the local API, which uploads the token.
  */
 const desktopCloudApi: Api = {
   ...firestoreApi,
   googleAuth: restApi.googleAuth,
-  calendar: restApi.calendar,
+  calendar: {
+    ...firestoreApi.calendar,
+    disconnect: async () => {
+      await firestoreApi.calendar.disconnect();
+      // The local API forgets its copy of the permission too, so Settings does not offer a dead token.
+      await restApi.googleAuth.signOut().catch(() => undefined);
+    },
+  },
 };
 
 /** Where data is read and written right now. 'cloud' needs a signed-in Firebase user. */
@@ -207,13 +220,10 @@ export const desktopCloud = {
   /** The Google ID token of the sign-in that just completed, handed out once; null while nothing is waiting. */
   takeGoogleIdToken: () => request<{ idToken: string } | undefined>('/api/auth/google/id-token').then((r) => r ?? null),
   session: () => request<CloudSessionStatus>('/api/cloud/session'),
-  /** Shares the Firebase session so the API (MCP server, Calendar sync) reads the same cloud data. */
+  /** Shares the Firebase session so the API (MCP server) reads the same cloud data and uploads its Google Calendar token. */
   setSession: (input: { projectId: string; apiKey: string; uid: string; email: string | null; name: string | null; refreshToken: string }) =>
     request<CloudSessionStatus>('/api/cloud/session', { method: 'PUT', ...json(input) }),
   clearSession: () => request<CloudSessionStatus>('/api/cloud/session', { method: 'DELETE' }),
   /** The LiteDB file on this PC, whatever mode the API is in (to move local data to the cloud). */
   exportLocal: () => request<BackupDocument>('/api/backup/local'),
-  /** Tasks that changed in Firestore, so the local Calendar mirror pushes them without waiting for the next reconcile. */
-  notifyTaskChanges: (taskIds: string[]) =>
-    request<void>('/api/calendar/changed', { method: 'POST', ...json({ taskIds }) }),
 };

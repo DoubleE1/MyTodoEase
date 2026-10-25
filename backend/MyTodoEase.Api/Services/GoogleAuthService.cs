@@ -164,8 +164,36 @@ public sealed class GoogleAuthService
         }
     }
 
-    /// <summary>Revokes the refresh token at Google (best effort) and forgets the account.</summary>
-    public async Task SignOutAsync(CancellationToken ct)
+    public bool HasScope(string scope)
+    {
+        lock (_gate) return _state.Account?.Scopes.Contains(scope) == true;
+    }
+
+    public sealed record ExportedConnection(string RefreshToken, string ClientId, string? ClientSecret, AccountInfo Account);
+
+    /// <summary>
+    /// The refresh token and the client it belongs to, for handing the permission over to the cloud sync
+    /// (see CloudCalendarBridge). Null while no account is connected.
+    /// </summary>
+    public ExportedConnection? ExportConnection()
+    {
+        lock (_gate)
+        {
+            if (_state.Account is not { } a || string.IsNullOrWhiteSpace(_state.ClientId)) return null;
+            return new ExportedConnection(
+                Unprotect(a.RefreshTokenProtected),
+                _state.ClientId!,
+                ClientSecret(),
+                new AccountInfo(a.Email, a.Name, a.Picture, a.Scopes, a.ConnectedAt));
+        }
+    }
+
+    /// <summary>
+    /// Forgets the account, and revokes the refresh token at Google (best effort) unless told to keep it valid:
+    /// while the desktop app is signed in to the cloud, the Cloud Functions hold the same token for the
+    /// account's calendar sync, which must survive this PC signing out.
+    /// </summary>
+    public async Task SignOutAsync(CancellationToken ct, bool revoke = true)
     {
         string? refresh;
         lock (_gate)
@@ -176,6 +204,11 @@ public sealed class GoogleAuthService
             Save();
         }
         if (refresh is null) return;
+        if (!revoke)
+        {
+            _log.LogInformation("Google account forgotten on this PC; the token stays valid for the cloud calendar sync.");
+            return;
+        }
         try
         {
             using var client = _http.CreateClient();

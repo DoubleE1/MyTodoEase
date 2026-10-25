@@ -39,7 +39,7 @@ public static class AuthEndpoints
             }
         });
 
-        group.MapGet("/callback", async (string? code, string? state, string? error, GoogleAuthService auth, CancellationToken ct) =>
+        group.MapGet("/callback", async (string? code, string? state, string? error, GoogleAuthService auth, CloudCalendarBridge bridge, CancellationToken ct) =>
         {
             if (!string.IsNullOrEmpty(error) || string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state))
             {
@@ -49,6 +49,8 @@ public static class AuthEndpoints
             try
             {
                 var account = await auth.CompleteLoginAsync(code, state, ct);
+                // Already signed in to the cloud (e.g. "Allow calendar access" later): the cloud sync gets the token now.
+                await bridge.UploadConnectionAsync(ct);
                 return Page("Signed in", $"TodoEase is now connected to <strong>{WebUtility.HtmlEncode(account.Email)}</strong>. You can close this tab.", true);
             }
             catch (Exception ex)
@@ -68,9 +70,11 @@ public static class AuthEndpoints
             return Results.NoContent();
         });
 
-        group.MapDelete("/", async (GoogleAuthService auth, CancellationToken ct) =>
+        // Signed in to the cloud: the Cloud Functions keep syncing the account's calendar with their copy of the
+        // token, so it is only forgotten here, not revoked (Settings > Google Calendar > Disconnect revokes it).
+        group.MapDelete("/", async (GoogleAuthService auth, CloudSessionService session, CancellationToken ct) =>
         {
-            await auth.SignOutAsync(ct);
+            await auth.SignOutAsync(ct, revoke: !session.IsActive);
             return Results.Ok(auth.GetStatus());
         });
 

@@ -10,11 +10,13 @@ using MyTodoEase.Api.Models;
 namespace MyTodoEase.Api.Services;
 
 /// <summary>
-/// Two-way Google Calendar integration.
+/// Two-way Google Calendar integration for the desktop's local mode.
 /// Push: every open task with a due date is mirrored as an event in a dedicated "TodoEase" calendar
 /// (recurring tasks become recurring events). Pull: events from the calendars the user picked are
 /// served to the UI for the Calendar, Today and Upcoming views. Pushes are queued per task and run on a
 /// background worker, with a full reconcile on enable and every 15 minutes.
+/// While the app is signed in to the cloud the same work is done by the Cloud Functions (functions/) for the
+/// account's Firestore data, on every platform; this service then stands aside (see CloudCalendarBridge).
 /// </summary>
 public sealed class CalendarSyncService : BackgroundService
 {
@@ -64,20 +66,29 @@ public sealed class CalendarSyncService : BackgroundService
         List<string> SourceCalendarIds,
         DateTime? LastSyncAt,
         string? LastError,
-        int LinkedTasks);
+        int LinkedTasks,
+        GoogleAuthService.AccountInfo? Account,
+        /// <summary>True while the cloud sync owns the calendar (desktop signed in); this status is then idle.</summary>
+        bool CloudManaged);
+
+    /// <summary>Signed in to the cloud: the Cloud Functions mirror the cloud tasks, not this service.</summary>
+    private bool CloudManaged => _stores.Current.IsCloud;
 
     public SyncStatus GetStatus()
     {
         lock (_gate)
         {
+            var granted = _google.HasScope();
             return new SyncStatus(
-                _google.HasScope(),
+                granted,
                 _settings.Enabled,
                 _settings.TargetCalendarId,
                 _settings.SourceCalendarIds,
                 _settings.LastSyncAt,
                 _settings.LastError,
-                _db.CalendarLinks.Count());
+                _db.CalendarLinks.Count(),
+                granted ? _google.Account : null,
+                CloudManaged);
         }
     }
 
@@ -103,13 +114,39 @@ public sealed class CalendarSyncService : BackgroundService
     }
 
     /// <summary>Turned off: remove the mirrored events so the Google calendar does not keep stale copies.</summary>
-    public async Task DisableAndCleanAsync(CancellationToken ct)
+    public Task DisableAndCleanAsync(CancellationToken ct) => RemoveLinkedEventsAsync(ct, disable: true);
+
+    /// <summary>
+    /// The app just signed in to the cloud: the Cloud Functions now mirror the account's tasks, so the events this
+    /// PC created for its local tasks are removed (the setting itself is kept for when the PC signs out again).
+    /// </summary>
+    public void OnCloudSessionStarted()
+    {
+        if (_db.CalendarLinks.Count() == 0) return;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await RemoveLinkedEventsAsync(CancellationToken.None, disable: false);
+                _log.LogInformation("Local calendar mirror cleared; the cloud sync owns the calendar while signed in.");
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning(ex, "Could not clear the local calendar mirror after signing in.");
+            }
+        });
+    }
+
+    private async Task RemoveLinkedEventsAsync(CancellationToken ct, bool disable)
     {
         List<CalendarLink> links;
         lock (_gate)
         {
-            _settings.Enabled = false;
-            Save();
+            if (disable)
+            {
+                _settings.Enabled = false;
+                Save();
+            }
             links = _db.CalendarLinks.FindAll().ToList();
         }
         foreach (var link in links)
@@ -141,14 +178,7 @@ public sealed class CalendarSyncService : BackgroundService
 
     public void Enqueue(string taskId)
     {
-        if (_settings.Enabled) _queue.Writer.TryWrite(taskId);
-    }
-
-    /// <summary>Tasks changed outside this API (the desktop renderer writing straight to Firestore, or another device).</summary>
-    public void EnqueueMany(IEnumerable<string> taskIds)
-    {
-        if (!_settings.Enabled) return;
-        foreach (var id in taskIds.Where(AppDb.IsValidId).Distinct()) _queue.Writer.TryWrite(id);
+        if (_settings.Enabled && !CloudManaged) _queue.Writer.TryWrite(taskId);
     }
 
     public void EnqueueFull()
@@ -176,7 +206,7 @@ public sealed class CalendarSyncService : BackgroundService
             {
                 if (taskId == "*" || Interlocked.Exchange(ref _fullSyncRequested, 0) == 1)
                 {
-                    if (_settings.Enabled) await FullSyncAsync(stoppingToken);
+                    if (_settings.Enabled && !CloudManaged) await FullSyncAsync(stoppingToken);
                 }
                 else
                 {
@@ -210,10 +240,10 @@ public sealed class CalendarSyncService : BackgroundService
     public async Task FullSyncAsync(CancellationToken ct)
     {
         if (!_google.HasScope()) throw new InvalidOperationException("Google Calendar permission has not been granted yet.");
+        if (CloudManaged) throw new InvalidOperationException("Google Calendar sync runs in the cloud while you are signed in.");
         var calendarId = await EnsureTargetCalendarAsync(ct);
 
-        // Current store: the LiteDB file, or Firestore while the app is signed in to the cloud.
-        var tasks = (await _stores.Current.Tasks.AllAsync(ct)).Where(t => !t.IsCompleted && t.DueDate != null).ToList();
+        var tasks = (await _stores.Local.Tasks.AllAsync(ct)).Where(t => !t.IsCompleted && t.DueDate != null).ToList();
         var wanted = tasks.ToDictionary(t => t.Id);
         foreach (var task in tasks)
         {
@@ -231,9 +261,9 @@ public sealed class CalendarSyncService : BackgroundService
 
     private async Task SyncTaskAsync(string taskId, CancellationToken ct)
     {
-        if (!_google.HasScope()) return;
+        if (!_google.HasScope() || CloudManaged) return;
         var calendarId = await EnsureTargetCalendarAsync(ct);
-        var task = await _stores.Current.Tasks.GetAsync(taskId, ct);
+        var task = await _stores.Local.Tasks.GetAsync(taskId, ct);
         if (task is null || task.IsCompleted || task.DueDate is null)
         {
             var link = _db.CalendarLinks.FindById(taskId);
@@ -363,7 +393,7 @@ public sealed class CalendarSyncService : BackgroundService
     /// <summary>Events from the chosen Google calendars whose days intersect [from, to] (local calendar dates).</summary>
     public async Task<List<ExternalEvent>> GetEventsAsync(DateOnly from, DateOnly to, CancellationToken ct)
     {
-        if (!_google.HasScope()) return [];
+        if (!_google.HasScope() || CloudManaged) return []; // signed in: the UI reads the cloud's calendarEvents
         var key = $"{from:yyyy-MM-dd}|{to:yyyy-MM-dd}";
         lock (_gate)
         {

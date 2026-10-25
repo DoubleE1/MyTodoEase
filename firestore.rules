@@ -1,10 +1,37 @@
 rules_version = '2';
 
-// Every document lives under users/{uid}/...; a signed-in user can read and write only their own tree.
+// Every document lives under users/{uid}/...; a signed-in user reaches only their own tree.
+// Task data is read/write; what the Cloud Functions derive (calendar status, pulled events) is read-only;
+// the Google refresh token under private/ can be written (uploaded) but never read back by any client.
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+    match /users/{uid} {
+      function isOwner() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+
+      match /{collection}/{document} {
+        allow read, write: if isOwner()
+          && collection in ['projects', 'sections', 'labels', 'tasks', 'completions'];
+      }
+
+      // Google Calendar events pulled by the Cloud Functions.
+      match /calendarEvents/{document} {
+        allow read: if isOwner();
+      }
+
+      // calendarSync/settings is what the user wants (enabled, chosen calendars, time zone);
+      // status, calendars and lock are written by the Cloud Functions only.
+      match /calendarSync/{document} {
+        allow read: if isOwner();
+        allow write: if isOwner() && document == 'settings';
+      }
+
+      // The Google refresh token (web: written by the connect function; desktop: uploaded by the local API).
+      match /private/{document} {
+        allow create, update, delete: if isOwner();
+        allow read: if false;
+      }
     }
   }
 }

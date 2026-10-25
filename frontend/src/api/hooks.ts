@@ -11,6 +11,7 @@ export const queryKeys = {
   completed: ['tasks', 'completed'] as const,
   completions: ['completions'] as const,
   calendarSync: ['calendar', 'sync'] as const,
+  calendarList: ['calendar', 'list'] as const,
   calendarEvents: ['calendar', 'events'] as const,
 };
 

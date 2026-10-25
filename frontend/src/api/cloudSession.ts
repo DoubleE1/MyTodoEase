@@ -107,12 +107,15 @@ export async function shareSessionWithApi(user: User): Promise<void> {
 
 /**
  * Sign out everywhere: the Firebase session (renderer and API), and on the desktop the Google token the API
- * holds for Calendar. The PC goes back to its local data; the cloud data stays in the account.
+ * holds for Calendar. The PC goes back to its local data; the cloud data, and the calendar sync the cloud runs
+ * for the account, stay as they are.
  */
 export async function signOutOfCloud(): Promise<void> {
   if (!IS_WEB_APP) {
-    await desktopCloud.clearSession().catch(() => undefined);
+    // While the cloud session is still active the API only forgets its Google token (the Calendar sync that
+    // the Cloud Functions run for this account keeps its own copy); afterwards it would revoke it.
     await restApi.googleAuth.signOut().catch(() => undefined);
+    await desktopCloud.clearSession().catch(() => undefined);
   }
   await firebaseSignOut(firebase().auth);
 }

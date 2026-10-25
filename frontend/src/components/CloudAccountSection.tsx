@@ -2,10 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarCheck, CalendarOff, CloudUpload, ExternalLink, LogOut } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { IS_WEB_APP } from '../api/backend';
-import { api, desktopCloud } from '../api/client';
+import { CalendarConnectCancelled, connectCalendarWeb } from '../api/calendarConnect';
+import { desktopCloud } from '../api/client';
 import { signOutOfCloud, SignInCancelled, startDesktopSignIn, type DesktopSignIn } from '../api/cloudSession';
 import { firestoreApi } from '../api/firestoreClient';
-import { GOOGLE_CALENDAR_SCOPE, queryKeys } from '../api/hooks';
+import { queryKeys, useCalendarSync } from '../api/hooks';
 import { showToast } from '../lib/toast';
 import type { ConfirmOptions } from './Dialogs';
 import { GoogleMark } from './GoogleMark';
@@ -57,11 +58,23 @@ export function CloudAccountSection({ confirm }: { confirm: (options: ConfirmOpt
     },
   });
 
+  // Web: Google's consent popup, token kept by the Cloud Functions. Desktop: the same browser sign-in as above,
+  // after which the local API uploads the token to the cloud.
   const allowCalendar = useMutation({
-    mutationFn: runSignIn,
-    onSuccess: () => showToast('Google Calendar connected.'),
+    mutationFn: async () => {
+      if (IS_WEB_APP) {
+        const status = await connectCalendarWeb();
+        queryClient.setQueryData(queryKeys.calendarSync, status);
+        return;
+      }
+      await runSignIn();
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.calendarSync });
+      showToast('Google Calendar connected.');
+    },
     onError: (error) => {
-      if (error instanceof SignInCancelled) return;
+      if (error instanceof SignInCancelled || error instanceof CalendarConnectCancelled) return;
       showToast(error instanceof Error ? error.message : 'Could not connect Google Calendar.', 'error');
     },
   });
@@ -102,7 +115,7 @@ export function CloudAccountSection({ confirm }: { confirm: (options: ConfirmOpt
                   title: 'Sign out?',
                   message: IS_WEB_APP
                     ? 'You can sign in again any time; your tasks stay in your account.'
-                    : 'This PC goes back to the tasks stored locally on this computer and Google Calendar is disconnected. Your cloud tasks stay in your Google account and keep syncing to your other devices.',
+                    : 'This PC goes back to the tasks stored locally on this computer. Your cloud tasks, and the Google Calendar sync for your account, stay in place and keep working on your other devices.',
                   confirmLabel: 'Sign out',
                 });
                 if (ok) signOut.mutate();
@@ -120,14 +133,12 @@ export function CloudAccountSection({ confirm }: { confirm: (options: ConfirmOpt
             </a>
             .
           </p>
-          {!IS_WEB_APP && (
-            <CalendarPermissionRow
-              waiting={waiting}
-              busy={allowCalendar.isPending}
-              onAllow={() => allowCalendar.mutate()}
-              onCancel={() => attempt?.cancel()}
-            />
-          )}
+          <CalendarPermissionRow
+            waiting={waiting}
+            busy={allowCalendar.isPending}
+            onAllow={() => allowCalendar.mutate()}
+            onCancel={() => attempt?.cancel()}
+          />
           {!IS_WEB_APP && <MoveLocalDataCard confirm={confirm} />}
         </>
       ) : (
@@ -158,7 +169,7 @@ export function CloudAccountSection({ confirm }: { confirm: (options: ConfirmOpt
   );
 }
 
-/** Desktop, signed in: whether the Google sign-in included calendar access, with a way to add it. */
+/** Signed in: whether calendar access has been granted for this account, with a way to grant it. */
 function CalendarPermissionRow({
   waiting,
   busy,
@@ -170,10 +181,10 @@ function CalendarPermissionRow({
   onAllow: () => void;
   onCancel: () => void;
 }) {
-  const status = useQuery({ queryKey: GOOGLE_STATUS_KEY, queryFn: api.googleAuth.status, staleTime: 30_000 });
-  const data = status.data;
+  const sync = useCalendarSync();
+  const data = sync.data;
   if (!data) return null;
-  const granted = data.signedIn && (data.account?.scopes ?? []).includes(GOOGLE_CALENDAR_SCOPE);
+  const granted = data.scopeGranted;
 
   return (
     <div className="settings-callout settings-callout-quiet">
@@ -184,8 +195,8 @@ function CalendarPermissionRow({
         </strong>
         <p className="muted small">
           {granted
-            ? `Connected as ${data.account?.email}. Mirroring and shown calendars are under Google Calendar.`
-            : 'Not connected. Allow calendar access to see your events next to your tasks and mirror dated tasks to a “TodoEase” calendar.'}
+            ? `Connected${data.account?.email ? ` as ${data.account.email}` : ''}. Syncs in the cloud for every device; mirroring and shown calendars are under Google Calendar.`
+            : 'Not connected. Allow calendar access to see your events next to your tasks and mirror dated tasks to a “TodoEase” calendar, on every device.'}
         </p>
       </div>
       {!granted &&

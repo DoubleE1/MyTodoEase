@@ -1,16 +1,16 @@
 /**
  * Live updates while signed in: Firestore listeners push each collection straight into the query cache, so a
- * change made on another device (or tab) shows up without a refresh. In the desktop app the task listener also
- * reports changed task ids to the local API, whose Google Calendar mirror then pushes them right away.
+ * change made on another device (or tab) shows up without a refresh. The Google Calendar documents the Cloud
+ * Functions maintain (sync status, the user's calendars, pulled events) arrive the same way, which is how a
+ * sync that ran server-side shows up in Settings and on the calendar without anyone pressing anything.
  */
 import type { QueryClient } from '@tanstack/react-query';
-import { onSnapshot } from 'firebase/firestore';
-import { sortActiveTasks, sortCompletedTasks, sortLabels, sortProjects, sortSections, userCollection } from './firestoreClient';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { calendarStatusFrom, sortActiveTasks, sortCompletedTasks, sortLabels, sortProjects, sortSections, userCollection, userDoc } from './firestoreClient';
 import { queryKeys } from './hooks';
-import type { Label, Project, Section, Task } from './types';
+import type { GoogleCalendarInfo, Label, Project, Section, Task } from './types';
 
-export function subscribeRealtime(queryClient: QueryClient, onTaskChanges?: (taskIds: string[]) => void): () => void {
-  let firstTasksSnapshot = true;
+export function subscribeRealtime(queryClient: QueryClient): () => void {
   const stops = [
     onSnapshot(userCollection('projects'), (snap) => {
       const items = snap.docs.map((d) => d.data() as Project);
@@ -27,13 +27,16 @@ export function subscribeRealtime(queryClient: QueryClient, onTaskChanges?: (tas
       queryClient.setQueryData(queryKeys.tasks, sortActiveTasks(items));
       queryClient.setQueryData(queryKeys.completed, sortCompletedTasks(items));
       void queryClient.invalidateQueries({ queryKey: queryKeys.completions });
-      // The first snapshot lists everything; the API reconciles fully on its own when a session starts.
-      if (firstTasksSnapshot) {
-        firstTasksSnapshot = false;
-      } else if (onTaskChanges) {
-        const changed = snap.docChanges().map((c) => c.doc.id);
-        if (changed.length > 0) onTaskChanges(changed);
-      }
+    }),
+    onSnapshot(doc(userDoc(), 'calendarSync', 'status'), (snap) => {
+      queryClient.setQueryData(queryKeys.calendarSync, calendarStatusFrom(snap.exists() ? snap.data() : undefined));
+    }),
+    onSnapshot(doc(userDoc(), 'calendarSync', 'calendars'), (snap) => {
+      const items = snap.exists() ? ((snap.data().items as GoogleCalendarInfo[] | undefined) ?? []) : [];
+      queryClient.setQueryData(queryKeys.calendarList, items);
+    }),
+    onSnapshot(userCollection('calendarEvents'), () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.calendarEvents });
     }),
   ];
   return () => stops.forEach((stop) => stop());

@@ -136,6 +136,13 @@ export interface GoogleAuthStatus {
   pending: boolean;
 }
 
+/** The Google account whose calendar is connected (a subset of GoogleAccount). */
+export interface CalendarAccount {
+  email: string;
+  name: string;
+  picture: string | null;
+}
+
 export interface CalendarSyncStatus {
   scopeGranted: boolean;
   enabled: boolean;
@@ -144,6 +151,8 @@ export interface CalendarSyncStatus {
   lastSyncAt: string | null;
   lastError: string | null;
   linkedTasks: number;
+  /** Null until calendar access has been granted. */
+  account?: CalendarAccount | null;
 }
 
 export interface GoogleCalendarInfo {
