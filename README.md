@@ -32,8 +32,9 @@ tasks follow you to every device.
   deletions keep the events in step
 - Show events from the calendars you choose next to your tasks
 - Works the same on the web app and in the Windows app: allow it once, press **Sync now** when you want it up to
-  date, and every device signed in with your account shows the result. Sync runs in the app you press it in, so
-  nothing happens while every app is closed; TodoEase stays on Firebase's free plan on purpose (a background
+  date, and every device signed in with your account shows the result. A task you add, change, complete or
+  delete goes to Google right away while the app is open; the pull of Google's events happens on Sync now. Sync
+  runs in the app, so nothing happens while every app is closed; TodoEase stays on Firebase's free plan on purpose (a background
   scheduler would need a paid plan or an external runner), and no Google credential is ever stored in the cloud
 
 **Your data, everywhere**

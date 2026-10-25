@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from './client';
+import { queueCalendarPush } from './calendarAccess';
+import { api, getDataMode } from './client';
 import type { LabelInput, ProjectInput, SectionInput, Task, TaskInput } from './types';
 import { showToast } from '../lib/toast';
 
@@ -53,22 +54,27 @@ export function useTaskMutations() {
     void qc.invalidateQueries({ queryKey: queryKeys.completed });
     void qc.invalidateQueries({ queryKey: queryKeys.completions });
   };
+  // Cloud mode: the changed task goes to Google Calendar right away (local mode: the API does the same itself).
+  const changed = (...ids: string[]) => {
+    invalidateTasks();
+    if (getDataMode() === 'cloud') queueCalendarPush(ids);
+  };
 
   const create = useMutation({
     mutationFn: (input: TaskInput) => api.tasks.create(input),
-    onSuccess: invalidateTasks,
+    onSuccess: (task) => changed(task.id),
     onError,
   });
 
   const update = useMutation({
     mutationFn: ({ id, input }: { id: string; input: TaskInput }) => api.tasks.update(id, input),
-    onSuccess: invalidateTasks,
+    onSuccess: (task) => changed(task.id),
     onError,
   });
 
   const remove = useMutation({
     mutationFn: (id: string) => api.tasks.remove(id),
-    onSuccess: invalidateTasks,
+    onSuccess: (_result, id) => changed(id),
     onError,
   });
 
@@ -91,12 +97,13 @@ export function useTaskMutations() {
       if (context?.previous) qc.setQueryData(queryKeys.tasks, context.previous);
       onError(error);
     },
+    onSuccess: (task) => changed(task.id),
     onSettled: invalidateTasks,
   });
 
   const reopen = useMutation({
     mutationFn: (id: string) => api.tasks.reopen(id),
-    onSuccess: invalidateTasks,
+    onSuccess: (task) => changed(task.id),
     onError,
   });
 

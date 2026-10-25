@@ -9,7 +9,7 @@
 import { GoogleAuthProvider, reauthenticateWithPopup } from 'firebase/auth';
 import { firebase } from '../firebase/app';
 import { IS_WEB_APP } from './backend';
-import { disconnectCalendar, runCalendarSync, type AccessTokenProvider } from './calendarSync';
+import { disconnectCalendar, pushTaskToCalendar, runCalendarSync, type AccessTokenProvider } from './calendarSync';
 import { desktopCloud, restApi } from './client';
 import { GOOGLE_CALENDAR_SCOPE } from './googleCalendar';
 import type { CalendarAccount, CalendarSyncStatus } from './types';
@@ -130,10 +130,29 @@ export async function connectCalendar(): Promise<CalendarSyncStatus> {
   return runCalendarSync(async () => token, account);
 }
 
+/** A token without asking the user: the cached web token, or the desktop API's. Throws CalendarAccessMissing otherwise. */
+const quietAccessToken: AccessTokenProvider = () => (IS_WEB_APP ? webAccessToken(false) : desktopAccessToken());
+
+let pushChain: Promise<void> = Promise.resolve();
+
+/**
+ * Push tasks that just changed in this app to Google, one after another, without ever opening a popup: on the
+ * web only while the hour-long token from the last Sync now is still valid (otherwise the next Sync now covers
+ * them), on the desktop always. Never throws.
+ */
+export function queueCalendarPush(taskIds: string[]): void {
+  for (const id of taskIds) {
+    pushChain = pushChain
+      .then(() => pushTaskToCalendar(id, quietAccessToken))
+      .catch((error) => {
+        if (!(error instanceof CalendarAccessMissing)) console.warn('Calendar push skipped', error);
+      });
+  }
+}
+
 /** Forget the connection for the account; the mirrored events are removed when a token can be had quietly. */
 export async function disconnectCloudCalendar(): Promise<CalendarSyncStatus> {
-  const quietToken: AccessTokenProvider | null = IS_WEB_APP ? () => webAccessToken(false) : desktopAccessToken;
-  const status = await disconnectCalendar(quietToken);
+  const status = await disconnectCalendar(quietAccessToken);
   if (IS_WEB_APP) await revokeWebToken();
   else cached = null;
   return status;

@@ -261,8 +261,11 @@ Where it runs depends on the mode:
   event twice; a short lease in `calendarSync/lock` serialises concurrent syncs) and `calendarEvents` (pulled
   events, about two weeks back and three months ahead, in the app's `ExternalEvent` shape). `realtime.ts` feeds
   these into the query cache live, so a sync pressed on one device updates Settings and the calendar on every
-  other one. Nothing syncs on a timer in cloud mode: a device presses Sync now when it wants the calendar up to
-  date, and no Google credential is stored in Firestore.
+  other one. A task created, edited, completed or deleted in the app is pushed to Google at once
+  (`pushTaskToCalendar`, queued from `useTaskMutations`) when a token is at hand without asking: always on the
+  desktop, on the web while the hour-long token from the last Sync now is still valid. Nothing syncs on a timer
+  in cloud mode: a device presses Sync now to pull Google's events and catch up, and no Google credential is
+  stored in Firestore.
   - *Access token on the web:* `frontend/src/api/calendarAccess.ts` re-runs Firebase's Google popup with the
     calendar scope (`reauthenticateWithPopup`); the first time Google asks for consent, afterwards the popup just
     confirms the account and closes. The access token lives in memory for about an hour; Google may ask again

@@ -7,7 +7,9 @@
  * a hash of the event body skips pushes that would change nothing, and an event the user deleted in Google is
  * recreated. Pull: events from the chosen calendars, for a window around today, are written to
  * users/{uid}/calendarEvents in the app's own ExternalEvent shape. A short lease in calendarSync/lock keeps two
- * devices from pushing the same task twice.
+ * devices from pushing the same task twice. Besides the full sync, a single task is pushed the moment it is
+ * created, edited, completed or deleted in this app (pushTaskToCalendar), so Google is up to date without
+ * anyone pressing Sync now; the pull of Google's events still happens on Sync now.
  *
  * Mirrors the desktop API's CalendarSyncService, which keeps doing this for the local file when not signed in.
  */
@@ -15,6 +17,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getCountFromServer,
   getDoc,
   getDocs,
   query,
@@ -190,6 +193,43 @@ export async function runCalendarSync(getToken: AccessTokenProvider, account?: C
       return writeStatus({ enabled: settings.enabled, sourceCalendarIds: settings.sourceCalendarIds, lastError: message });
     }
   });
+}
+
+/**
+ * One task changed in this app: bring its event in line right away (create, update, or delete when the task is
+ * gone, completed or undated). Quiet by design: without a token at hand, or while another sync holds the lock,
+ * it does nothing and the next Sync now covers the task. Google problems land in status.lastError.
+ */
+export async function pushTaskToCalendar(taskId: string, getToken: AccessTokenProvider): Promise<void> {
+  const settings = await loadSettings();
+  if (!settings.enabled) return;
+  const status = await loadStatus();
+  if (!status.scopeGranted) return;
+  const timeZone = localTimeZone();
+  try {
+    await withLock(async () => {
+      const google = new GoogleCalendarClient(await getToken());
+      const calendarId = await ensureTargetCalendar(google, status.targetCalendarId, timeZone);
+      const [taskSnap, linkSnap] = await Promise.all([getDoc(doc(userDoc(), 'tasks', taskId)), getDoc(doc(linksRef(), taskId))]);
+      const task = taskSnap.exists() ? (taskSnap.data() as Task) : null;
+      const link = linkSnap.exists() ? (linkSnap.data() as Link) : undefined;
+      if (!task || task.isCompleted || !task.dueDate || !DATE_RE.test(task.dueDate)) {
+        if (link) {
+          await google.deleteEvent(link.calendarId, link.eventId);
+          await deleteDoc(linkSnap.ref);
+        }
+      } else {
+        await pushTask(google, calendarId, task, link, timeZone);
+      }
+      const linkedTasks = (await getCountFromServer(linksRef())).data().count;
+      await writeStatus({ linkedTasks, lastSyncAt: nowIso(), lastError: null, targetCalendarId: calendarId });
+    });
+  } catch (error) {
+    if (error instanceof SyncBusyError) return;
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn('Calendar push failed for task', taskId, message);
+    await writeStatus({ lastError: message }).catch(() => undefined);
+  }
 }
 
 /**
