@@ -42,7 +42,7 @@ const TASK_ID_PROPERTY = 'mytodoeaseTaskId';
 const PULL_DAYS_BACK = 14;
 const PULL_DAYS_AHEAD = 90;
 const BATCH_LIMIT = 400;
-const LOCK_LEASE_MS = 5 * 60_000;
+const LOCK_LEASE_MS = 3 * 60_000;
 const LOCK_WAIT_MS = 20_000;
 const LOCK_POLL_MS = 2_000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -142,6 +142,16 @@ async function releaseLock(owner: string): Promise<void> {
   }).catch(() => undefined);
 }
 
+// Within this tab, syncs and single-task pushes run one after another, so a second "Sync now" waits for the
+// first instead of fighting it for the lock; the Firestore lease only arbitrates between devices.
+let serial: Promise<unknown> = Promise.resolve();
+
+function serialize<T>(fn: () => Promise<T>): Promise<T> {
+  const run = serial.then(fn, fn);
+  serial = run.catch(() => undefined);
+  return run;
+}
+
 async function withLock<T>(fn: () => Promise<T>): Promise<T> {
   const owner = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const deadline = Date.now() + LOCK_WAIT_MS;
@@ -163,12 +173,14 @@ async function withLock<T>(fn: () => Promise<T>): Promise<T> {
  * document. Google problems land in status.lastError rather than being thrown; a missing lock throws SyncBusyError.
  */
 export async function runCalendarSync(getToken: AccessTokenProvider, account?: CalendarAccount | null): Promise<CalendarSyncStatus> {
-  return withLock(async () => {
+  // The token first (on the web this may open Google's popup), so no lock is held while the user is looking at it.
+  const token = await getToken();
+  return serialize(() => withLock(async () => {
     const settings = await loadSettings();
     const status = await loadStatus();
     const timeZone = localTimeZone();
     try {
-      const google = new GoogleCalendarClient(await getToken());
+      const google = new GoogleCalendarClient(token);
       let targetCalendarId = status.targetCalendarId;
       let linkedTasks = 0;
       if (settings.enabled) {
@@ -192,7 +204,7 @@ export async function runCalendarSync(getToken: AccessTokenProvider, account?: C
       const message = error instanceof Error ? error.message : String(error);
       return writeStatus({ enabled: settings.enabled, sourceCalendarIds: settings.sourceCalendarIds, lastError: message });
     }
-  });
+  }));
 }
 
 /**
@@ -206,9 +218,10 @@ export async function pushTaskToCalendar(taskId: string, getToken: AccessTokenPr
   const status = await loadStatus();
   if (!status.scopeGranted) return;
   const timeZone = localTimeZone();
+  const token = await getToken();
   try {
-    await withLock(async () => {
-      const google = new GoogleCalendarClient(await getToken());
+    await serialize(() => withLock(async () => {
+      const google = new GoogleCalendarClient(token);
       const calendarId = await ensureTargetCalendar(google, status.targetCalendarId, timeZone);
       const [taskSnap, linkSnap] = await Promise.all([getDoc(doc(userDoc(), 'tasks', taskId)), getDoc(doc(linksRef(), taskId))]);
       const task = taskSnap.exists() ? (taskSnap.data() as Task) : null;
@@ -223,7 +236,7 @@ export async function pushTaskToCalendar(taskId: string, getToken: AccessTokenPr
       }
       const linkedTasks = (await getCountFromServer(linksRef())).data().count;
       await writeStatus({ linkedTasks, lastSyncAt: nowIso(), lastError: null, targetCalendarId: calendarId });
-    });
+    }));
   } catch (error) {
     if (error instanceof SyncBusyError) return;
     const message = error instanceof Error ? error.message : String(error);

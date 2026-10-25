@@ -169,20 +169,16 @@ export async function connectCalendar(): Promise<CalendarSyncStatus> {
 /** A token without asking the user: the cached web token, or the desktop API's. Throws CalendarAccessMissing otherwise. */
 const quietAccessToken: AccessTokenProvider = () => (IS_WEB_APP ? webAccessToken(false) : desktopAccessToken());
 
-let pushChain: Promise<void> = Promise.resolve();
-
 /**
- * Push tasks that just changed in this app to Google, one after another, without ever opening a popup: on the
- * web only while the hour-long token from the last Sync now is still valid (otherwise the next Sync now covers
- * them), on the desktop always. Never throws.
+ * Push tasks that just changed in this app to Google without ever opening a popup: on the web only while the
+ * hour-long token from the last Sync now is still valid (otherwise the next Sync now covers them), on the
+ * desktop always. Runs are serialised inside calendarSync; this never throws.
  */
 export function queueCalendarPush(taskIds: string[]): void {
   for (const id of taskIds) {
-    pushChain = pushChain
-      .then(() => pushTaskToCalendar(id, quietAccessToken))
-      .catch((error) => {
-        if (!(error instanceof CalendarAccessMissing)) console.warn('Calendar push skipped', error);
-      });
+    void pushTaskToCalendar(id, quietAccessToken).catch((error) => {
+      if (!(error instanceof CalendarAccessMissing)) console.warn('Calendar push skipped', error);
+    });
   }
 }
 
