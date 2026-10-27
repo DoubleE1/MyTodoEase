@@ -3568,6 +3568,11 @@ ul {
 }
 
 /* Preview of a future occurrence of a recurring task (calendar) */
+.detail-continue {
+  margin-right: 4px;
+  font-size: 13px;
+}
+
 /* A finished task keeps its place on the calendar: muted and struck through, opens on click, cannot be moved. */
 .cal-chip.is-done,
 .tl-block.is-done {

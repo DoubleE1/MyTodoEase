@@ -1,9 +1,11 @@
-import { format, parseISO } from 'date-fns';
-import { Check, ChevronRight, Plus, Trash2, X } from 'lucide-react';
+import { addDays, format, parseISO } from 'date-fns';
+import { CalendarPlus, Check, ChevronRight, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTaskMutations } from '../api/hooks';
 import type { Label, Project, Section, Task, TaskInput } from '../api/types';
 import { PRIORITY_META } from '../lib/colors';
+import { toDateStr, todayStr } from '../lib/dates';
+import { showToast } from '../lib/toast';
 import { sortByOrder } from '../lib/views';
 import { Modal } from './Dialogs';
 import { DuePicker, LabelPicker, PriorityPicker, ProjectIcon, ProjectPicker } from './Pickers';
@@ -39,6 +41,7 @@ export function TaskDetail({
   const taskMut = useTaskMutations();
   const [editing, setEditing] = useState(false);
   const [addingSubtask, setAddingSubtask] = useState(false);
+  const [continuing, setContinuing] = useState(false);
 
   // Close when the task disappears (deleted elsewhere, or completed and gone from the active list).
   useEffect(() => {
@@ -65,6 +68,35 @@ export function TaskDetail({
     else taskMut.complete.mutate(task.id);
   };
 
+  // "Continue tomorrow": today's part is marked done (its block stays on the calendar, greyed) and the
+  // same task is scheduled for the next day at the same time and length. Open sub-tasks move to the new
+  // copy; finished ones stay with today's. Repeating tasks already roll forward on their own.
+  const canContinue = !task.isCompleted && task.dueDate !== null && task.recurrence === 'none';
+  const continueTomorrow = async () => {
+    if (!task.dueDate || continuing) return;
+    setContinuing(true);
+    try {
+      const today = todayStr();
+      const from = task.dueDate > today ? task.dueDate : today;
+      const nextDate = toDateStr(addDays(parseISO(from), 1));
+      const { order: _order, ...input } = taskToInput(task);
+      const copy = await taskMut.create.mutateAsync({ ...input, dueDate: nextDate });
+      for (const sub of subtasks.filter((s) => !s.isCompleted)) {
+        await taskMut.update.mutateAsync({
+          id: sub.id,
+          input: { ...taskToInput(sub), parentId: copy.id, projectId: copy.projectId, sectionId: copy.sectionId },
+        });
+      }
+      await taskMut.complete.mutateAsync(task.id);
+      showToast(`Continues on ${format(parseISO(nextDate), 'EEE d MMM')}. Today's part is marked done.`);
+      onOpenTask(copy.id);
+    } catch {
+      // The mutation hooks already showed the error; whatever was created stays visible to fix by hand.
+    } finally {
+      setContinuing(false);
+    }
+  };
+
   return (
     <Modal onClose={onClose} wide>
       <div className="detail-header">
@@ -81,6 +113,18 @@ export function TaskDetail({
           )}
         </span>
         <span className="spacer" />
+        {canContinue && (
+          <button
+            type="button"
+            className="btn detail-continue"
+            title="Mark today's part done and schedule the same task for the next day"
+            onClick={() => void continueTomorrow()}
+            disabled={continuing}
+          >
+            <CalendarPlus size={14} />
+            <span>{continuing ? 'Moving…' : 'Continue tomorrow'}</span>
+          </button>
+        )}
         <button
           type="button"
           className="icon-btn"
