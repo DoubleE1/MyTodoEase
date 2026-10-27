@@ -3568,6 +3568,29 @@ ul {
 }
 
 /* Preview of a future occurrence of a recurring task (calendar) */
+/* A finished task keeps its place on the calendar: muted and struck through, opens on click, cannot be moved. */
+.cal-chip.is-done,
+.tl-block.is-done {
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.tl-block.is-done {
+  background: var(--bg-hover);
+  border-color: var(--border);
+}
+
+.cal-chip.is-done:hover,
+.tl-block.is-done:hover {
+  opacity: 0.9;
+}
+
+.cal-chip.is-done .cal-chip-title,
+.tl-block.is-done .tl-block-title {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
 .cal-chip.is-projected {
   opacity: 0.55;
   background: transparent;

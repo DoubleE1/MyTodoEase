@@ -77,7 +77,7 @@ export default function App() {
   const theme = useTheme();
   const windowMode = useWindowMode();
 
-  const completed = useCompletedTasks(view.kind === 'completed' || openTaskId !== null);
+  const completed = useCompletedTasks(view.kind === 'completed' || view.kind === 'calendar' || openTaskId !== null);
   // Sidebar dashboard: recent completion history (long enough for any realistic streak).
   const recentCompletions = useCompletions(toDateStr(subDays(new Date(), 400)), todayStr());
   const taskMut = useTaskMutations();
@@ -442,6 +442,7 @@ export default function App() {
           <Suspense fallback={<div className="loading">Loading…</div>}>
             <CalendarView
               tasks={tasks.data ?? []}
+              completedTasks={completed.data ?? []}
               projects={projects.data ?? []}
               onOpenTask={setOpenTaskId}
               onAddTask={(dueDate, dueTime) => setDialog({ kind: 'quick-add', dueDate, dueTime })}

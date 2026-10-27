@@ -28,6 +28,23 @@
         "dev:site"
       ],
       "port": 5174
+    },
+    {
+      "name": "web-scratch",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "cross-env",
+        "VITE_API_URL=http://localhost:5081",
+        "npm",
+        "run",
+        "dev",
+        "-w",
+        "frontend",
+        "--",
+        "--port",
+        "5175"
+      ],
+      "port": 5175
     }
   ]
 }

@@ -40,6 +40,8 @@ import { taskToInput } from './TaskEditor';
 
 interface CalendarViewProps {
   tasks: Task[];
+  /** Finished tasks: still drawn on the day they were planned, greyed and struck through. */
+  completedTasks: Task[];
   projects: Project[];
   onOpenTask: (id: string) => void;
   onAddTask: (dueDate: string, dueTime?: string) => void;
@@ -71,6 +73,13 @@ const openExternal = (url: string | null) => {
 
 const snap = (minutes: number) => Math.round(minutes / SNAP_MINUTES) * SNAP_MINUTES;
 
+/** Priority-coloured ring; a finished task gets a plain filled grey dot instead. */
+function dotStyle(task: Task) {
+  if (task.isCompleted) return { borderColor: 'var(--text-muted)', background: 'var(--text-muted)' };
+  const priority = PRIORITY_META[task.priority];
+  return { borderColor: priority.hex, background: task.priority < 4 ? `${priority.hex}33` : undefined };
+}
+
 // ---------- Chips (month grid, all-day row, unscheduled panel) ----------
 
 function TaskChip({
@@ -87,22 +96,28 @@ function TaskChip({
   /** A preview of a future occurrence of a recurring task: not draggable, drawn faded. */
   projected?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, disabled: overlay || projected });
-  const priority = PRIORITY_META[task.priority];
+  const done = task.isCompleted;
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, disabled: overlay || projected || done });
   const subtitle = [task.dueTime ? formatTime(task.dueTime) : null, project && !project.isInbox ? project.name : null]
     .filter(Boolean)
     .join(' · ');
-  const draggable = !overlay && !projected;
+  const draggable = !overlay && !projected && !done;
   return (
     <button
       type="button"
       ref={draggable ? setNodeRef : undefined}
-      className={`cal-chip ${isDragging ? 'is-dragging' : ''} ${overlay ? 'is-overlay' : ''} ${projected ? 'is-projected' : ''}`}
-      title={projected ? `${task.content} (repeats here after the current one is completed)` : task.content}
+      className={`cal-chip ${isDragging ? 'is-dragging' : ''} ${overlay ? 'is-overlay' : ''} ${projected ? 'is-projected' : ''} ${done ? 'is-done' : ''}`}
+      title={
+        projected
+          ? `${task.content} (repeats here after the current one is completed)`
+          : done
+            ? `${task.content} (completed)`
+            : task.content
+      }
       onClick={onOpen}
       {...(draggable ? { ...attributes, ...listeners } : {})}
     >
-      <span className="cal-chip-dot" style={{ borderColor: priority.hex, background: task.priority < 4 ? `${priority.hex}33` : undefined }} />
+      <span className="cal-chip-dot" style={dotStyle(task)} />
       <span className="cal-chip-text">
         <span className="cal-chip-title">{task.content}</span>
         {subtitle && <span className="cal-chip-sub">{subtitle}</span>}
@@ -158,6 +173,7 @@ function DayCell({
   const isToday = dateStr === todayStr();
   const isPast = dateStr < todayStr();
   const { setNodeRef, isOver } = useDroppable({ id: DAY_PREFIX + dateStr });
+  const openCount = tasks.filter((t) => !t.isCompleted).length;
   return (
     <div
       ref={setNodeRef}
@@ -165,7 +181,7 @@ function DayCell({
     >
       <div className="cal-cell-head">
         <span className="cal-day-number">{format(day, 'd')}</span>
-        {tasks.length > 0 && <span className="cal-count muted">{tasks.length}</span>}
+        {openCount > 0 && <span className="cal-count muted">{openCount}</span>}
         <button
           type="button"
           className="icon-btn cal-add"
@@ -215,9 +231,10 @@ function TimeBlock({
   onOpen?: () => void;
   onResize?: (durationMinutes: number) => void;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, disabled: overlay });
+  const done = task.isCompleted;
+  const interactive = !overlay && !done;
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, disabled: !interactive });
   const [previewHeight, setPreviewHeight] = useState<number | null>(null);
-  const priority = PRIORITY_META[task.priority];
   const duration = taskDuration(task);
   const start = task.dueTime ? toMinutes(task.dueTime) : 0;
   const shownMinutes = previewHeight !== null ? (previewHeight / HOUR_PX) * 60 : duration;
@@ -255,25 +272,25 @@ function TimeBlock({
 
   return (
     <div
-      ref={overlay ? undefined : setNodeRef}
-      className={`tl-block ${isDragging ? 'is-dragging' : ''} ${overlay ? 'is-overlay' : ''}`}
+      ref={interactive ? setNodeRef : undefined}
+      className={`tl-block ${isDragging ? 'is-dragging' : ''} ${overlay ? 'is-overlay' : ''} ${done ? 'is-done' : ''}`}
       style={style}
-      title={task.content}
+      title={done ? `${task.content} (completed)` : task.content}
       role="button"
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={(e) => {
         if (e.key === 'Enter' && onOpen) onOpen();
       }}
-      {...(overlay ? {} : { ...attributes, ...listeners })}
+      {...(interactive ? { ...attributes, ...listeners } : {})}
     >
       <span className="tl-block-title">
-        <span className="tl-block-dot" style={{ borderColor: priority.hex, background: task.priority < 4 ? `${priority.hex}33` : undefined }} />
+        <span className="tl-block-dot" style={dotStyle(task)} />
         {task.content}
         {task.recurrence !== 'none' && <Repeat size={10} className="cal-chip-repeat" style={{ marginLeft: 4 }} />}
       </span>
       <span className="tl-block-sub">{subtitle}</span>
-      {!overlay && onResize && <span className="tl-resize" onPointerDown={startResize} aria-hidden="true" />}
+      {interactive && onResize && <span className="tl-resize" onPointerDown={startResize} aria-hidden="true" />}
     </div>
   );
 }
@@ -368,7 +385,7 @@ function UnscheduledPanel({
 
 // ---------- View ----------
 
-export function CalendarView({ tasks, projects, onOpenTask, onAddTask }: CalendarViewProps) {
+export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAddTask }: CalendarViewProps) {
   const queryClient = useQueryClient();
   const taskMut = useTaskMutations();
   const [mode, setMode] = useState<Mode>('month');
@@ -397,16 +414,22 @@ export function CalendarView({ tasks, projects, onOpenTask, onAddTask }: Calenda
   }, [anchor, mode]);
 
   const tasksByDate = useMemo(() => {
+    // Open tasks win over a stale completed copy while a complete or reopen is still settling.
+    const byId = new Map<string, Task>();
+    for (const task of completedTasks) if (task.dueDate) byId.set(task.id, task);
+    for (const task of tasks) byId.set(task.id, task);
     const map = new Map<string, Task[]>();
-    for (const task of tasks) {
+    for (const task of byId.values()) {
       if (!task.dueDate) continue;
       const list = map.get(task.dueDate) ?? [];
       list.push(task);
       map.set(task.dueDate, list);
     }
-    for (const list of map.values()) list.sort((a, b) => compareDue(a, b) || a.priority - b.priority || a.order - b.order);
+    // Finished tasks sink below the open ones in a day's list; on the timeline their time decides.
+    for (const list of map.values())
+      list.sort((a, b) => Number(a.isCompleted) - Number(b.isCompleted) || compareDue(a, b) || a.priority - b.priority || a.order - b.order);
     return map;
-  }, [tasks]);
+  }, [tasks, completedTasks]);
 
   // Future occurrences of recurring tasks inside the visible range, so a fortnightly release shows
   // on every date it will land on, not only the next one.
