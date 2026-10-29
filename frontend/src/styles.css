@@ -3777,29 +3777,36 @@ p.detail-description {
 }
 
 /* Notes board (sticky notes) */
+/* Each note colour is one base hue (--note-c, set per note below). The theme decides how much of it to use:
+   light mode mixes it into white for a pastel paper; dark mode keeps a neutral card with a faint tint and puts
+   the colour on the header's top edge, so notes read as coloured without turning the board muddy. */
 :root {
-  --note-yellow: #fff6a8;
-  --note-green: #d6f5c8;
-  --note-blue: #cfe6ff;
-  --note-pink: #ffd5e5;
-  --note-purple: #e5dbff;
-  --note-orange: #ffe0bd;
-  --note-grey: #ebebeb;
+  --note-paper: #ffffff;
+  --note-body-mix: 24%;
+  --note-head-mix: 42%;
   --note-text: #262626;
   --note-muted: rgba(0, 0, 0, 0.55);
+  --note-line: rgba(0, 0, 0, 0.08);
+  --note-edge: rgba(0, 0, 0, 0.06);
 }
 
 :root[data-theme='dark'] {
-  --note-yellow: #4b4420;
-  --note-green: #26412a;
-  --note-blue: #1f3652;
-  --note-pink: #4e2639;
-  --note-purple: #382c56;
-  --note-orange: #4f3520;
-  --note-grey: #363636;
-  --note-text: #f1f1f1;
-  --note-muted: rgba(255, 255, 255, 0.6);
+  --note-paper: #27272d;
+  --note-body-mix: 8%;
+  --note-head-mix: 15%;
+  --note-text: #ececf0;
+  --note-muted: rgba(255, 255, 255, 0.58);
+  --note-line: rgba(255, 255, 255, 0.08);
+  --note-edge: rgba(255, 255, 255, 0.07);
 }
+
+[data-color='yellow'] { --note-c: #f2c94c; }
+[data-color='green'] { --note-c: #5fcf8f; }
+[data-color='blue'] { --note-c: #56a8f5; }
+[data-color='pink'] { --note-c: #f07db4; }
+[data-color='purple'] { --note-c: #a08bf0; }
+[data-color='orange'] { --note-c: #f2994a; }
+[data-color='grey'] { --note-c: #9ca3af; }
 
 /* The Notes page has no frosted panel: the notes sit straight on the page, which is the whole board. */
 .view.view-notes {
@@ -3880,17 +3887,15 @@ p.detail-description {
   min-height: 190px;
   padding: 0 14px 8px;
   border-radius: 10px;
-  background: var(--note-yellow);
+  background: color-mix(in srgb, var(--note-c, #f2c94c) var(--note-body-mix), var(--note-paper));
+  border: 1px solid var(--note-edge);
   color: var(--note-text);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 4px 14px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), 0 6px 18px rgba(0, 0, 0, 0.1);
 }
 
-.note-card[data-color='green'] { background: var(--note-green); }
-.note-card[data-color='blue'] { background: var(--note-blue); }
-.note-card[data-color='pink'] { background: var(--note-pink); }
-.note-card[data-color='purple'] { background: var(--note-purple); }
-.note-card[data-color='orange'] { background: var(--note-orange); }
-.note-card[data-color='grey'] { background: var(--note-grey); }
+:root[data-theme='dark'] .note-card {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+}
 
 .note-card.is-dragging {
   cursor: grabbing;
@@ -3912,11 +3917,9 @@ p.detail-description {
   margin: 0 -14px 4px;
   padding: 0 6px;
   border-radius: 10px 10px 0 0;
-  background: rgba(0, 0, 0, 0.05);
-}
-
-:root[data-theme='dark'] .note-head {
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--note-c, #f2c94c) var(--note-head-mix), var(--note-paper));
+  /* The note's colour at full strength along the top edge. */
+  box-shadow: inset 0 3px 0 var(--note-c, #f2c94c);
 }
 
 .note-card.is-movable .note-head {
@@ -3989,12 +3992,8 @@ p.detail-description {
   gap: 2px;
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-top: 1px solid var(--note-line);
   min-height: 32px;
-}
-
-:root[data-theme='dark'] .note-footer {
-  border-top-color: rgba(255, 255, 255, 0.1);
 }
 
 .note-meta {
@@ -4104,16 +4103,9 @@ p.detail-description {
   height: 22px;
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.2);
-  background: var(--note-yellow);
+  background: var(--note-c);
   cursor: pointer;
 }
-
-.note-color-swatch[data-color='green'] { background: var(--note-green); }
-.note-color-swatch[data-color='blue'] { background: var(--note-blue); }
-.note-color-swatch[data-color='pink'] { background: var(--note-pink); }
-.note-color-swatch[data-color='purple'] { background: var(--note-purple); }
-.note-color-swatch[data-color='orange'] { background: var(--note-orange); }
-.note-color-swatch[data-color='grey'] { background: var(--note-grey); }
 
 .note-color-swatch.is-selected {
   outline: 2px solid var(--accent);
