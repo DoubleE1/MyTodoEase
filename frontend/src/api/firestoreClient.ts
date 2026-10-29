@@ -248,6 +248,8 @@ function validateNote(input: NoteInput) {
     errors.taskIds = ['Task ids must be valid, at most 100.'];
   for (const v of [input.x, input.y])
     if (v !== undefined && !(Number.isFinite(v) && v >= 0 && v <= 100000)) errors.position = ['Position must be between 0 and 100000.'];
+  if (input.w !== undefined && !(Number.isFinite(input.w) && input.w >= 220 && input.w <= 1200)) errors.w = ['Width must be between 220 and 1200.'];
+  if (input.h !== undefined && !(Number.isFinite(input.h) && input.h >= 160 && input.h <= 1600)) errors.h = ['Height must be between 160 and 1600.'];
   if (Object.keys(errors).length) invalid(errors);
 }
 
@@ -267,6 +269,8 @@ const notes: Api['notes'] = {
       taskIds: [...new Set(input.taskIds ?? [])],
       x: input.x ?? null,
       y: input.y ?? null,
+      w: input.w ?? null,
+      h: input.h ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -286,6 +290,8 @@ const notes: Api['notes'] = {
       ...(input.taskIds !== undefined ? { taskIds: [...new Set(input.taskIds)] } : {}),
       ...(input.x !== undefined ? { x: input.x } : {}),
       ...(input.y !== undefined ? { y: input.y } : {}),
+      ...(input.w !== undefined ? { w: input.w } : {}),
+      ...(input.h !== undefined ? { h: input.h } : {}),
       // Moving a note is not an edit of its content.
       updatedAt: input.text !== undefined || input.color !== undefined ? nowIso() : note.updatedAt,
     };
@@ -631,6 +637,8 @@ const backup: Api['backup'] = {
       taskIds: [...new Set((n.taskIds ?? []).filter(isValidId))],
       x: typeof n.x === 'number' ? n.x : null,
       y: typeof n.y === 'number' ? n.y : null,
+      w: typeof n.w === 'number' ? n.w : null,
+      h: typeof n.h === 'number' ? n.h : null,
       createdAt: n.createdAt ?? nowIso(),
       updatedAt: n.updatedAt ?? nowIso(),
     }));

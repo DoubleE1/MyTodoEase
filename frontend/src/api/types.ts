@@ -41,6 +41,9 @@ export interface Note {
   /** Top-left corner on the board (CSS pixels); null/absent until first placed. */
   x?: number | null;
   y?: number | null;
+  /** Size on the board (CSS pixels); null/absent = default width, height fits the text. */
+  w?: number | null;
+  h?: number | null;
   isArchived: boolean;
   /** Tasks created from this note. */
   taskIds: string[];
@@ -55,6 +58,8 @@ export interface NoteInput {
   order?: number;
   x?: number;
   y?: number;
+  w?: number;
+  h?: number;
   isArchived?: boolean;
   taskIds?: string[];
 }

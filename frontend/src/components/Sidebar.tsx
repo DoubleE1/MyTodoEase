@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   CalendarRange,
+  ChartColumn,
   CheckCircle2,
   ChevronRight,
   Hash,
@@ -9,6 +10,9 @@ import {
   Settings,
   Monitor,
   Moon,
+  PanelLeftClose,
+  PanelLeftDashed,
+  PanelLeftOpen,
   Pencil,
   Plus,
   Search,
@@ -19,7 +23,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { CompletionItem, Label, Project, Task } from '../api/types';
 import { colorHex } from '../lib/colors';
 import { todayStr } from '../lib/dates';
@@ -55,6 +59,50 @@ interface SidebarProps {
 }
 
 const COLLAPSE_KEY_PREFIX = 'mytodoease.sidebar.collapsed.';
+const MODE_KEY = 'todoease.sidebar.mode';
+
+/** Full sidebar, a rail of icons, or hidden altogether (a button at the top left brings it back). */
+export type SidebarMode = 'full' | 'rail' | 'hidden';
+
+function readMode(): SidebarMode {
+  try {
+    const stored = window.localStorage.getItem(MODE_KEY);
+    return stored === 'rail' || stored === 'hidden' ? stored : 'full';
+  } catch {
+    return 'full';
+  }
+}
+
+/** The sidebar mode, remembered on this device; "m" hides or shows the sidebar, as in Todoist. */
+function useSidebarMode() {
+  const [mode, setMode] = useState<SidebarMode>(readMode);
+  // Where "show" returns to: the last visible mode.
+  const lastShown = useRef<Exclude<SidebarMode, 'hidden'>>(mode === 'rail' ? 'rail' : 'full');
+  useEffect(() => {
+    if (mode !== 'hidden') lastShown.current = mode;
+    try {
+      window.localStorage.setItem(MODE_KEY, mode);
+    } catch {
+      // Not persisted; fine.
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      if (typing || event.ctrlKey || event.metaKey || event.altKey || event.key !== 'm') return;
+      if (document.querySelector('.modal-overlay')) return;
+      event.preventDefault();
+      setMode((current) => (current === 'hidden' ? lastShown.current : 'hidden'));
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  return { mode, setMode, show: () => setMode(lastShown.current) };
+}
 
 function readCollapsed(id: string): boolean {
   try {
@@ -70,12 +118,15 @@ function CollapsibleSection({
   icon,
   title,
   action,
+  forceOpen,
   children,
 }: {
   id: string;
   icon: ReactNode;
   title: string;
   action?: ReactNode;
+  /** Show the list whatever its remembered state (the icon rail has no headings). */
+  forceOpen?: boolean;
   children: ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(() => readCollapsed(id));
@@ -106,7 +157,7 @@ function CollapsibleSection({
         </button>
         {action}
       </div>
-      {!collapsed && <div id={listId}>{children}</div>}
+      {(forceOpen || !collapsed) && <div id={listId}>{children}</div>}
     </section>
   );
 }
@@ -124,6 +175,7 @@ function NavItem({
   active,
   onClick,
   actions,
+  iconOnly,
 }: {
   icon: ReactNode;
   label: string;
@@ -131,12 +183,16 @@ function NavItem({
   active: boolean;
   onClick: () => void;
   actions?: ReactNode;
+  /** In the icon rail the label is hidden, so it becomes the tooltip and the accessible name. */
+  iconOnly?: boolean;
 }) {
   return (
     <div
       className={`nav-item ${active ? 'is-active' : ''}`}
       role="button"
       tabIndex={0}
+      title={iconOnly ? (count ? `${label} (${count})` : label) : undefined}
+      aria-label={iconOnly ? label : undefined}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -185,6 +241,9 @@ export function Sidebar({
   const userProjects = projects.filter((p) => !p.isInbox);
   const favorites = userProjects.filter((p) => p.isFavorite);
   const isActive = (candidate: View) => !search && viewEquals(view, candidate);
+  const { mode, setMode, show } = useSidebarMode();
+  const rail = mode === 'rail';
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const projectActions = (project: Project) => (
     <>
@@ -224,22 +283,94 @@ export function Sidebar({
       active={isActive({ kind: 'project', projectId: project.id })}
       onClick={() => onSelectView({ kind: 'project', projectId: project.id })}
       actions={projectActions(project)}
+      iconOnly={rail}
     />
   );
 
+  const hideButton = (
+    <button
+      type="button"
+      className="icon-btn sidebar-toggle"
+      title="Hide sidebar (m)"
+      aria-label="Hide sidebar"
+      onClick={() => setMode('hidden')}
+    >
+      <PanelLeftDashed size={16} />
+    </button>
+  );
+
   return (
-    <aside className="sidebar">
-      <div className="sidebar-top">
-        <div className="brand">
-          <Wordmark size={26} />
-        </div>
-        <button type="button" className="add-task-primary" onClick={onAddTask} title="Add task (q)">
-          <Plus size={18} />
-          <span>Add task</span>
+    <>
+      {mode === 'hidden' && (
+        <button
+          type="button"
+          className="icon-btn sidebar-reveal"
+          title="Show sidebar (m)"
+          aria-label="Show sidebar"
+          onClick={show}
+        >
+          <PanelLeftOpen size={18} />
         </button>
+      )}
+      <aside className={`sidebar is-${mode}`} inert={mode === 'hidden'} aria-label="Sidebar">
+        <div className="sidebar-top">
+          <div className="brand">
+            <Wordmark size={26} />
+            <div className="sidebar-toggles">
+              {rail ? (
+                <button
+                  type="button"
+                  className="icon-btn sidebar-toggle"
+                  title="Expand sidebar"
+                  aria-label="Expand sidebar"
+                  onClick={() => setMode('full')}
+                >
+                  <PanelLeftOpen size={16} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="icon-btn sidebar-toggle"
+                  title="Collapse to icons"
+                  aria-label="Collapse sidebar to icons"
+                  onClick={() => setMode('rail')}
+                >
+                  <PanelLeftClose size={16} />
+                </button>
+              )}
+              {hideButton}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="add-task-primary"
+            onClick={onAddTask}
+            title="Add task (q)"
+            aria-label={rail ? 'Add task' : undefined}
+          >
+            <Plus size={18} />
+            <span>Add task</span>
+          </button>
+          {rail && (
+            <button
+              type="button"
+              className="nav-item rail-search"
+              title="Search tasks"
+              aria-label="Search tasks"
+              onClick={() => {
+                setMode('full');
+                window.setTimeout(() => searchRef.current?.focus(), 0);
+              }}
+            >
+              <span className="nav-icon">
+                <Search size={18} />
+              </span>
+            </button>
+          )}
         <div className="search-box">
           <Search size={15} />
           <input
+            ref={searchRef}
             placeholder="Search tasks"
             value={search}
             onChange={(e) => onSearch(e.target.value)}
@@ -253,23 +384,36 @@ export function Sidebar({
         </div>
       </div>
 
-      <Dashboard
-        tasks={tasks}
-        completions={completions}
-        active={isActive({ kind: 'insights' })}
-        onSelectView={onSelectView}
-      />
+      {!rail && (
+        <Dashboard
+          tasks={tasks}
+          completions={completions}
+          active={isActive({ kind: 'insights' })}
+          onSelectView={onSelectView}
+        />
+      )}
 
       <nav className="sidebar-nav">
+        {rail && (
+          <NavItem
+            icon={<ChartColumn size={18} />}
+            label="Insights"
+            active={isActive({ kind: 'insights' })}
+            onClick={() => onSelectView({ kind: 'insights' })}
+            iconOnly
+          />
+        )}
         <NavItem
           icon={<StickyNote size={18} />}
           label="Notes"
+          iconOnly={rail}
           active={isActive({ kind: 'notes' })}
           onClick={() => onSelectView({ kind: 'notes' })}
         />
         <NavItem
           icon={<Inbox size={18} />}
           label="Inbox"
+          iconOnly={rail}
           count={inboxCount}
           active={isActive({ kind: 'inbox' })}
           onClick={() => onSelectView({ kind: 'inbox' })}
@@ -277,6 +421,7 @@ export function Sidebar({
         <NavItem
           icon={<CalendarDays size={18} />}
           label="Today"
+          iconOnly={rail}
           count={todayCount}
           active={isActive({ kind: 'today' })}
           onClick={() => onSelectView({ kind: 'today' })}
@@ -284,25 +429,28 @@ export function Sidebar({
         <NavItem
           icon={<CalendarDays size={18} />}
           label="Upcoming"
+          iconOnly={rail}
           active={isActive({ kind: 'upcoming' })}
           onClick={() => onSelectView({ kind: 'upcoming' })}
         />
         <NavItem
           icon={<CalendarRange size={18} />}
           label="Calendar"
+          iconOnly={rail}
           active={isActive({ kind: 'calendar' })}
           onClick={() => onSelectView({ kind: 'calendar' })}
         />
         <NavItem
           icon={<CheckCircle2 size={18} />}
           label="Completed"
+          iconOnly={rail}
           active={isActive({ kind: 'completed' })}
           onClick={() => onSelectView({ kind: 'completed' })}
         />
       </nav>
 
       {favorites.length > 0 && (
-        <CollapsibleSection id="favorites" icon={<Star size={13} />} title="Favorites">
+        <CollapsibleSection id="favorites" icon={<Star size={13} />} title="Favorites" forceOpen={rail}>
           {favorites.map(projectItem)}
         </CollapsibleSection>
       )}
@@ -311,6 +459,7 @@ export function Sidebar({
         id="projects"
         icon={<Hash size={13} />}
         title="My Projects"
+        forceOpen={rail}
         action={
           <button type="button" className="icon-btn" title="Add project" aria-label="Add project" onClick={onAddProject}>
             <Plus size={15} />
@@ -325,6 +474,7 @@ export function Sidebar({
         id="labels"
         icon={<Tag size={13} />}
         title="Labels"
+        forceOpen={rail}
         action={
           <button type="button" className="icon-btn" title="Add label" aria-label="Add label" onClick={onAddLabel}>
             <Plus size={15} />
@@ -338,6 +488,7 @@ export function Sidebar({
             icon={<Tag size={15} color={colorHex(label.color)} />}
             label={label.name}
             count={countForLabel(label.id)}
+            iconOnly={rail}
             active={isActive({ kind: 'label', labelId: label.id })}
             onClick={() => onSelectView({ kind: 'label', labelId: label.id })}
             actions={
@@ -401,5 +552,6 @@ export function Sidebar({
         </button>
       </div>
     </aside>
+    </>
   );
 }

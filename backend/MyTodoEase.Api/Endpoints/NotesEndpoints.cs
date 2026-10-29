@@ -6,7 +6,7 @@ namespace MyTodoEase.Api.Endpoints;
 public static class NotesEndpoints
 {
     /// <summary>Partial update: a null field is left as it is.</summary>
-    public sealed record NoteWriteRequest(string? Text, string? Color, int? Order, bool? IsArchived, List<string>? TaskIds, double? X = null, double? Y = null);
+    public sealed record NoteWriteRequest(string? Text, string? Color, int? Order, bool? IsArchived, List<string>? TaskIds, double? X = null, double? Y = null, double? W = null, double? H = null);
 
     public sealed record NoteOrder(string Id, int Order);
 
@@ -38,6 +38,8 @@ public static class NotesEndpoints
                 TaskIds = req.TaskIds?.Distinct().ToList() ?? [],
                 X = req.X,
                 Y = req.Y,
+                W = req.W,
+                H = req.H,
                 CreatedAt = now,
                 UpdatedAt = now,
             };
@@ -61,6 +63,8 @@ public static class NotesEndpoints
             if (req.TaskIds is not null) note.TaskIds = req.TaskIds.Distinct().ToList();
             if (req.X is double x) note.X = x;
             if (req.Y is double y) note.Y = y;
+            if (req.W is double w) note.W = w;
+            if (req.H is double h) note.H = h;
             // Moving a note is not an edit of its content: "edited 2 minutes ago" keeps meaning the text.
             if (req.Text is not null || req.Color is not null) note.UpdatedAt = DateTime.UtcNow;
             await store.Notes.UpsertAsync(note, ct);
@@ -99,6 +103,10 @@ public static class NotesEndpoints
             errors["taskIds"] = ["Task ids must be valid, at most 100."];
         if (req.X is < 0 or > 100000 || req.Y is < 0 or > 100000 || req.X is double.NaN || req.Y is double.NaN)
             errors["position"] = ["Position must be between 0 and 100000."];
+        if (req.W is double w && (double.IsNaN(w) || w < Note.MinWidth || w > Note.MaxWidth))
+            errors["w"] = [$"Width must be between {Note.MinWidth} and {Note.MaxWidth}."];
+        if (req.H is double h && (double.IsNaN(h) || h < Note.MinHeight || h > Note.MaxHeight))
+            errors["h"] = [$"Height must be between {Note.MinHeight} and {Note.MaxHeight}."];
         return errors;
     }
 }

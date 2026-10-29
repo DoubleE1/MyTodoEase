@@ -10,6 +10,7 @@ public sealed class Note
 {
     public static readonly string[] Colors = ["yellow", "green", "blue", "pink", "purple", "orange", "grey"];
     public const int MaxTextLength = 20000;
+    public const double MinWidth = 220, MaxWidth = 1200, MinHeight = 160, MaxHeight = 1600;
 
     [BsonId]
     public string Id { get; set; } = null!;
@@ -20,6 +21,9 @@ public sealed class Note
     /// <summary>Top-left corner on the board in CSS pixels; null until the note is first placed.</summary>
     public double? X { get; set; }
     public double? Y { get; set; }
+    /// <summary>Size on the board in CSS pixels; null = default width and a height that fits the text.</summary>
+    public double? W { get; set; }
+    public double? H { get; set; }
     public bool IsArchived { get; set; }
     public List<string> TaskIds { get; set; } = [];
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

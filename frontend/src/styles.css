@@ -5629,3 +5629,237 @@ p.detail-description {
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+/* ---- Sticky notes: resize handle and click feedback ---- */
+
+/* A note with a saved size: the text fills the card and scrolls inside it. */
+.note-card.is-sized {
+  min-height: 0;
+}
+
+.note-card.is-sized .note-text {
+  min-height: 0;
+  max-height: none;
+}
+
+.note-card.is-resizing {
+  transition: none;
+  user-select: none;
+}
+
+.note-card > .note-resize {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 0 0 11px 0;
+  background:
+    linear-gradient(135deg, transparent 52%, var(--note-muted) 52%, var(--note-muted) 58%, transparent 58%),
+    linear-gradient(135deg, transparent 70%, var(--note-muted) 70%, var(--note-muted) 76%, transparent 76%);
+  cursor: nwse-resize;
+  opacity: 0;
+  touch-action: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.note-card:hover > .note-resize,
+.note-card.is-resizing > .note-resize,
+.note-card > .note-resize:focus-visible {
+  opacity: 1;
+}
+
+.note-card > .note-resize:focus-visible {
+  outline: 2px solid var(--note-c, #8b72ff);
+  outline-offset: 1px;
+}
+
+/* Pressing the card (not its text) gives a little; the press springs back on release. */
+.note-card.is-movable:active:not(.is-dragging):not(.is-resizing):not(:has(.note-text:active, .note-resize:active)) {
+  scale: 0.985;
+  transition: scale 70ms var(--ease-out);
+}
+
+/* The note being written in glows in its own colour. */
+.note-card:focus-within {
+  border-color: color-mix(in srgb, var(--note-c, #8b72ff) 55%, var(--note-border));
+  border-top-color: var(--note-c, #8b72ff);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--note-c, #8b72ff) 22%, transparent),
+    0 -3px 16px -5px color-mix(in srgb, var(--note-c, #8b72ff) var(--note-glow-mix), transparent),
+    var(--note-shadow-hover),
+    inset 0 1px 0 var(--note-inset);
+}
+
+/* ==========================================================================
+   Sidebar modes: full, a rail of icons, or hidden ("m" toggles hidden)
+   ========================================================================== */
+
+.sidebar {
+  overflow-x: hidden;
+  transition:
+    width var(--dur-base) var(--ease-out),
+    padding var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
+}
+
+.sidebar .brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.sidebar-toggles {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+/* The toggles stay quiet until the sidebar is pointed at or tabbed into. */
+.sidebar:hover .sidebar-toggles,
+.sidebar-toggles:focus-within {
+  opacity: 1;
+}
+
+.sidebar-toggle {
+  color: var(--text-muted);
+}
+
+/* ---- Rail: icons only, labels as tooltips ---- */
+
+.sidebar.is-rail {
+  width: 64px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.sidebar.is-rail .sidebar-top {
+  padding: 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.sidebar.is-rail .brand {
+  flex-direction: column;
+  padding: 4px 0 8px;
+}
+
+.sidebar.is-rail .wordmark-text,
+.sidebar.is-rail .search-box,
+.sidebar.is-rail .add-task-primary span,
+.sidebar.is-rail .sidebar-heading,
+.sidebar.is-rail .sidebar-empty,
+.sidebar.is-rail .nav-label,
+.sidebar.is-rail .footer-btn span {
+  display: none;
+}
+
+.sidebar.is-rail .sidebar-toggles {
+  flex-direction: column;
+  opacity: 1;
+}
+
+.sidebar.is-rail .add-task-primary {
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+}
+
+.sidebar.is-rail .nav-item {
+  position: relative;
+  justify-content: center;
+  width: 44px;
+  margin: 0 auto;
+  padding: 9px 0;
+}
+
+.sidebar.is-rail .rail-search {
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.sidebar.is-rail .rail-search:hover {
+  background: var(--bg-hover);
+}
+
+.sidebar.is-rail .nav-item .nav-actions,
+.sidebar.is-rail .nav-item:hover .nav-actions,
+.sidebar.is-rail .nav-item:focus-within .nav-actions {
+  display: none;
+}
+
+/* Counts become a small badge on the icon. */
+.sidebar.is-rail .nav-count,
+.sidebar.is-rail .nav-item:hover .nav-count {
+  display: block;
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--bg-active);
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.sidebar.is-rail .sidebar-section {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar.is-rail .sidebar-footer {
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0 0;
+}
+
+.sidebar.is-rail .footer-btn {
+  flex: 0 0 auto;
+  width: 40px;
+}
+
+/* ---- Hidden: the sidebar slides shut; a button at the top left brings it back ---- */
+
+.sidebar.is-hidden {
+  width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-right-color: transparent;
+  overflow: hidden;
+}
+
+.sidebar-reveal {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 40;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  animation: pop-in var(--dur-base) var(--ease-out);
+}
+
+.app.has-titlebar .sidebar-reveal {
+  top: calc(env(titlebar-area-height, 36px) + 10px);
+}
+
+/* Room for the show-sidebar button so it never covers the page title. */
+.sidebar.is-hidden ~ .main {
+  padding-left: 60px;
+}
