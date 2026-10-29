@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Label, Priority, Project, Recurrence, Section, Task, TaskInput } from '../api/types';
 import { parseQuickAdd } from '../lib/quickAdd';
 import { DuePicker, LabelPicker, PriorityPicker, ProjectPicker } from './Pickers';
@@ -69,6 +69,15 @@ export function TaskEditor({
 
   const [content, setContent] = useState(base.content);
   const [description, setDescription] = useState(base.description ?? '');
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+
+  // Grow the description box to fit its text (CSS max-height caps it; past that it scrolls).
+  useLayoutEffect(() => {
+    const el = descriptionRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }, [description]);
   const [fields, setFields] = useState<Fields>({
     projectId: base.projectId,
     sectionId: base.sectionId ?? null,
@@ -193,8 +202,9 @@ export function TaskEditor({
         aria-label="Task name"
       />
       <textarea
-        className="editor-description"
-        placeholder="Description"
+        ref={descriptionRef}
+        className={`editor-description ${textOnly ? 'is-roomy' : ''}`}
+        placeholder="Description (Markdown supported: **bold**, - lists, [links](https://…), `code`)"
         rows={2}
         value={description}
         onChange={(e) => setDescription(e.target.value)}

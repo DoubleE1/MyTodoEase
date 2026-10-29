@@ -204,9 +204,15 @@ function createWindow() {
     win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   }
 
-  // External links open in the system browser, never inside the app window.
+  // External links (e.g. in task descriptions) open in the system browser, never inside the app window.
+  // Only web and mail links are handed over; anything else (file:, custom protocols) is dropped.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    try {
+      const { protocol } = new URL(url);
+      if (protocol === 'https:' || protocol === 'http:' || protocol === 'mailto:') void shell.openExternal(url);
+    } catch {
+      // Not a valid URL: ignore it.
+    }
     return { action: 'deny' };
   });
 

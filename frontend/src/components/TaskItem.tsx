@@ -5,6 +5,7 @@ import type { Label, Project, Task } from '../api/types';
 import { colorHex, PRIORITY_META } from '../lib/colors';
 import { describeDue } from '../lib/dates';
 import { ProjectIcon } from './Pickers';
+import { markdownPreview } from '../lib/markdownPreview';
 
 export interface TaskItemProps {
   task: Task;
@@ -77,7 +78,7 @@ export function TaskItem({
           }}
         >
           <div className="task-content">{task.content}</div>
-          {task.description && <div className="task-desc">{task.description.split('\n')[0]}</div>}
+          {task.description && <div className="task-desc">{markdownPreview(task.description)}</div>}
           {hasMeta && (
             <div className="task-meta">
               {childCount > 0 && (

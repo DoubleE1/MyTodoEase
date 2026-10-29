@@ -8,6 +8,7 @@ import { toDateStr, todayStr } from '../lib/dates';
 import { showToast } from '../lib/toast';
 import { sortByOrder } from '../lib/views';
 import { Modal } from './Dialogs';
+import { MarkdownText } from './MarkdownText';
 import { DuePicker, LabelPicker, PriorityPicker, ProjectIcon, ProjectPicker } from './Pickers';
 import { TaskEditor, taskToInput } from './TaskEditor';
 import { TaskItem } from './TaskItem';
@@ -176,9 +177,11 @@ export function TaskDetail({
                 }}
               >
                 <h2>{task.content}</h2>
-                <p className={task.description ? 'detail-description' : 'detail-description muted'}>
-                  {task.description || 'Add a description'}
-                </p>
+                {task.description ? (
+                  <MarkdownText text={task.description} className="detail-description" />
+                ) : (
+                  <p className="detail-description muted">Add a description</p>
+                )}
               </div>
             )}
           </div>
