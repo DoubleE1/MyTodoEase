@@ -3878,7 +3878,7 @@ p.detail-description {
   display: flex;
   flex-direction: column;
   min-height: 190px;
-  padding: 14px 14px 8px;
+  padding: 0 14px 8px;
   border-radius: 10px;
   background: var(--note-yellow);
   color: var(--note-text);
@@ -3903,11 +3903,35 @@ p.detail-description {
   min-height: 0;
 }
 
+/* Header bar: the drag area (like the top bar of Windows Sticky Notes), with the note's buttons. */
+.note-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  margin: 0 -14px 4px;
+  padding: 0 6px;
+  border-radius: 10px 10px 0 0;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme='dark'] .note-head {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.note-card.is-movable .note-head {
+  cursor: grab;
+}
+
+.note-card.is-dragging .note-head {
+  cursor: grabbing;
+}
+
 .note-grip {
-  position: absolute;
-  top: 2px;
-  left: 50%;
-  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
   padding: 0 6px;
   border-radius: 4px;
   border: 0;
@@ -3923,10 +3947,18 @@ p.detail-description {
   opacity: 1;
 }
 
+.note-grip:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.note-card.is-movable .note-grip {
+  cursor: grab;
+}
+
 .note-text {
   flex: 1;
   width: 100%;
-  min-height: 120px;
+  min-height: 110px;
   max-height: 420px;
   border: 0;
   outline: none;

@@ -148,7 +148,9 @@ export function NotesView({
   /** Drag a note by its frame; the textarea and buttons keep their own behaviour. */
   const startDrag = (note: Note, event: ReactPointerEvent<HTMLElement>) => {
     if (stacked || event.button !== 0) return;
-    if ((event.target as Element).closest('textarea, button, input, a, [role="radiogroup"]')) return;
+    // Text, buttons and links keep their own behaviour; the grip is a button but is meant to be dragged.
+    const control = (event.target as Element).closest('textarea, button, input, a, [role="radiogroup"]');
+    if (control && !control.classList.contains('note-grip')) return;
     event.preventDefault();
     const startX = event.clientX;
     const startY = event.clientY;
@@ -289,7 +291,6 @@ export function NotesView({
                 onConvert={() => setConverting(note)}
                 onArchive={() => save(note, { isArchived: true })}
                 onDelete={() => void remove(note)}
-                onDeleteEmpty={() => mut.remove.mutate(note.id)}
               />
             );
           })}
@@ -367,7 +368,6 @@ function NoteCard({
   onConvert,
   onArchive,
   onDelete,
-  onDeleteEmpty,
 }: {
   note: Note;
   style?: React.CSSProperties;
@@ -382,7 +382,6 @@ function NoteCard({
   onConvert: () => void;
   onArchive: () => void;
   onDelete: () => void;
-  onDeleteEmpty: () => void;
 }) {
   const [text, setText] = useState(note.text);
   const textRef = useRef(note.text);
@@ -438,59 +437,32 @@ function NoteCard({
       style={style}
       onPointerDown={onPointerDown}
     >
-      {movable && (
-        <button
-          type="button"
-          className="note-grip"
-          aria-label="Move note (arrow keys)"
-          title="Drag the note's edge to move it, or use the arrow keys here"
-          onKeyDown={(e) => {
-            const step = e.shiftKey ? KEY_STEP * 4 : KEY_STEP;
-            const moves: Record<string, [number, number]> = {
-              ArrowLeft: [-step, 0],
-              ArrowRight: [step, 0],
-              ArrowUp: [0, -step],
-              ArrowDown: [0, step],
-            };
-            const delta = moves[e.key];
-            if (!delta) return;
-            e.preventDefault();
-            onNudge(delta[0], delta[1]);
-          }}
-        >
-          <Grip size={14} />
-        </button>
-      )}
-      <textarea
-        ref={areaRef}
-        className="note-text"
-        value={text}
-        placeholder="Write anything… e.g. a list of things to do"
-        aria-label="Note"
-        onFocus={() => setFocused(true)}
-        onChange={(e) => {
-          setText(e.target.value);
-          textRef.current = e.target.value;
-          window.clearTimeout(timer.current);
-          timer.current = window.setTimeout(flush, SAVE_DELAY_MS);
-        }}
-        onBlur={() => {
-          setFocused(false);
-          flush();
-          // A note that was opened and left empty is not worth keeping.
-          if (!textRef.current.trim() && note.taskIds.length === 0) onDeleteEmpty();
-        }}
-      />
-      <footer className="note-footer">
-        <span className="note-meta" title={note.updatedAt ? `Edited ${new Date(note.updatedAt).toLocaleString()}` : undefined}>
-          {note.taskIds.length > 0 ? (
-            <>
-              <ListTodo size={13} /> {note.taskIds.length} task{note.taskIds.length === 1 ? '' : 's'} made
-            </>
-          ) : (
-            edited
-          )}
-        </span>
+      {/* Header bar: drag the note by it (like the top bar of Windows Sticky Notes); it holds the note's buttons. */}
+      <header className="note-head" title={movable ? 'Drag to move' : undefined}>
+        {movable && (
+          <button
+            type="button"
+            className="note-grip"
+            aria-label="Move note (drag, or arrow keys)"
+            title="Drag to move, or use the arrow keys"
+            onKeyDown={(e) => {
+              const step = e.shiftKey ? KEY_STEP * 4 : KEY_STEP;
+              const moves: Record<string, [number, number]> = {
+                ArrowLeft: [-step, 0],
+                ArrowRight: [step, 0],
+                ArrowUp: [0, -step],
+                ArrowDown: [0, step],
+              };
+              const delta = moves[e.key];
+              if (!delta) return;
+              e.preventDefault();
+              onNudge(delta[0], delta[1]);
+            }}
+          >
+            <Grip size={14} />
+          </button>
+        )}
+        <span className="spacer" />
         <Popover
           align="right"
           trigger={({ onClick }) => (
@@ -526,6 +498,35 @@ function NoteCard({
         <button type="button" className="note-btn" title="Delete" aria-label="Delete note" onClick={onDelete}>
           <Trash2 size={15} />
         </button>
+      </header>
+      <textarea
+        ref={areaRef}
+        className="note-text"
+        value={text}
+        placeholder="Write anything… e.g. a list of things to do"
+        aria-label="Note"
+        onFocus={() => setFocused(true)}
+        onChange={(e) => {
+          setText(e.target.value);
+          textRef.current = e.target.value;
+          window.clearTimeout(timer.current);
+          timer.current = window.setTimeout(flush, SAVE_DELAY_MS);
+        }}
+        onBlur={() => {
+          setFocused(false);
+          flush();
+        }}
+      />
+      <footer className="note-footer">
+        <span className="note-meta" title={note.updatedAt ? `Edited ${new Date(note.updatedAt).toLocaleString()}` : undefined}>
+          {note.taskIds.length > 0 ? (
+            <>
+              <ListTodo size={13} /> {note.taskIds.length} task{note.taskIds.length === 1 ? '' : 's'} made
+            </>
+          ) : (
+            edited
+          )}
+        </span>
         <button
           type="button"
           className="note-convert"
