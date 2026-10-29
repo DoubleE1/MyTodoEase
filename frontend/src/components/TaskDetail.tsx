@@ -8,6 +8,7 @@ import { toDateStr, todayStr } from '../lib/dates';
 import { showToast } from '../lib/toast';
 import { sortByOrder } from '../lib/views';
 import { Modal } from './Dialogs';
+import { AnimatedList } from './AnimatedList';
 import { MarkdownText } from './MarkdownText';
 import { DuePicker, LabelPicker, PriorityPicker, ProjectIcon, ProjectPicker } from './Pickers';
 import { TaskEditor, taskToInput } from './TaskEditor';
@@ -202,7 +203,7 @@ export function TaskDetail({
           {!task.parentId && (
             <>
               <h3 className="detail-subheading">Sub-tasks</h3>
-              <ul className="task-list">
+              <AnimatedList className="task-list">
                 {subtasks.map((sub) => (
                   <TaskItem
                     key={sub.id}
@@ -213,7 +214,7 @@ export function TaskDetail({
                     onDelete={() => onDeleteTask(sub)}
                   />
                 ))}
-              </ul>
+              </AnimatedList>
               {addingSubtask ? (
                 <TaskEditor
                   mode="create"

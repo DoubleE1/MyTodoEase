@@ -13,6 +13,7 @@ const InsightsView = lazy(() => import('./InsightsView').then((m) => ({ default:
 import { Popover } from './Popover';
 import { TaskEditor, taskToInput } from './TaskEditor';
 import { TaskItem } from './TaskItem';
+import { AnimatedList } from './AnimatedList';
 
 interface CompactViewProps {
   tasks: Task[];
@@ -398,7 +399,7 @@ export function CompactView({
                     Reschedule to today
                   </button>
                 </div>
-                <ul className="task-list">{overdue.map(renderTask)}</ul>
+                <AnimatedList className="task-list">{overdue.map(renderTask)}</AnimatedList>
               </div>
             )}
             <div className="task-group">
@@ -407,7 +408,7 @@ export function CompactView({
                   <h2>Today</h2>
                 </div>
               )}
-              <ul className="task-list">{dueToday.map(renderTask)}</ul>
+              <AnimatedList className="task-list">{dueToday.map(renderTask)}</AnimatedList>
               {dueToday.length === 0 && !addingTop && (
                 <p className="empty">{overdue.length > 0 ? 'Nothing else due today.' : 'Nothing due today.'}</p>
               )}
@@ -465,7 +466,7 @@ export function CompactView({
             ) : (
               <>
                 <div className="pane-body">
-                  <ul className="task-list">{lower.tasks.map(renderTask)}</ul>
+                  <AnimatedList className="task-list">{lower.tasks.map(renderTask)}</AnimatedList>
                   {lower.tasks.length === 0 && !addingBottom && <p className="empty">{lower.empty}</p>}
                 </div>
                 <div className="pane-footer">

@@ -27,6 +27,8 @@ import { isOverdue, matchesSearch, sortByOrder, sortForAgenda, viewTitle, type V
 import type { ConfirmOptions } from './Dialogs';
 import { TaskEditor, taskToInput } from './TaskEditor';
 import { TaskItem, type TaskItemProps } from './TaskItem';
+import { AnimatedList } from './AnimatedList';
+import { setDragging } from '../lib/motion';
 
 interface TaskListProps {
   view: View;
@@ -64,6 +66,8 @@ const DROP_PREFIX = 'drop:';
 function SortableTask({ task, ...rest }: Omit<TaskItemProps, 'handle' | 'innerRef' | 'style' | 'className'>) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
+    // Rows make way quickly and the dropped row settles with a slight spring.
+    transition: { duration: 220, easing: 'cubic-bezier(0.3, 1.25, 0.5, 1)' },
   });
   return (
     <TaskItem
@@ -93,9 +97,9 @@ function SortableTask({ task, ...rest }: Omit<TaskItemProps, 'handle' | 'innerRe
 function DroppableList({ groupKey, children }: { groupKey: string; children: ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: DROP_PREFIX + groupKey });
   return (
-    <ul ref={setNodeRef} className={`task-list is-droppable ${isOver ? 'is-over' : ''}`}>
+    <AnimatedList innerRef={setNodeRef} className={`task-list is-droppable ${isOver ? 'is-over' : ''}`}>
       {children}
-    </ul>
+    </AnimatedList>
   );
 }
 
@@ -148,6 +152,9 @@ export function TaskList({
   );
 
   const today = todayStr();
+  // The one task left for today (including overdue ones): completing it earns the small celebration.
+  const dueNow = tasks.filter((t) => !t.isCompleted && t.dueDate !== null && t.dueDate <= today);
+  const lastOpenToday = dueNow.length === 1 ? dueNow[0].id : null;
   const inbox = projects.find((p) => p.isInbox);
   const projectById = new Map(projects.map((p) => [p.id, p]));
   const taskById = new Map(tasks.map((t) => [t.id, t]));
@@ -307,6 +314,7 @@ export function TaskList({
     overId.startsWith(DROP_PREFIX) ? overId.slice(DROP_PREFIX.length) : containerOf(items, overId);
 
   const onDragStart = (event: DragStartEvent) => {
+    setDragging(true);
     const snapshot = Object.fromEntries(groups.map((g) => [g.key, g.tasks.map((t) => t.id)]));
     dragOrigin.current = containerOf(snapshot, String(event.active.id)) ?? null;
     setDragItems(snapshot);
@@ -330,6 +338,7 @@ export function TaskList({
   };
 
   const onDragEnd = (event: DragEndEvent) => {
+    setDragging(false);
     const { active, over } = event;
     const items = dragItems;
     const origin = dragOrigin.current;
@@ -400,12 +409,13 @@ export function TaskList({
       showProject,
       childCount: kids.length,
       onToggle: () => taskMut.complete.mutate(task.id),
+      celebrate: task.id === lastOpenToday,
       onOpen: () => onOpenTask(task.id),
       onDelete: () => onDeleteTask(task),
     };
     const nestedList =
       nested && kids.length > 0 ? (
-        <ul className="task-list task-list-nested">{kids.map((k) => renderTask(k, true, false))}</ul>
+        <AnimatedList className="task-list task-list-nested">{kids.map((k) => renderTask(k, true, false))}</AnimatedList>
       ) : null;
     return sortable ? (
       <SortableTask key={task.id} {...props}>
@@ -428,7 +438,7 @@ export function TaskList({
         {completedTasks.length === 0 ? (
           <p className="empty">Nothing completed yet.</p>
         ) : (
-          <ul className="task-list">
+          <AnimatedList className="task-list">
             {completedTasks.map((task) => (
               <TaskItem
                 key={task.id}
@@ -442,7 +452,7 @@ export function TaskList({
                 onDelete={() => onDeleteTask(task)}
               />
             ))}
-          </ul>
+          </AnimatedList>
         )}
       </div>
     );
@@ -454,7 +464,7 @@ export function TaskList({
 
   const renderGroupTasks = (group: Group) => {
     if (!isProjectView) {
-      return <ul className="task-list">{group.tasks.map((task) => renderTask(task, group.nested, false))}</ul>;
+      return <AnimatedList className="task-list">{group.tasks.map((task) => renderTask(task, group.nested, false))}</AnimatedList>;
     }
     // While dragging, follow the in-flight order instead of the server order.
     const ids = dragItems?.[group.key] ?? group.tasks.map((t) => t.id);
@@ -688,6 +698,7 @@ export function TaskList({
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
       onDragCancel={() => {
+        setDragging(false);
         setDragItems(null);
         dragOrigin.current = null;
       }}

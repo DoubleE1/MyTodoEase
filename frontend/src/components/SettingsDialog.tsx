@@ -5,6 +5,7 @@ import { IS_WEB_APP } from '../api/backend';
 import { api, ApiError } from '../api/client';
 import { ACCENT_PRESETS, DEFAULT_ACCENT } from '../lib/accent';
 import type { ThemePreference } from '../lib/theme';
+import { useReduceMotionSetting } from '../lib/motion';
 import { showToast } from '../lib/toast';
 import type { ConfirmOptions } from './Dialogs';
 import { Modal } from './Dialogs';
@@ -203,6 +204,8 @@ export function SettingsDialog({
               </button>
             )}
           </div>
+
+          <ReduceMotionToggle />
         </section>
         )}
 
@@ -258,5 +261,19 @@ export function SettingsDialog({
         </div>
       </div>
     </Modal>
+  );
+}
+
+/** Settings > Appearance: turn off animations in the app (the OS "reduce motion" setting is always honoured too). */
+function ReduceMotionToggle() {
+  const [reduce, setReduce] = useReduceMotionSetting();
+  return (
+    <label className="settings-toggle settings-motion">
+      <input type="checkbox" checked={reduce} onChange={(e) => setReduce(e.target.checked)} />
+      <span>
+        <strong>Reduce motion</strong>
+        <span className="muted small">Turns off animations such as list movement, pop-ups and the completion effect.</span>
+      </span>
+    </label>
   );
 }

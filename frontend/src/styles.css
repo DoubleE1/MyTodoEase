@@ -1722,9 +1722,6 @@ ul {
   cursor: grabbing;
 }
 
-.task-item.is-dragging {
-  opacity: 0.35;
-}
 
 .task-item.is-dragging .task-row {
   background: var(--bg-hover);
@@ -5266,4 +5263,367 @@ p.detail-description {
     white-space: normal;
     flex: 1 1 100%;
   }
+}
+
+/* ==========================================================================
+   Motion system
+   One set of timings for the whole app. Only transform and opacity animate
+   (plus colour fades), entering eases out, leaving is shorter and eases in.
+   Everything switches off with the OS "reduce motion" setting or the in-app
+   Settings > Appearance > Reduce motion switch (data-reduce-motion on <html>).
+   ========================================================================== */
+
+:root {
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 260ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.3, 1.35, 0.5, 1);
+}
+
+/* ---- Hover and press feedback ---- */
+
+.btn,
+.icon-btn,
+.nav-item,
+.chip,
+.link-btn,
+.segmented-option,
+.settings-tab,
+.desc-tool,
+.desc-menu-item,
+.table-menu-item,
+.note-menu-item,
+.footer-btn,
+.add-task-btn,
+.group-toggle,
+.task-row {
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+/* A pressed control gives a little under the finger. */
+.btn:active:not(:disabled),
+.icon-btn:active:not(:disabled),
+.chip:active,
+.nav-item:active,
+.segmented-option:active,
+.settings-tab:active,
+.desc-tool:active,
+.note-btn:active,
+.note-convert:active:not(:disabled),
+.footer-btn:active,
+.add-task-btn:active {
+  transform: scale(0.97);
+  transition-duration: 60ms;
+}
+
+/* ---- Menus and popovers: grow out of their trigger, shrink back toward it ---- */
+
+.popover {
+  transform-origin: top left;
+  animation: pop-in var(--dur-base) var(--ease-out);
+}
+
+.popover.popover-right {
+  transform-origin: top right;
+}
+
+.popover.popover-up {
+  transform-origin: bottom left;
+}
+
+.popover.popover-up.popover-right {
+  transform-origin: bottom right;
+}
+
+.popover.is-closing {
+  animation: pop-out 110ms var(--ease-in) forwards;
+  pointer-events: none;
+}
+
+.table-menu,
+.desc-link-box {
+  transform-origin: top left;
+  animation: pop-in var(--dur-base) var(--ease-out);
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97) translateY(-2px);
+  }
+}
+
+/* ---- Dialogs: the backdrop fades, the panel rises; closing is quicker ---- */
+
+.modal-overlay {
+  animation: fade-in var(--dur-base) var(--ease-out);
+}
+
+.modal {
+  animation: modal-in var(--dur-slow) var(--ease-out);
+}
+
+.modal-overlay.is-closing {
+  animation: fade-out 140ms var(--ease-in) forwards;
+  pointer-events: none;
+}
+
+.modal-overlay.is-closing .modal {
+  animation: modal-out 140ms var(--ease-in) forwards;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes modal-out {
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+
+/* ---- Toasts slide up with a small spring ---- */
+
+.toast {
+  animation: toast-in var(--dur-slow) var(--ease-spring);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- Completing a task: the check pops, the tick draws, the title is struck through ---- */
+
+.task-check {
+  position: relative;
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.task-check:active {
+  transform: scale(0.86);
+}
+
+.task-content {
+  text-decoration-line: line-through;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 1.5px;
+  transition:
+    text-decoration-color 220ms var(--ease-out),
+    color 220ms var(--ease-out);
+}
+
+.is-completed .task-content {
+  text-decoration-color: currentColor;
+}
+
+.task-item.is-completing .task-content {
+  text-decoration-color: var(--text-muted);
+  color: var(--text-muted);
+}
+
+.task-item.is-completing .task-check {
+  background: currentColor;
+  animation: check-pop 320ms var(--ease-spring);
+}
+
+.task-item.is-completing .task-check-icon {
+  opacity: 1;
+  color: #fff;
+}
+
+.task-item.is-completing .task-check-icon path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: check-draw 220ms 70ms var(--ease-out) forwards;
+}
+
+.task-item.is-completing .task-row {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+@keyframes check-pop {
+  0% {
+    transform: scale(0.8);
+  }
+  55% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes check-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* The last task of the day: a small burst of dots from the check. */
+.check-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.check-burst span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px;
+  border-radius: 50%;
+  background: var(--brand-2, var(--accent));
+  animation: burst 560ms var(--ease-out) forwards;
+}
+
+.check-burst span:nth-child(odd) {
+  background: var(--brand-3, var(--accent));
+}
+
+.check-burst span:nth-child(3n) {
+  background: var(--brand-1, var(--accent));
+}
+
+@keyframes burst {
+  from {
+    opacity: 1;
+    transform: rotate(var(--a)) translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(-18px) scale(0.4);
+  }
+}
+
+/* ---- Dragging: the item lifts, drop zones light up, the drop settles ---- */
+
+.task-item.is-dragging {
+  position: relative;
+  z-index: 5;
+  opacity: 1;
+  scale: 1.015;
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+}
+
+.cal-chip.is-overlay,
+.tl-block.is-overlay {
+  scale: 1.04;
+  rotate: 1.5deg;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.3);
+  animation: lift var(--dur-base) var(--ease-spring);
+}
+
+.note-card {
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease,
+    scale 240ms var(--ease-spring),
+    rotate 240ms var(--ease-spring);
+}
+
+.note-card.is-dragging {
+  scale: 1.02;
+  rotate: 1.2deg;
+  transition:
+    scale var(--dur-fast) var(--ease-out),
+    rotate var(--dur-fast) var(--ease-out);
+}
+
+@keyframes lift {
+  from {
+    scale: 1;
+    rotate: 0deg;
+  }
+}
+
+.cal-cell,
+.tl-col,
+.tl-allday-cell,
+.cal-unscheduled,
+.task-list.is-droppable {
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+/* ---- Reduce motion: the OS setting or the in-app switch ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:root[data-reduce-motion='true'] *,
+:root[data-reduce-motion='true'] *::before,
+:root[data-reduce-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  animation-delay: 0ms !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }

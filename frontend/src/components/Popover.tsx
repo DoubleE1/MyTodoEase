@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { motionReduced } from '../lib/motion';
 
 interface PopoverProps {
   trigger: (props: { onClick: () => void; open: boolean }) => ReactNode;
@@ -16,6 +17,8 @@ interface Position {
 
 const GAP = 4;
 const EDGE_MARGIN = 8;
+/** Matches the pop-out animation in styles.css. */
+const CLOSE_MS = 110;
 
 /**
  * Click-to-open panel anchored to its trigger. Closes on outside click or Escape.
@@ -25,7 +28,24 @@ const EDGE_MARGIN = 8;
  */
 export function Popover({ trigger, children, align = 'left' }: PopoverProps) {
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [position, setPosition] = useState<Position | null>(null);
+  const closeTimer = useRef<number | undefined>(undefined);
+
+  // Closing plays a short shrink-and-fade toward the trigger before the panel is removed.
+  const close = () => {
+    if (!open || closing) return;
+    if (motionReduced()) {
+      setOpen(false);
+      return;
+    }
+    setClosing(true);
+    closeTimer.current = window.setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+    }, CLOSE_MS);
+  };
+  useEffect(() => () => window.clearTimeout(closeTimer.current), []);
   const anchorRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -34,18 +54,18 @@ export function Popover({ trigger, children, align = 'left' }: PopoverProps) {
     const isInside = (target: EventTarget | null) =>
       (anchorRef.current?.contains(target as Node) ?? false) || (panelRef.current?.contains(target as Node) ?? false);
     const onMouseDown = (event: MouseEvent) => {
-      if (!isInside(event.target)) setOpen(false);
+      if (!isInside(event.target)) close();
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         // Swallow so an enclosing modal does not close at the same time.
         event.stopPropagation();
-        setOpen(false);
+        close();
       }
     };
     // A fixed panel would drift away from its trigger if the page behind it scrolls; close instead.
     const onScroll = (event: Event) => {
-      if (!panelRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!panelRef.current?.contains(event.target as Node)) close();
     };
     document.addEventListener('mousedown', onMouseDown);
     document.addEventListener('keydown', onKeyDown, true);
@@ -111,15 +131,15 @@ export function Popover({ trigger, children, align = 'left' }: PopoverProps) {
 
   return (
     <div className="popover-anchor" ref={anchorRef}>
-      {trigger({ onClick: () => setOpen((o) => !o), open })}
+      {trigger({ onClick: () => (open ? close() : setOpen(true)), open: open && !closing })}
       {open &&
         createPortal(
           <div
             ref={panelRef}
-            className={`popover ${position?.placement === 'up' ? 'popover-up' : ''}`}
+            className={`popover ${position?.placement === 'up' ? 'popover-up' : ''} ${align === 'right' ? 'popover-right' : ''} ${closing ? 'is-closing' : ''}`}
             style={style}
           >
-            {children(() => setOpen(false))}
+            {children(close)}
           </div>,
           document.body,
         )}

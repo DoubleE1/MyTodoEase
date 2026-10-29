@@ -1,9 +1,10 @@
 import { Calendar, Check, CornerDownRight, Pencil, Repeat, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import type { CSSProperties, ReactNode, Ref } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
 import type { Label, Project, Task } from '../api/types';
 import { colorHex, PRIORITY_META } from '../lib/colors';
 import { describeDue } from '../lib/dates';
+import { motionReduced } from '../lib/motion';
 import { ProjectIcon } from './Pickers';
 import { markdownPreview } from '../lib/markdownPreview';
 
@@ -24,7 +25,13 @@ export interface TaskItemProps {
   innerRef?: Ref<HTMLLIElement>;
   style?: CSSProperties;
   className?: string;
+  /** The last open task of the day: completing it plays a small celebration. */
+  celebrate?: boolean;
 }
+
+/** How long the tick and strike-through play before the task is actually completed and the row leaves. */
+const COMPLETE_DELAY_MS = 380;
+const BURST_DOTS = 8;
 
 export function TaskItem({
   task,
@@ -41,7 +48,24 @@ export function TaskItem({
   innerRef,
   style,
   className,
+  celebrate,
 }: TaskItemProps) {
+  // Completing plays first (check pops, tick draws, title is struck through), then the task is completed.
+  const [completing, setCompleting] = useState(false);
+  const timers = useRef<number[]>([]);
+  useEffect(() => () => timers.current.forEach((id) => window.clearTimeout(id)), []);
+
+  const toggle = () => {
+    if (completed || completing || motionReduced()) {
+      if (!completing) onToggle();
+      return;
+    }
+    setCompleting(true);
+    timers.current.push(window.setTimeout(onToggle, COMPLETE_DELAY_MS));
+    // A repeating task stays in the list with its next date: let the row return to normal.
+    timers.current.push(window.setTimeout(() => setCompleting(false), COMPLETE_DELAY_MS + 700));
+  };
+
   const due = task.dueDate ? describeDue(task.dueDate, task.dueTime) : null;
   const taskLabels = task.labelIds
     .map((id) => labels.find((l) => l.id === id))
@@ -50,7 +74,11 @@ export function TaskItem({
   const hasMeta = due || taskLabels.length > 0 || childCount > 0 || (showProject && project) || completed;
 
   return (
-    <li ref={innerRef} style={style} className={`task-item ${completed ? 'is-completed' : ''} ${className ?? ''}`}>
+    <li
+      ref={innerRef}
+      style={style}
+      className={`task-item ${completed ? 'is-completed' : ''} ${completing ? 'is-completing' : ''} ${className ?? ''}`}
+    >
       <div className="task-row">
         {handle}
         <button
@@ -61,11 +89,18 @@ export function TaskItem({
             color: priority.hex,
             background: task.priority < 4 && !completed ? `${priority.hex}1a` : undefined,
           }}
-          onClick={onToggle}
+          onClick={toggle}
           aria-label={completed ? 'Reopen task' : 'Complete task'}
           title={completed ? 'Reopen' : 'Complete'}
         >
           <Check size={12} strokeWidth={3} className="task-check-icon" />
+          {completing && celebrate && (
+            <span className="check-burst" aria-hidden="true">
+              {Array.from({ length: BURST_DOTS }, (_, i) => (
+                <span key={i} style={{ ['--a' as string]: `${(360 / BURST_DOTS) * i}deg` }} />
+              ))}
+            </span>
+          )}
         </button>
 
         <div

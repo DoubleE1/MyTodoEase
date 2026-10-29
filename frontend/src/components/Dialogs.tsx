@@ -1,7 +1,11 @@
 import { X } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Label, LabelInput, Project, ProjectInput } from '../api/types';
 import { COLORS } from '../lib/colors';
+import { motionReduced } from '../lib/motion';
+
+/** Matches the modal-out animation in styles.css. */
+const MODAL_CLOSE_MS = 140;
 
 export function Modal({
   children,
@@ -17,26 +21,46 @@ export function Modal({
   /** Extra class on the dialog box, e.g. a layout variant. */
   className?: string;
 }) {
+  // Escape, the backdrop and the X play a short exit before the parent removes the dialog.
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<number | undefined>(undefined);
+  const latestOnClose = useRef(onClose);
+  latestOnClose.current = onClose;
+  const closingRef = useRef(false);
+  const requestClose = () => {
+    if (closingRef.current) return;
+    if (motionReduced()) {
+      latestOnClose.current();
+      return;
+    }
+    closingRef.current = true;
+    setClosing(true);
+    closeTimer.current = window.setTimeout(() => latestOnClose.current(), MODAL_CLOSE_MS);
+  };
+  useEffect(() => () => window.clearTimeout(closeTimer.current), []);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') requestClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+    // requestClose only reads refs, so subscribing once is enough.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div
-      className="modal-overlay"
+      className={`modal-overlay ${closing ? 'is-closing' : ''}`}
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) requestClose();
       }}
     >
       <div className={`modal ${wide ? 'modal-wide' : ''} ${className ?? ''}`} role="dialog" aria-modal="true" aria-label={title}>
         {title && (
           <div className="modal-title">
             <h2>{title}</h2>
-            <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+            <button type="button" className="icon-btn" onClick={requestClose} aria-label="Close">
               <X size={18} />
             </button>
           </div>
