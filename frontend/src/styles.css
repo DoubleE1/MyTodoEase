@@ -3925,7 +3925,8 @@ p.detail-description {
     0 -3px 14px -6px color-mix(in srgb, var(--note-c, #8b72ff) var(--note-glow-mix), transparent),
     var(--note-shadow),
     inset 0 1px 0 var(--note-inset);
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  /* transform is never animated: dragging moves the card with it, and the drop must not ease back. */
+  transition: translate 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
 /* Very subtle glass reflection */
@@ -3944,7 +3945,7 @@ p.detail-description {
 }
 
 .note-card:hover {
-  transform: translateY(-2px);
+  translate: 0 -2px;
   box-shadow:
     0 -3px 16px -5px color-mix(in srgb, var(--note-c, #8b72ff) var(--note-glow-mix), transparent),
     var(--note-shadow-hover),
@@ -3964,7 +3965,7 @@ p.detail-description {
 }
 
 .note-card.is-archived:hover {
-  transform: none;
+  translate: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3973,7 +3974,7 @@ p.detail-description {
   }
 
   .note-card:hover {
-    transform: none;
+    translate: none;
   }
 }
 
@@ -5570,8 +5571,9 @@ p.detail-description {
 }
 
 .note-card {
+  /* No transform here on purpose: the drag offset must vanish instantly on drop (see the card rule above). */
   transition:
-    transform 180ms ease,
+    translate 180ms ease,
     border-color 180ms ease,
     box-shadow 180ms ease,
     background 180ms ease,
