@@ -33,6 +33,7 @@ import {
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Popover } from './Popover';
+import { handleTableShortcut, TableControls } from './TableControls';
 
 /**
  * The task description editor in the task detail. By default it is a rich-text editor: bold looks bold and a list
@@ -217,6 +218,7 @@ export default function DescriptionEditor({ value, onChange, onSubmit, onCancel,
   const handlers = useRef({ onSubmit, onCancel });
   handlers.current = { onSubmit, onCancel };
   const [linkOpen, setLinkOpen] = useState(false);
+  const editorRef = useRef<Editor | null>(null);
   // The editor tidies Markdown as it loads (spacing, table padding). Compare against that tidied starting point
   // so a description that was not actually changed is handed back exactly as the user wrote it.
   const original = useRef(value);
@@ -256,6 +258,7 @@ export default function DescriptionEditor({ value, onChange, onSubmit, onCancel,
           setLinkOpen(true);
           return true;
         }
+        if (editorRef.current && handleTableShortcut(editorRef.current, event)) return true;
         return false;
       },
     },
@@ -268,6 +271,8 @@ export default function DescriptionEditor({ value, onChange, onSubmit, onCancel,
       onChange(next);
     },
   });
+
+  editorRef.current = editor;
 
   const active = useEditorState({
     editor,
@@ -450,7 +455,10 @@ export default function DescriptionEditor({ value, onChange, onSubmit, onCancel,
   return (
     <>
       {rich ? (
-        <EditorContent editor={editor} className="rich-desc" />
+        <>
+          <EditorContent editor={editor} className="rich-desc" />
+          {editor && <TableControls editor={editor} />}
+        </>
       ) : (
         <textarea
           ref={textareaRef}
