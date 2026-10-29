@@ -43,6 +43,9 @@ export function TaskDetail({
   const [editing, setEditing] = useState(false);
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [continuing, setContinuing] = useState(false);
+  // A ticked checklist box shows at once; the saved text replaces this as soon as it arrives.
+  const [descriptionDraft, setDescriptionDraft] = useState<string | null>(null);
+  useEffect(() => setDescriptionDraft(null), [task?.description]);
 
   // Close when the task disappears (deleted elsewhere, or completed and gone from the active list).
   useEffect(() => {
@@ -178,7 +181,17 @@ export function TaskDetail({
               >
                 <h2>{task.content}</h2>
                 {task.description ? (
-                  <MarkdownText text={task.description} className="detail-description" />
+                  <MarkdownText
+                    text={descriptionDraft ?? task.description}
+                    className="detail-description"
+                    onChange={(next) => {
+                      setDescriptionDraft(next);
+                      taskMut.update.mutate(
+                        { id: task.id, input: { ...taskToInput(task), description: next } },
+                        { onError: () => setDescriptionDraft(null) },
+                      );
+                    }}
+                  />
                 ) : (
                   <p className="detail-description muted">Add a description</p>
                 )}

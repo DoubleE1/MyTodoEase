@@ -2726,6 +2726,15 @@ p.detail-description {
   list-style: none;
 }
 
+.md li.task-list-item {
+  list-style: none;
+}
+
+.md input.md-check {
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
 .md a {
   color: var(--accent-text);
   text-decoration: underline;
