@@ -1,5 +1,5 @@
 import { differenceInMinutes, format, parseISO } from 'date-fns';
-import { Archive, ArchiveRestore, Grip, ListTodo, Palette, Plus, StickyNote, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Ellipsis, Grip, ListTodo, Palette, Plus, StickyNote, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useNoteMutations, useNotes } from '../api/hooks';
 import { NOTE_COLORS, type Label, type Note, type NoteColor, type NoteInput, type Project, type Section } from '../api/types';
@@ -8,7 +8,7 @@ import { NoteToTasksDialog } from './NoteToTasksDialog';
 import { Popover } from './Popover';
 
 const SAVE_DELAY_MS = 500;
-const NOTE_WIDTH = 280;
+const NOTE_WIDTH = 320;
 /** Height assumed for a note that has not been measured yet (free-slot search). */
 const NOTE_HEIGHT_GUESS = 230;
 const GAP = 20;
@@ -492,12 +492,52 @@ function NoteCard({
             </div>
           )}
         </Popover>
-        <button type="button" className="note-btn" title="Archive" aria-label="Archive note" onClick={() => (flush(), onArchive())}>
-          <Archive size={15} />
-        </button>
-        <button type="button" className="note-btn" title="Delete" aria-label="Delete note" onClick={onDelete}>
-          <Trash2 size={15} />
-        </button>
+        <Popover
+          align="right"
+          trigger={({ onClick, open }) => (
+            <button
+              type="button"
+              className={`note-btn ${open ? 'is-open' : ''}`}
+              title="More"
+              aria-label="More note actions"
+              aria-haspopup="menu"
+              aria-expanded={open}
+              onClick={onClick}
+            >
+              <Ellipsis size={16} />
+            </button>
+          )}
+        >
+          {(close) => (
+            <div className="note-menu" role="menu" aria-label="Note actions">
+              <button
+                type="button"
+                role="menuitem"
+                className="note-menu-item"
+                onClick={() => {
+                  close();
+                  flush();
+                  onArchive();
+                }}
+              >
+                <Archive size={14} />
+                <span>Archive</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="note-menu-item is-danger"
+                onClick={() => {
+                  close();
+                  onDelete();
+                }}
+              >
+                <Trash2 size={14} />
+                <span>Delete</span>
+              </button>
+            </div>
+          )}
+        </Popover>
       </header>
       <textarea
         ref={areaRef}

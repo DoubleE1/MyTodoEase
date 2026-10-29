@@ -3777,34 +3777,57 @@ p.detail-description {
 }
 
 /* Notes board (sticky notes) */
-/* Each note colour is one base hue (--note-c, set per note below). The theme decides how much of it to use:
-   light mode mixes it into white for a pastel paper; dark mode keeps a neutral card with a faint tint and puts
-   the colour on the header's top edge, so notes read as coloured without turning the board muddy. */
+/* Sticky-note design: a neutral glass card with only a light wash of the note's colour at the top and the full
+   colour on a 2px top edge. Dark values follow the reference design; light mode mirrors them on white glass. */
 :root {
-  --note-paper: #ffffff;
-  --note-body-mix: 24%;
-  --note-head-mix: 42%;
-  --note-text: #262626;
-  --note-muted: rgba(0, 0, 0, 0.55);
+  --note-glass: rgba(255, 255, 255, 0.86);
+  --note-wash: 14%;
+  --note-border: rgba(0, 0, 0, 0.08);
+  --note-inset: rgba(255, 255, 255, 0.9);
+  --note-reflection: rgba(255, 255, 255, 0.5);
+  --note-shadow: 0 12px 32px rgba(40, 30, 80, 0.12);
+  --note-shadow-hover: 0 16px 38px rgba(40, 30, 80, 0.18);
+  --note-text: rgba(24, 24, 30, 0.92);
+  --note-muted: rgba(24, 24, 30, 0.52);
+  --note-faint: rgba(24, 24, 30, 0.4);
+  --note-icon: rgba(24, 24, 30, 0.6);
+  --note-hover: rgba(0, 0, 0, 0.06);
   --note-line: rgba(0, 0, 0, 0.08);
-  --note-edge: rgba(0, 0, 0, 0.06);
+  --note-button: rgba(0, 0, 0, 0.035);
+  --note-button-border: rgba(0, 0, 0, 0.1);
+  --note-button-text: rgba(24, 24, 30, 0.75);
+  --note-button-hover: rgba(0, 0, 0, 0.07);
+  --note-button-hover-border: rgba(0, 0, 0, 0.16);
+  --note-button-hover-text: #18181e;
 }
 
 :root[data-theme='dark'] {
-  --note-paper: #27272d;
-  --note-body-mix: 8%;
-  --note-head-mix: 15%;
-  --note-text: #ececf0;
-  --note-muted: rgba(255, 255, 255, 0.58);
+  --note-glass: rgba(35, 36, 43, 0.82);
+  --note-wash: 12%;
+  --note-border: rgba(255, 255, 255, 0.09);
+  --note-inset: rgba(255, 255, 255, 0.055);
+  --note-reflection: rgba(255, 255, 255, 0.045);
+  --note-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  --note-shadow-hover: 0 16px 38px rgba(0, 0, 0, 0.34);
+  --note-text: rgba(255, 255, 255, 0.92);
+  --note-muted: rgba(255, 255, 255, 0.52);
+  --note-faint: rgba(255, 255, 255, 0.42);
+  --note-icon: rgba(255, 255, 255, 0.7);
+  --note-hover: rgba(255, 255, 255, 0.07);
   --note-line: rgba(255, 255, 255, 0.08);
-  --note-edge: rgba(255, 255, 255, 0.07);
+  --note-button: rgba(255, 255, 255, 0.045);
+  --note-button-border: rgba(255, 255, 255, 0.1);
+  --note-button-text: rgba(255, 255, 255, 0.72);
+  --note-button-hover: rgba(255, 255, 255, 0.085);
+  --note-button-hover-border: rgba(255, 255, 255, 0.15);
+  --note-button-hover-text: #ffffff;
 }
 
-[data-color='yellow'] { --note-c: #f2c94c; }
-[data-color='green'] { --note-c: #5fcf8f; }
-[data-color='blue'] { --note-c: #56a8f5; }
-[data-color='pink'] { --note-c: #f07db4; }
-[data-color='purple'] { --note-c: #a08bf0; }
+[data-color='blue'] { --note-c: #5b9cff; }
+[data-color='yellow'] { --note-c: #f2be58; }
+[data-color='pink'] { --note-c: #ec6fae; }
+[data-color='purple'] { --note-c: #8b72ff; }
+[data-color='green'] { --note-c: #59c993; }
 [data-color='orange'] { --note-c: #f2994a; }
 [data-color='grey'] { --note-c: #9ca3af; }
 
@@ -3827,7 +3850,7 @@ p.detail-description {
 
 .notes-board .note-card {
   position: absolute;
-  width: 280px;
+  width: 320px;
 }
 
 .notes-board.is-stacked {
@@ -3884,23 +3907,47 @@ p.detail-description {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 190px;
-  padding: 0 14px 8px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--note-c, #f2c94c) var(--note-body-mix), var(--note-paper));
-  border: 1px solid var(--note-edge);
+  min-height: 230px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  /* A light wash of the note's colour at the top only; the card itself stays neutral glass. */
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--note-c, #8b72ff) var(--note-wash), transparent) 0%, transparent 32%),
+    var(--note-glass);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--note-border);
+  border-top: 2px solid var(--note-c, #8b72ff);
   color: var(--note-text);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), 0 6px 18px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--note-shadow), inset 0 1px 0 var(--note-inset);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
-:root[data-theme='dark'] .note-card {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+/* Very subtle glass reflection */
+.note-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--note-reflection), transparent 38%);
+  pointer-events: none;
 }
 
+.note-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.note-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--note-shadow-hover), inset 0 1px 0 var(--note-inset);
+}
+
+/* While dragging, the card follows the pointer exactly (the inline transform must not animate). */
 .note-card.is-dragging {
   cursor: grabbing;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
   transition: none;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 var(--note-inset);
 }
 
 .note-card.is-archived {
@@ -3908,18 +3955,27 @@ p.detail-description {
   min-height: 0;
 }
 
-/* Header bar: the drag area (like the top bar of Windows Sticky Notes), with the note's buttons. */
+.note-card.is-archived:hover {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note-card {
+    transition: none;
+  }
+
+  .note-card:hover {
+    transform: none;
+  }
+}
+
+/* Header: grip on the left, colour and "…" on the right. Drag the note by any empty part of it. */
 .note-head {
   display: flex;
   align-items: center;
-  gap: 2px;
-  height: 30px;
-  margin: 0 -14px 4px;
-  padding: 0 6px;
-  border-radius: 10px 10px 0 0;
-  background: color-mix(in srgb, var(--note-c, #f2c94c) var(--note-head-mix), var(--note-paper));
-  /* The note's colour at full strength along the top edge. */
-  box-shadow: inset 0 3px 0 var(--note-c, #f2c94c);
+  justify-content: space-between;
+  gap: 4px;
+  height: 28px;
 }
 
 .note-card.is-movable .note-head {
@@ -3934,28 +3990,24 @@ p.detail-description {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 24px;
-  padding: 0 6px;
-  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border: 0;
-  background: none;
-  color: var(--note-muted);
-  opacity: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--note-faint);
   cursor: grab;
   touch-action: none;
 }
 
-.note-card:hover .note-grip,
-.note-grip:focus-visible {
-  opacity: 1;
+.note-grip:active {
+  cursor: grabbing;
 }
 
 .note-grip:hover {
-  background: rgba(0, 0, 0, 0.08);
-}
-
-.note-card.is-movable .note-grip {
-  cursor: grab;
+  background: var(--note-hover);
+  color: var(--note-button-hover-text);
 }
 
 .note-text {
@@ -3963,6 +4015,7 @@ p.detail-description {
   width: 100%;
   min-height: 110px;
   max-height: 420px;
+  padding: 16px 6px 20px;
   border: 0;
   outline: none;
   resize: none;
@@ -3970,18 +4023,19 @@ p.detail-description {
   background: transparent;
   color: var(--note-text);
   font: inherit;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.55;
 }
 
 .note-text::placeholder {
-  color: var(--note-muted);
+  color: var(--note-faint);
 }
 
 .note-text-static {
   white-space: pre-wrap;
-  font-size: 13px;
-  line-height: 1.5;
+  padding: 10px 6px 14px;
+  font-size: 14px;
+  line-height: 1.55;
   max-height: 180px;
   overflow: hidden;
 }
@@ -3989,11 +4043,12 @@ p.detail-description {
 .note-footer {
   display: flex;
   align-items: center;
-  gap: 2px;
-  margin-top: 6px;
-  padding-top: 6px;
+  justify-content: space-between;
+  gap: 6px;
+  padding-top: 11px;
   border-top: 1px solid var(--note-line);
-  min-height: 32px;
+  font-size: 12px;
+  color: var(--note-muted);
 }
 
 .note-meta {
@@ -4001,11 +4056,10 @@ p.detail-description {
   min-width: 0;
   display: block;
   white-space: nowrap;
-  font-size: 11px;
-  color: var(--note-muted);
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--note-muted);
 }
 
 .note-btn {
@@ -4015,56 +4069,50 @@ p.detail-description {
   width: 28px;
   height: 28px;
   border: 0;
-  border-radius: 6px;
-  background: none;
-  color: var(--note-muted);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--note-icon);
   cursor: pointer;
-  opacity: 0;
+  opacity: 0.55;
+  transition: opacity 150ms ease, background 150ms ease, color 150ms ease;
 }
 
 .note-card:hover .note-btn,
 .note-card:focus-within .note-btn,
-.note-card.is-archived .note-btn,
+.note-btn.is-open,
 .note-btn:focus-visible {
   opacity: 1;
 }
 
 .note-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
-  color: var(--note-text);
+  background: var(--note-hover);
+  color: var(--note-button-hover-text);
 }
 
-:root[data-theme='dark'] .note-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
+/* Turn into tasks */
 .note-convert {
   flex: none;
-  white-space: nowrap;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  margin-left: 4px;
-  padding: 5px 9px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.55);
-  color: var(--note-text);
+  gap: 7px;
+  height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--note-button-border);
+  border-radius: 7px;
+  background: var(--note-button);
+  color: var(--note-button-text);
   font: inherit;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
-}
-
-:root[data-theme='dark'] .note-convert {
-  border-color: rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.08);
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
 .note-convert:hover:not(:disabled) {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--note-button-hover);
+  border-color: var(--note-button-hover-border);
+  color: var(--note-button-hover-text);
 }
 
 .note-convert:disabled {
@@ -4090,6 +4138,41 @@ p.detail-description {
   font-size: 12px;
   text-decoration: underline;
   cursor: pointer;
+}
+
+.note-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
+}
+
+.note-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.note-menu-item:hover {
+  background: var(--bg-hover);
+}
+
+.note-menu-item svg {
+  color: var(--text-muted);
+}
+
+.note-menu-item.is-danger,
+.note-menu-item.is-danger svg {
+  color: var(--danger);
 }
 
 .note-colors {
