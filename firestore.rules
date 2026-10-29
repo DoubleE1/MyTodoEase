@@ -69,6 +69,15 @@ service cloud.firestore {
         && str(d.taskId, 64) && str(d.content, 2000) && str(d.projectId, 64) && str(d.completedAt, 40);
     }
 
+    function validNote(d, id) {
+      return d.keys().hasOnly(['id', 'text', 'color', 'order', 'isArchived', 'taskIds', 'createdAt', 'updatedAt'])
+        && d.id == id
+        && str(d.text, 20000)
+        && d.color in ['yellow', 'green', 'blue', 'pink', 'purple', 'orange', 'grey']
+        && d.order is number && d.isArchived is bool && strList(d.taskIds, 100)
+        && str(d.createdAt, 40) && str(d.updatedAt, 40);
+    }
+
     // ---- Google Calendar sync (written by the app that presses Sync now) ----
 
     function validCalendarSync(d, id) {
@@ -125,6 +134,10 @@ service cloud.firestore {
     match /users/{uid}/completions/{id} {
       allow read, delete: if isOwner(uid);
       allow create, update: if isOwner(uid) && validCompletion(request.resource.data, id);
+    }
+    match /users/{uid}/notes/{id} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validNote(request.resource.data, id);
     }
     match /users/{uid}/calendarSync/{id} {
       allow read, delete: if isOwner(uid);

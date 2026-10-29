@@ -31,6 +31,7 @@ public interface IDataStore
     IRepository<Label> Labels { get; }
     IRepository<TodoTask> Tasks { get; }
     IRepository<Completion> Completions { get; }
+    IRepository<Note> Notes { get; }
 
     /// <summary>Swaps all user data for the given rows (backup import).</summary>
     Task ReplaceAllAsync(
@@ -39,6 +40,7 @@ public interface IDataStore
         IEnumerable<Label> labels,
         IEnumerable<TodoTask> tasks,
         IEnumerable<Completion> completions,
+        IEnumerable<Note> notes,
         CancellationToken ct = default);
 }
 

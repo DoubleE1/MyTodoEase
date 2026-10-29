@@ -7,9 +7,9 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { calendarStatusFrom } from './calendarSync';
-import { sortActiveTasks, sortCompletedTasks, sortLabels, sortProjects, sortSections, userCollection, userDoc } from './firestoreClient';
+import { sortActiveTasks, sortCompletedTasks, sortLabels, sortNotes, sortProjects, sortSections, userCollection, userDoc } from './firestoreClient';
 import { queryKeys } from './hooks';
-import type { GoogleCalendarInfo, Label, Project, Section, Task } from './types';
+import type { GoogleCalendarInfo, Label, Note, Project, Section, Task } from './types';
 
 export function subscribeRealtime(queryClient: QueryClient): () => void {
   const stops = [
@@ -29,6 +29,9 @@ export function subscribeRealtime(queryClient: QueryClient): () => void {
       queryClient.setQueryData(queryKeys.completed, sortCompletedTasks(items));
       void queryClient.invalidateQueries({ queryKey: queryKeys.completions });
     }),
+    onSnapshot(userCollection('notes'), (snap) =>
+      queryClient.setQueryData(queryKeys.notes, sortNotes(snap.docs.map((d) => d.data() as Note))),
+    ),
     onSnapshot(doc(userDoc(), 'calendarSync', 'status'), (snap) => {
       queryClient.setQueryData(queryKeys.calendarSync, calendarStatusFrom(snap.exists() ? snap.data() : undefined));
     }),

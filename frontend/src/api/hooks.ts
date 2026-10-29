@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queueCalendarPush } from './calendarAccess';
 import { api, getDataMode } from './client';
-import type { LabelInput, ProjectInput, SectionInput, Task, TaskInput } from './types';
+import type { LabelInput, Note, NoteInput, ProjectInput, SectionInput, Task, TaskInput } from './types';
 import { showToast } from '../lib/toast';
 
 export const queryKeys = {
   projects: ['projects'] as const,
   sections: ['sections'] as const,
   labels: ['labels'] as const,
+  notes: ['notes'] as const,
   tasks: ['tasks', 'active'] as const,
   completed: ['tasks', 'completed'] as const,
   completions: ['completions'] as const,
@@ -37,6 +38,54 @@ export const useCalendarEvents = (from: string, to: string, enabled = true) => {
 export const useProjects = () => useQuery({ queryKey: queryKeys.projects, queryFn: api.projects.list });
 export const useSections = () => useQuery({ queryKey: queryKeys.sections, queryFn: api.sections.list });
 export const useLabels = () => useQuery({ queryKey: queryKeys.labels, queryFn: api.labels.list });
+export const useNotes = (enabled = true) => useQuery({ queryKey: queryKeys.notes, queryFn: api.notes.list, enabled });
+
+/**
+ * Notes save while the user types, so updates are applied to the cache right away (no flicker, no lost
+ * keystrokes) and only invalidated on failure.
+ */
+export function useNoteMutations() {
+  const qc = useQueryClient();
+  const patchCache = (id: string, input: NoteInput) =>
+    qc.setQueryData<Note[]>(queryKeys.notes, (old) => old?.map((n) => (n.id === id ? { ...n, ...input } : n)));
+  const refetch = () => void qc.invalidateQueries({ queryKey: queryKeys.notes });
+  return {
+    create: useMutation({
+      mutationFn: (input: NoteInput) => api.notes.create(input),
+      onSuccess: (note) => qc.setQueryData<Note[]>(queryKeys.notes, (old) => (old ? [note, ...old.filter((n) => n.id !== note.id)] : [note])),
+      onError,
+    }),
+    update: useMutation({
+      mutationFn: ({ id, input }: { id: string; input: NoteInput }) => api.notes.update(id, input),
+      onMutate: ({ id, input }) => patchCache(id, input),
+      onError: (error) => {
+        refetch();
+        onError(error);
+      },
+    }),
+    remove: useMutation({
+      mutationFn: (id: string) => api.notes.remove(id),
+      onMutate: (id) => qc.setQueryData<Note[]>(queryKeys.notes, (old) => old?.filter((n) => n.id !== id)),
+      onError: (error) => {
+        refetch();
+        onError(error);
+      },
+    }),
+    reorder: useMutation({
+      mutationFn: (items: { id: string; order: number }[]) => api.notes.reorder(items),
+      onMutate: (items) => {
+        const orders = new Map(items.map((i) => [i.id, i.order]));
+        qc.setQueryData<Note[]>(queryKeys.notes, (old) =>
+          old?.map((n) => (orders.has(n.id) ? { ...n, order: orders.get(n.id)! } : n)).sort((a, b) => a.order - b.order),
+        );
+      },
+      onError: (error) => {
+        refetch();
+        onError(error);
+      },
+    }),
+  };
+}
 export const useActiveTasks = () => useQuery({ queryKey: queryKeys.tasks, queryFn: api.tasks.listActive });
 export const useCompletedTasks = (enabled: boolean) =>
   useQuery({ queryKey: queryKeys.completed, queryFn: () => api.tasks.listCompleted(), enabled });

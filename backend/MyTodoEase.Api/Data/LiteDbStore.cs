@@ -16,6 +16,7 @@ public sealed class LiteDbStore : IDataStore
         Labels = new Repo<Label>(db.Labels);
         Tasks = new Repo<TodoTask>(db.Tasks);
         Completions = new Repo<Completion>(db.Completions);
+        Notes = new Repo<Note>(db.Notes);
     }
 
     public string Description => _db.FilePath;
@@ -25,6 +26,7 @@ public sealed class LiteDbStore : IDataStore
     public IRepository<Label> Labels { get; }
     public IRepository<TodoTask> Tasks { get; }
     public IRepository<Completion> Completions { get; }
+    public IRepository<Note> Notes { get; }
 
     public Task ReplaceAllAsync(
         IEnumerable<Project> projects,
@@ -32,9 +34,10 @@ public sealed class LiteDbStore : IDataStore
         IEnumerable<Label> labels,
         IEnumerable<TodoTask> tasks,
         IEnumerable<Completion> completions,
+        IEnumerable<Note> notes,
         CancellationToken ct = default)
     {
-        _db.ReplaceAll(projects, sections, labels, tasks, completions);
+        _db.ReplaceAll(projects, sections, labels, tasks, completions, notes);
         return Task.CompletedTask;
     }
 

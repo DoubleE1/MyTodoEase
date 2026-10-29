@@ -8,6 +8,8 @@ import type {
   ImportResult,
   Label,
   LabelInput,
+  Note,
+  NoteInput,
   Project,
   ProjectInput,
   ReorderItem,
@@ -109,6 +111,15 @@ export const restApi = {
     update: (id: string, input: SectionInput) =>
       request<Section>(`/api/sections/${id}`, { method: 'PUT', ...json(input) }),
     remove: (id: string) => request<void>(`/api/sections/${id}`, { method: 'DELETE' }),
+  },
+
+  notes: {
+    list: () => request<Note[]>('/api/notes'),
+    create: (input: NoteInput) => request<Note>('/api/notes', { method: 'POST', ...json(input) }),
+    update: (id: string, input: NoteInput) => request<Note>(`/api/notes/${id}`, { method: 'PUT', ...json(input) }),
+    remove: (id: string) => request<void>(`/api/notes/${id}`, { method: 'DELETE' }),
+    reorder: (items: { id: string; order: number }[]) =>
+      request<void>('/api/notes/reorder', { method: 'POST', ...json({ items }) }),
   },
 
   labels: {

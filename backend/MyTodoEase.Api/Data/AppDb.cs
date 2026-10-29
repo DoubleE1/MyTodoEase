@@ -21,6 +21,7 @@ public sealed partial class AppDb : IDisposable
     public ILiteCollection<TodoTask> Tasks { get; }
     public ILiteCollection<Completion> Completions { get; }
     public ILiteCollection<CalendarLink> CalendarLinks { get; }
+    public ILiteCollection<Note> Notes { get; }
 
     public AppDb(IOptions<StorageOptions> options)
     {
@@ -47,6 +48,7 @@ public sealed partial class AppDb : IDisposable
         Tasks = _db.GetCollection<TodoTask>("tasks");
         Completions = _db.GetCollection<Completion>("completions");
         CalendarLinks = _db.GetCollection<CalendarLink>("calendar_links");
+        Notes = _db.GetCollection<Note>("notes");
     }
 
     /// <summary>Creates indexes and guarantees the Inbox project exists. Safe to run on every start.</summary>
@@ -72,7 +74,8 @@ public sealed partial class AppDb : IDisposable
         IEnumerable<Section> sections,
         IEnumerable<Label> labels,
         IEnumerable<TodoTask> tasks,
-        IEnumerable<Completion> completions)
+        IEnumerable<Completion> completions,
+        IEnumerable<Note> notes)
     {
         _db.BeginTrans();
         try
@@ -82,11 +85,13 @@ public sealed partial class AppDb : IDisposable
             Labels.DeleteAll();
             Tasks.DeleteAll();
             Completions.DeleteAll();
+            Notes.DeleteAll();
             Projects.InsertBulk(projects);
             Sections.InsertBulk(sections);
             Labels.InsertBulk(labels);
             Tasks.InsertBulk(tasks);
             Completions.InsertBulk(completions);
+            Notes.InsertBulk(notes);
             _db.Commit();
         }
         catch

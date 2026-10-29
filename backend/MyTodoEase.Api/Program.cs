@@ -68,6 +68,7 @@ app.MapPost("/api/shutdown", (IHostApplicationLifetime lifetime) =>
 app.MapProjects();
 app.MapSections();
 app.MapLabels();
+app.MapNotes();
 app.MapTasks();
 app.MapStats();
 app.MapBackup();

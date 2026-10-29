@@ -28,6 +28,32 @@ export interface Label {
   createdAt: string;
 }
 
+export const NOTE_COLORS = ['yellow', 'green', 'blue', 'pink', 'purple', 'orange', 'grey'] as const;
+export type NoteColor = (typeof NOTE_COLORS)[number];
+
+/** A sticky note on the Notes board. */
+export interface Note {
+  id: string;
+  text: string;
+  color: NoteColor;
+  /** Lowest first; new notes get the lowest. */
+  order: number;
+  isArchived: boolean;
+  /** Tasks created from this note. */
+  taskIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Partial update: omitted fields are left as they are. */
+export interface NoteInput {
+  text?: string;
+  color?: NoteColor;
+  order?: number;
+  isArchived?: boolean;
+  taskIds?: string[];
+}
+
 export interface Task {
   id: string;
   content: string;
@@ -117,6 +143,8 @@ export interface BackupDocument {
   labels: Label[];
   tasks: Task[];
   completions: unknown[];
+  /** Absent in backups made before the Notes board existed. */
+  notes?: Note[];
 }
 
 export interface GoogleAccount {
@@ -185,4 +213,5 @@ export interface ImportResult {
   labels: number;
   tasks: number;
   completions: number;
+  notes?: number;
 }

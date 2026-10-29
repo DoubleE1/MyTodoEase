@@ -9,6 +9,7 @@
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, type User } from 'firebase/auth';
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -44,9 +45,11 @@ import type {
   SectionInput,
   Task,
   TaskInput,
+  Note,
+  NoteInput,
 } from './types';
 
-type CollectionName = 'projects' | 'sections' | 'labels' | 'tasks' | 'completions' | 'calendarEvents';
+type CollectionName = 'projects' | 'sections' | 'labels' | 'tasks' | 'completions' | 'notes' | 'calendarEvents';
 
 /** One completion log entry, as stored and as exported in backups. */
 interface Completion {
@@ -229,6 +232,71 @@ const sections: Api['sections'] = {
 };
 
 // ---- Labels ----
+
+// ---- Notes (sticky notes board) ----
+
+export const sortNotes = (items: Note[]) =>
+  [...items].sort((a, b) => a.order - b.order || b.createdAt.localeCompare(a.createdAt));
+
+const NOTE_COLOR_SET = new Set(['yellow', 'green', 'blue', 'pink', 'purple', 'orange', 'grey']);
+
+function validateNote(input: NoteInput) {
+  const errors: Record<string, string[]> = {};
+  if (input.text !== undefined && input.text.length > 20000) errors.text = ['A note can hold at most 20000 characters.'];
+  if (input.color !== undefined && !NOTE_COLOR_SET.has(input.color)) errors.color = ['Unknown note colour.'];
+  if (input.taskIds !== undefined && (input.taskIds.length > 100 || !input.taskIds.every(isValidId)))
+    errors.taskIds = ['Task ids must be valid, at most 100.'];
+  if (Object.keys(errors).length) invalid(errors);
+}
+
+const notes: Api['notes'] = {
+  list: async () => sortNotes(await all<Note>('notes')),
+
+  create: async (input: NoteInput) => {
+    validateNote(input);
+    const existing = await all<Note>('notes');
+    const now = nowIso();
+    const note: Note = {
+      id: newId(),
+      text: input.text ?? '',
+      color: input.color ?? 'yellow',
+      order: input.order ?? (existing.length === 0 ? 0 : Math.min(...existing.map((n) => n.order)) - 1),
+      isArchived: input.isArchived ?? false,
+      taskIds: [...new Set(input.taskIds ?? [])],
+      createdAt: now,
+      updatedAt: now,
+    };
+    await setDoc(ref('notes', note.id), note);
+    return note;
+  },
+
+  update: async (id: string, input: NoteInput) => {
+    validateNote(input);
+    const note = (await one<Note>('notes', id)) ?? notFound();
+    const next: Note = {
+      ...note,
+      ...(input.text !== undefined ? { text: input.text } : {}),
+      ...(input.color !== undefined ? { color: input.color } : {}),
+      ...(input.order !== undefined ? { order: input.order } : {}),
+      ...(input.isArchived !== undefined ? { isArchived: input.isArchived } : {}),
+      ...(input.taskIds !== undefined ? { taskIds: [...new Set(input.taskIds)] } : {}),
+      updatedAt: nowIso(),
+    };
+    await setDoc(ref('notes', id), next);
+    return next;
+  },
+
+  remove: async (id: string) => {
+    if (!(await one<Note>('notes', id))) notFound();
+    await deleteDoc(ref('notes', id));
+  },
+
+  reorder: async (items: { id: string; order: number }[]) => {
+    const found = (await Promise.all(items.map((i) => one<Note>('notes', i.id)))).map((note, i) => ({ note, order: items[i].order }));
+    const updates = found.filter((f): f is { note: Note; order: number } => f.note !== null).map((f) => ({ ...f.note, order: f.order }));
+    await batched(updates.length, (batch, i) => batch.set(ref('notes', updates[i].id), updates[i]));
+  },
+};
 
 const labels: Api['labels'] = {
   list: async () => sortLabels(await all<Label>('labels')),
@@ -478,14 +546,15 @@ const stats: Api['stats'] = {
 
 const backup: Api['backup'] = {
   export: async () => {
-    const [p, s, l, t, c] = await Promise.all([
+    const [p, s, l, t, c, n] = await Promise.all([
       all<Project>('projects'),
       all<Section>('sections'),
       all<Label>('labels'),
       all<Task>('tasks'),
       all<Completion>('completions'),
+      all<Note>('notes'),
     ]);
-    const document: BackupDocument = { app: 'MyTodoEase', version: 1, exportedAt: nowIso(), projects: p, sections: s, labels: l, tasks: t, completions: c };
+    const document: BackupDocument = { app: 'MyTodoEase', version: 1, exportedAt: nowIso(), projects: p, sections: s, labels: l, tasks: t, completions: c, notes: n };
     return document;
   },
 
@@ -502,6 +571,7 @@ const backup: Api['backup'] = {
     const labelsIn = (docIn.labels ?? []) as Label[];
     let tasksIn = (docIn.tasks ?? []) as Task[];
     const completionsIn = (docIn.completions ?? []) as Completion[];
+    const notesIn = (docIn.notes ?? []) as Note[];
 
     const seen = new Set<string>();
     const checkIds = (field: string, rows: { id: string }[]) => {
@@ -516,6 +586,7 @@ const backup: Api['backup'] = {
     checkIds('labels', labelsIn);
     checkIds('tasks', tasksIn);
     checkIds('completions', completionsIn);
+    checkIds('notes', notesIn);
     if (Object.keys(errors).length) invalid(errors);
 
     // References to rows missing from the file are dropped rather than rejected.
@@ -544,6 +615,16 @@ const backup: Api['backup'] = {
     projectsIn = projectsIn.map((p) => ({ ...p, name: p.name ?? '', color: p.color ?? 'grey', isInbox: Boolean(p.isInbox), isFavorite: Boolean(p.isFavorite) }));
     const labelsOut = labelsIn.map((l) => ({ ...l, name: l.name ?? '', color: l.color ?? 'grey' }));
     const completionsOut = completionsIn.map((c) => ({ ...c, content: c.content ?? '' }));
+    const notesOut: Note[] = notesIn.map((n) => ({
+      id: n.id,
+      text: n.text ?? '',
+      color: NOTE_COLOR_SET.has(n.color) ? n.color : 'yellow',
+      order: typeof n.order === 'number' ? n.order : 0,
+      isArchived: Boolean(n.isArchived),
+      taskIds: [...new Set((n.taskIds ?? []).filter(isValidId))],
+      createdAt: n.createdAt ?? nowIso(),
+      updatedAt: n.updatedAt ?? nowIso(),
+    }));
 
     // Exactly one Inbox: keep the first flagged one, or add one when the file has none.
     let inboxSeen = false;
@@ -559,7 +640,7 @@ const backup: Api['backup'] = {
 
     // Replace everything: delete what is there, then write the file's rows.
     const existing = await Promise.all(
-      (['projects', 'sections', 'labels', 'tasks', 'completions'] as CollectionName[]).map(async (name) => (await getDocs(userCollection(name))).docs.map((d) => d.ref)),
+      (['projects', 'sections', 'labels', 'tasks', 'completions', 'notes'] as CollectionName[]).map(async (name) => (await getDocs(userCollection(name))).docs.map((d) => d.ref)),
     );
     const deletes = existing.flat();
     await batched(deletes.length, (batch, i) => batch.delete(deletes[i]));
@@ -570,10 +651,11 @@ const backup: Api['backup'] = {
       ...labelsOut.map((l) => ({ ref: ref('labels', l.id), data: l })),
       ...tasksIn.map((t) => ({ ref: ref('tasks', t.id), data: t })),
       ...completionsOut.map((c) => ({ ref: ref('completions', c.id), data: c })),
+      ...notesOut.map((n) => ({ ref: ref('notes', n.id), data: n })),
     ];
     await batched(writes.length, (batch, i) => batch.set(writes[i].ref, writes[i].data));
 
-    return { projects: projectsIn.length, sections: sectionsIn.length, labels: labelsOut.length, tasks: tasksIn.length, completions: completionsOut.length };
+    return { projects: projectsIn.length, sections: sectionsIn.length, labels: labelsOut.length, tasks: tasksIn.length, completions: completionsOut.length, notes: notesOut.length };
   },
 };
 
@@ -676,6 +758,7 @@ export const firestoreApi: Api = {
   projects,
   sections,
   labels,
+  notes,
   tasks,
   stats,
 };

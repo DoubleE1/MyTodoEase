@@ -19,9 +19,11 @@ public static class BackupEndpoints
         List<Section> Sections,
         List<Label> Labels,
         List<TodoTask> Tasks,
-        List<Completion> Completions);
+        List<Completion> Completions,
+        // Added after version 1 shipped; older backups simply have no notes.
+        List<Note>? Notes = null);
 
-    public sealed record ImportResult(int Projects, int Sections, int Labels, int Tasks, int Completions);
+    public sealed record ImportResult(int Projects, int Sections, int Labels, int Tasks, int Completions, int Notes);
 
     public static IEndpointRouteBuilder MapBackup(this IEndpointRouteBuilder app)
     {
@@ -44,6 +46,7 @@ public static class BackupEndpoints
             var labels = doc.Labels ?? [];
             var tasks = doc.Tasks ?? [];
             var completions = doc.Completions ?? [];
+            var notes = doc.Notes ?? [];
 
             // References to rows missing from the file are dropped rather than rejected, so a hand-edited
             // or partially damaged backup still imports what it can.
@@ -66,6 +69,12 @@ public static class BackupEndpoints
             foreach (var s in sections) s.Name ??= "";
             foreach (var l in labels) { l.Name ??= ""; l.Color ??= "grey"; }
             foreach (var c in completions) c.Content ??= "";
+            foreach (var n in notes)
+            {
+                n.Text ??= "";
+                if (!Note.Colors.Contains(n.Color)) n.Color = "yellow";
+                n.TaskIds = (n.TaskIds ?? []).Where(AppDb.IsValidId).Distinct().ToList();
+            }
 
             // Exactly one Inbox: keep the first flagged one, or add one when the file has none.
             var inboxes = projects.Where(p => p.IsInbox).ToList();
@@ -73,9 +82,9 @@ public static class BackupEndpoints
             if (inboxes.Count == 0)
                 projects.Insert(0, new Project { Id = AppDb.NewId(), Name = "Inbox", Color = "grey", IsInbox = true, Order = -1 });
 
-            await store.ReplaceAllAsync(projects, sections, labels, tasks, completions, ct);
+            await store.ReplaceAllAsync(projects, sections, labels, tasks, completions, notes, ct);
             sync.EnqueueFull();
-            return Results.Ok(new ImportResult(projects.Count, sections.Count, labels.Count, tasks.Count, completions.Count));
+            return Results.Ok(new ImportResult(projects.Count, sections.Count, labels.Count, tasks.Count, completions.Count, notes.Count));
         });
 
         return app;
@@ -89,7 +98,8 @@ public static class BackupEndpoints
         await store.Sections.AllAsync(ct),
         await store.Labels.AllAsync(ct),
         await store.Tasks.AllAsync(ct),
-        await store.Completions.AllAsync(ct));
+        await store.Completions.AllAsync(ct),
+        await store.Notes.AllAsync(ct));
 
     private static Dictionary<string, string[]> Validate(BackupDocument doc)
     {
@@ -113,6 +123,7 @@ public static class BackupEndpoints
         CheckIds("labels", (doc.Labels ?? []).Select(l => l.Id));
         CheckIds("tasks", (doc.Tasks ?? []).Select(t => t.Id));
         CheckIds("completions", (doc.Completions ?? []).Select(c => c.Id));
+        CheckIds("notes", (doc.Notes ?? []).Select(n => n.Id));
         return errors;
     }
 }

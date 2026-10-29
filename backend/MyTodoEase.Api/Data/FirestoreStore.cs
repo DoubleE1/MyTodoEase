@@ -10,7 +10,7 @@ using MyTodoEase.Api.Services;
 namespace MyTodoEase.Api.Data;
 
 /// <summary>
-/// Cloud mode: the user's Firestore tree (users/{uid}/{projects,sections,labels,tasks,completions}) through the
+/// Cloud mode: the user's Firestore tree (users/{uid}/{projects,sections,labels,tasks,completions,notes}) through the
 /// Firestore REST API, authenticated with the Firebase ID token of the signed-in user, so the same security rules
 /// apply as in the apps. Documents keep the exact camelCase JSON shape the API serves, which is also what the
 /// web app and the desktop renderer write, so every client reads every other client's rows.
@@ -44,6 +44,7 @@ public sealed class FirestoreStore : IDataStore
         Labels = new Repo<Label>(this, "labels");
         Tasks = new Repo<TodoTask>(this, "tasks");
         Completions = new Repo<Completion>(this, "completions");
+        Notes = new Repo<Note>(this, "notes");
     }
 
     public string Description
@@ -61,6 +62,7 @@ public sealed class FirestoreStore : IDataStore
     public IRepository<Label> Labels { get; }
     public IRepository<TodoTask> Tasks { get; }
     public IRepository<Completion> Completions { get; }
+    public IRepository<Note> Notes { get; }
 
     public async Task ReplaceAllAsync(
         IEnumerable<Project> projects,
@@ -68,10 +70,11 @@ public sealed class FirestoreStore : IDataStore
         IEnumerable<Label> labels,
         IEnumerable<TodoTask> tasks,
         IEnumerable<Completion> completions,
+        IEnumerable<Note> notes,
         CancellationToken ct = default)
     {
         var deletes = new List<JsonObject>();
-        foreach (var collection in new[] { "projects", "sections", "labels", "tasks", "completions" })
+        foreach (var collection in new[] { "projects", "sections", "labels", "tasks", "completions", "notes" })
         {
             foreach (var doc in await ListDocumentsAsync(collection, ct))
                 deletes.Add(new JsonObject { ["delete"] = doc["name"]!.GetValue<string>() });
@@ -84,6 +87,7 @@ public sealed class FirestoreStore : IDataStore
         writes.AddRange(labels.Select(l => UpdateWrite("labels", l)));
         writes.AddRange(tasks.Select(t => UpdateWrite("tasks", t)));
         writes.AddRange(completions.Select(c => UpdateWrite("completions", c)));
+        writes.AddRange(notes.Select(n => UpdateWrite("notes", n)));
         await CommitAsync(writes, ct);
         InvalidateAll();
     }
@@ -95,6 +99,7 @@ public sealed class FirestoreStore : IDataStore
         ((Repo<Label>)Labels).Invalidate();
         ((Repo<TodoTask>)Tasks).Invalidate();
         ((Repo<Completion>)Completions).Invalidate();
+        ((Repo<Note>)Notes).Invalidate();
     }
 
     // ----- HTTP -----
