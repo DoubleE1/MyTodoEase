@@ -2,7 +2,7 @@
   "name": "todoease-desktop",
   "productName": "TodoEase",
   "private": true,
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "TodoEase desktop shell",
   "author": "TodoEase",
   "main": "main.cjs",
