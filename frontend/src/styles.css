@@ -3781,8 +3781,10 @@ p.detail-description {
    colour on a 2px top edge. Dark values follow the reference design; light mode mirrors them on white glass. */
 :root {
   --note-glass: rgba(255, 255, 255, 0.86);
-  --note-wash: 14%;
+  --note-wash: 16%;
   --note-border: rgba(0, 0, 0, 0.08);
+  --note-side-mix: 34%;
+  --note-glow-mix: 30%;
   --note-inset: rgba(255, 255, 255, 0.9);
   --note-reflection: rgba(255, 255, 255, 0.5);
   --note-shadow: 0 12px 32px rgba(40, 30, 80, 0.12);
@@ -3803,8 +3805,10 @@ p.detail-description {
 
 :root[data-theme='dark'] {
   --note-glass: rgba(35, 36, 43, 0.82);
-  --note-wash: 12%;
+  --note-wash: 17%;
   --note-border: rgba(255, 255, 255, 0.09);
+  --note-side-mix: 30%;
+  --note-glow-mix: 45%;
   --note-inset: rgba(255, 255, 255, 0.055);
   --note-reflection: rgba(255, 255, 255, 0.045);
   --note-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
@@ -3909,17 +3913,21 @@ p.detail-description {
   flex-direction: column;
   min-height: 230px;
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: 14px;
   /* A light wash of the note's colour at the top only; the card itself stays neutral glass. */
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--note-c, #8b72ff) var(--note-wash), transparent) 0%, transparent 32%),
+    linear-gradient(180deg, color-mix(in srgb, var(--note-c, #8b72ff) var(--note-wash), transparent) 0%, transparent 38%),
     var(--note-glass);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
-  border: 1px solid var(--note-border);
-  border-top: 2px solid var(--note-c, #8b72ff);
+  /* Sides and bottom carry a tint of the note colour; the top edge is the colour itself, curving with the corners. */
+  border: 1px solid color-mix(in srgb, var(--note-c, #8b72ff) var(--note-side-mix), var(--note-border));
+  border-top: 3px solid var(--note-c, #8b72ff);
   color: var(--note-text);
-  box-shadow: var(--note-shadow), inset 0 1px 0 var(--note-inset);
+  box-shadow:
+    0 -3px 14px -6px color-mix(in srgb, var(--note-c, #8b72ff) var(--note-glow-mix), transparent),
+    var(--note-shadow),
+    inset 0 1px 0 var(--note-inset);
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
@@ -3940,7 +3948,10 @@ p.detail-description {
 
 .note-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--note-shadow-hover), inset 0 1px 0 var(--note-inset);
+  box-shadow:
+    0 -3px 16px -5px color-mix(in srgb, var(--note-c, #8b72ff) var(--note-glow-mix), transparent),
+    var(--note-shadow-hover),
+    inset 0 1px 0 var(--note-inset);
 }
 
 /* While dragging, the card follows the pointer exactly (the inline transform must not animate). */
