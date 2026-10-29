@@ -428,7 +428,7 @@ function NoteCard({
     if (cardRef.current) onMeasure(note.id, cardRef.current.offsetHeight);
   }, [text, note.id, onMeasure]);
 
-  const edited = note.updatedAt ? `Edited ${editedLabel(note.updatedAt)}` : '';
+  const edited = note.updatedAt ? editedLabel(note.updatedAt) : '';
 
   return (
     <article
@@ -482,7 +482,7 @@ function NoteCard({
         }}
       />
       <footer className="note-footer">
-        <span className="note-meta" title={note.updatedAt}>
+        <span className="note-meta" title={note.updatedAt ? `Edited ${new Date(note.updatedAt).toLocaleString()}` : undefined}>
           {note.taskIds.length > 0 ? (
             <>
               <ListTodo size={13} /> {note.taskIds.length} task{note.taskIds.length === 1 ? '' : 's'} made

@@ -3835,6 +3835,11 @@ p.detail-description {
   width: auto;
 }
 
+.note-meta svg {
+  vertical-align: -2px;
+  margin-right: 3px;
+}
+
 .notes-board.is-dragging {
   cursor: grabbing;
   user-select: none;
@@ -3963,9 +3968,8 @@ p.detail-description {
 .note-meta {
   flex: 1;
   min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  display: block;
+  white-space: nowrap;
   font-size: 11px;
   color: var(--note-muted);
   white-space: nowrap;
