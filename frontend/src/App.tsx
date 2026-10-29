@@ -30,6 +30,7 @@ import { Toasts } from './components/Toasts';
 // share of the bundle and most sessions never open all three, so the first paint ships without them.
 const CalendarView = lazy(() => import('./components/CalendarView').then((m) => ({ default: m.CalendarView })));
 const InsightsView = lazy(() => import('./components/InsightsView').then((m) => ({ default: m.InsightsView })));
+const NotesView = lazy(() => import('./components/NotesView').then((m) => ({ default: m.NotesView })));
 const SettingsDialog = lazy(() => import('./components/SettingsDialog').then((m) => ({ default: m.SettingsDialog })));
 import { toDateStr, todayStr } from './lib/dates';
 import { useWindowMode } from './lib/desktop';
@@ -434,6 +435,17 @@ export default function App() {
           </div>
         ) : loading ? (
           <div className="loading">Loading…</div>
+        ) : effectiveView.kind === 'notes' ? (
+          <Suspense fallback={<div className="loading">Loading…</div>}>
+            <NotesView
+              projects={projects.data ?? []}
+              sections={sections.data ?? []}
+              labels={labels.data ?? []}
+              onCreateLabel={createLabel}
+              onOpenTask={setOpenTaskId}
+              confirm={confirm}
+            />
+          </Suspense>
         ) : effectiveView.kind === 'insights' ? (
           <Suspense fallback={<div className="loading">Loading…</div>}>
             <InsightsView projects={projects.data ?? []} />

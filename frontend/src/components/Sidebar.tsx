@@ -13,6 +13,7 @@ import {
   Plus,
   Search,
   Star,
+  StickyNote,
   Sun,
   Tag,
   Trash2,
@@ -260,6 +261,12 @@ export function Sidebar({
       />
 
       <nav className="sidebar-nav">
+        <NavItem
+          icon={<StickyNote size={18} />}
+          label="Notes"
+          active={isActive({ kind: 'notes' })}
+          onClick={() => onSelectView({ kind: 'notes' })}
+        />
         <NavItem
           icon={<Inbox size={18} />}
           label="Inbox"
