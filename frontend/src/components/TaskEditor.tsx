@@ -1,7 +1,10 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Label, Priority, Project, Recurrence, Section, Task, TaskInput } from '../api/types';
 import { parseQuickAdd } from '../lib/quickAdd';
 import { DuePicker, LabelPicker, PriorityPicker, ProjectPicker } from './Pickers';
+
+// The rich-text description editor is only needed once a task's detail is being edited; load it on demand.
+const DescriptionEditor = lazy(() => import('./DescriptionEditor'));
 
 export interface TaskEditorProps {
   mode: 'create' | 'edit';
@@ -70,6 +73,7 @@ export function TaskEditor({
   const [content, setContent] = useState(base.content);
   const [description, setDescription] = useState(base.description ?? '');
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const [toolbarHost, setToolbarHost] = useState<HTMLSpanElement | null>(null);
 
   // Grow the description box to fit its text (CSS max-height caps it; past that it scrolls).
   useLayoutEffect(() => {
@@ -201,16 +205,28 @@ export function TaskEditor({
         onKeyDown={onContentKeyDown}
         aria-label="Task name"
       />
-      <textarea
-        ref={descriptionRef}
-        className={`editor-description ${textOnly ? 'is-roomy' : ''}`}
-        placeholder="Description (Markdown supported: **bold**, - lists, [links](https://…), `code`)"
-        rows={2}
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        onKeyDown={onDescriptionKeyDown}
-        aria-label="Description"
-      />
+      {textOnly ? (
+        <Suspense fallback={<div className="rich-desc rich-desc-loading" aria-hidden="true" />}>
+          <DescriptionEditor
+            value={description}
+            onChange={setDescription}
+            onSubmit={() => void submit()}
+            onCancel={onCancel}
+            toolbarHost={toolbarHost}
+          />
+        </Suspense>
+      ) : (
+        <textarea
+          ref={descriptionRef}
+          className="editor-description"
+          placeholder="Description"
+          rows={2}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          onKeyDown={onDescriptionKeyDown}
+          aria-label="Description"
+        />
+      )}
 
       {!textOnly && (
         <div className="editor-chips">
@@ -243,7 +259,7 @@ export function TaskEditor({
             onChange={(projectId, sectionId) => setFields((f) => ({ ...f, projectId, sectionId }))}
           />
         ) : (
-          <span />
+          <span ref={setToolbarHost} className="editor-toolbar-host" />
         )}
         <div className="editor-actions">
           <button type="button" className="btn" onClick={onCancel}>
