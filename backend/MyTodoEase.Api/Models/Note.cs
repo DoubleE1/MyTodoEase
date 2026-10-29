@@ -15,7 +15,11 @@ public sealed class Note
     public string Id { get; set; } = null!;
     public string Text { get; set; } = "";
     public string Color { get; set; } = "yellow";
+    /// <summary>Stacking order on the board: higher is drawn on top (the last note moved or created).</summary>
     public int Order { get; set; }
+    /// <summary>Top-left corner on the board in CSS pixels; null until the note is first placed.</summary>
+    public double? X { get; set; }
+    public double? Y { get; set; }
     public bool IsArchived { get; set; }
     public List<string> TaskIds { get; set; } = [];
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

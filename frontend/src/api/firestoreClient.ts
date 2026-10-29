@@ -246,6 +246,8 @@ function validateNote(input: NoteInput) {
   if (input.color !== undefined && !NOTE_COLOR_SET.has(input.color)) errors.color = ['Unknown note colour.'];
   if (input.taskIds !== undefined && (input.taskIds.length > 100 || !input.taskIds.every(isValidId)))
     errors.taskIds = ['Task ids must be valid, at most 100.'];
+  for (const v of [input.x, input.y])
+    if (v !== undefined && !(Number.isFinite(v) && v >= 0 && v <= 100000)) errors.position = ['Position must be between 0 and 100000.'];
   if (Object.keys(errors).length) invalid(errors);
 }
 
@@ -263,6 +265,8 @@ const notes: Api['notes'] = {
       order: input.order ?? (existing.length === 0 ? 0 : Math.min(...existing.map((n) => n.order)) - 1),
       isArchived: input.isArchived ?? false,
       taskIds: [...new Set(input.taskIds ?? [])],
+      x: input.x ?? null,
+      y: input.y ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -280,7 +284,10 @@ const notes: Api['notes'] = {
       ...(input.order !== undefined ? { order: input.order } : {}),
       ...(input.isArchived !== undefined ? { isArchived: input.isArchived } : {}),
       ...(input.taskIds !== undefined ? { taskIds: [...new Set(input.taskIds)] } : {}),
-      updatedAt: nowIso(),
+      ...(input.x !== undefined ? { x: input.x } : {}),
+      ...(input.y !== undefined ? { y: input.y } : {}),
+      // Moving a note is not an edit of its content.
+      updatedAt: input.text !== undefined || input.color !== undefined ? nowIso() : note.updatedAt,
     };
     await setDoc(ref('notes', id), next);
     return next;
@@ -622,6 +629,8 @@ const backup: Api['backup'] = {
       order: typeof n.order === 'number' ? n.order : 0,
       isArchived: Boolean(n.isArchived),
       taskIds: [...new Set((n.taskIds ?? []).filter(isValidId))],
+      x: typeof n.x === 'number' ? n.x : null,
+      y: typeof n.y === 'number' ? n.y : null,
       createdAt: n.createdAt ?? nowIso(),
       updatedAt: n.updatedAt ?? nowIso(),
     }));

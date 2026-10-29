@@ -6,7 +6,7 @@ namespace MyTodoEase.Api.Endpoints;
 public static class NotesEndpoints
 {
     /// <summary>Partial update: a null field is left as it is.</summary>
-    public sealed record NoteWriteRequest(string? Text, string? Color, int? Order, bool? IsArchived, List<string>? TaskIds);
+    public sealed record NoteWriteRequest(string? Text, string? Color, int? Order, bool? IsArchived, List<string>? TaskIds, double? X = null, double? Y = null);
 
     public sealed record NoteOrder(string Id, int Order);
 
@@ -36,6 +36,8 @@ public static class NotesEndpoints
                 Order = req.Order ?? (all.Count == 0 ? 0 : all.Min(n => n.Order) - 1),
                 IsArchived = req.IsArchived ?? false,
                 TaskIds = req.TaskIds?.Distinct().ToList() ?? [],
+                X = req.X,
+                Y = req.Y,
                 CreatedAt = now,
                 UpdatedAt = now,
             };
@@ -57,7 +59,10 @@ public static class NotesEndpoints
             if (req.Order is int order) note.Order = order;
             if (req.IsArchived is bool archived) note.IsArchived = archived;
             if (req.TaskIds is not null) note.TaskIds = req.TaskIds.Distinct().ToList();
-            note.UpdatedAt = DateTime.UtcNow;
+            if (req.X is double x) note.X = x;
+            if (req.Y is double y) note.Y = y;
+            // Moving a note is not an edit of its content: "edited 2 minutes ago" keeps meaning the text.
+            if (req.Text is not null || req.Color is not null) note.UpdatedAt = DateTime.UtcNow;
             await store.Notes.UpsertAsync(note, ct);
             return Results.Ok(note);
         });
@@ -92,6 +97,8 @@ public static class NotesEndpoints
             errors["color"] = [$"Color must be one of: {string.Join(", ", Note.Colors)}."];
         if (req.TaskIds is not null && (req.TaskIds.Count > 100 || req.TaskIds.Any(id => !AppDb.IsValidId(id))))
             errors["taskIds"] = ["Task ids must be valid, at most 100."];
+        if (req.X is < 0 or > 100000 || req.Y is < 0 or > 100000 || req.X is double.NaN || req.Y is double.NaN)
+            errors["position"] = ["Position must be between 0 and 100000."];
         return errors;
     }
 }

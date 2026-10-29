@@ -36,8 +36,11 @@ export interface Note {
   id: string;
   text: string;
   color: NoteColor;
-  /** Lowest first; new notes get the lowest. */
+  /** Stacking order on the board: higher is drawn on top. */
   order: number;
+  /** Top-left corner on the board (CSS pixels); null/absent until first placed. */
+  x?: number | null;
+  y?: number | null;
   isArchived: boolean;
   /** Tasks created from this note. */
   taskIds: string[];
@@ -50,6 +53,8 @@ export interface NoteInput {
   text?: string;
   color?: NoteColor;
   order?: number;
+  x?: number;
+  y?: number;
   isArchived?: boolean;
   taskIds?: string[];
 }

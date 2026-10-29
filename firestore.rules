@@ -70,11 +70,12 @@ service cloud.firestore {
     }
 
     function validNote(d, id) {
-      return d.keys().hasOnly(['id', 'text', 'color', 'order', 'isArchived', 'taskIds', 'createdAt', 'updatedAt'])
+      return d.keys().hasOnly(['id', 'text', 'color', 'order', 'x', 'y', 'isArchived', 'taskIds', 'createdAt', 'updatedAt'])
         && d.id == id
         && str(d.text, 20000)
         && d.color in ['yellow', 'green', 'blue', 'pink', 'purple', 'orange', 'grey']
         && d.order is number && d.isArchived is bool && strList(d.taskIds, 100)
+        && (!('x' in d) || nullOrNumber(d.x)) && (!('y' in d) || nullOrNumber(d.y))
         && str(d.createdAt, 40) && str(d.updatedAt, 40);
     }
 

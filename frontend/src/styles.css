@@ -3801,8 +3801,51 @@ p.detail-description {
   --note-muted: rgba(255, 255, 255, 0.6);
 }
 
+/* The Notes page has no frosted panel: the notes sit straight on the page, which is the whole board. */
 .view.view-notes {
-  max-width: 1100px;
+  max-width: none;
+  min-height: 0;
+  padding: 4px 0 32px;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.notes-board {
+  position: relative;
+  min-height: 480px;
+}
+
+.notes-board .note-card {
+  position: absolute;
+  width: 280px;
+}
+
+.notes-board.is-stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: auto;
+}
+
+.notes-board.is-stacked .note-card {
+  position: relative;
+  width: auto;
+}
+
+.notes-board.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.note-card.is-movable {
+  cursor: grab;
+}
+
+.note-card.is-movable .note-text {
+  cursor: text;
 }
 
 .notes-header {
@@ -3845,9 +3888,9 @@ p.detail-description {
 .note-card[data-color='grey'] { background: var(--note-grey); }
 
 .note-card.is-dragging {
-  z-index: 5;
-  box-shadow: var(--shadow);
-  opacity: 0.9;
+  cursor: grabbing;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  transition: none;
 }
 
 .note-card.is-archived {
@@ -3857,10 +3900,11 @@ p.detail-description {
 
 .note-grip {
   position: absolute;
-  top: 4px;
+  top: 2px;
   left: 50%;
-  transform: translateX(-50%) rotate(90deg);
-  padding: 0;
+  transform: translateX(-50%);
+  padding: 0 6px;
+  border-radius: 4px;
   border: 0;
   background: none;
   color: var(--note-muted);
@@ -3917,6 +3961,8 @@ p.detail-description {
 }
 
 .note-meta {
+  flex: 1;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -3958,6 +4004,8 @@ p.detail-description {
 }
 
 .note-convert {
+  flex: none;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 5px;
