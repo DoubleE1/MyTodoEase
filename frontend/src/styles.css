@@ -5370,7 +5370,12 @@ p.detail-description {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+}
+
+/* The title takes the free space; filter, Plan my day and View options sit together on the right. */
+.view-header-row h1 {
+  margin-right: auto;
 }
 
 /* Collapsible task groups (sections, day headings) */
@@ -6497,4 +6502,53 @@ p.detail-description {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* View options (group by / sort by) */
+
+.view-options-btn {
+  flex-shrink: 0;
+  position: relative;
+  color: var(--text-muted);
+}
+
+.view-options-btn:hover,
+.view-options-btn.is-open {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* A small accent dot says this page is not on its default layout. */
+.view-options-btn.is-customized::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.view-options {
+  min-width: 200px;
+}
+
+.picker-heading {
+  padding: 6px 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.picker-row:disabled {
+  opacity: 0.45;
+  cursor: default;
+  background: none;
+}
+
+.group-header .group-icon {
+  color: var(--text-muted);
 }

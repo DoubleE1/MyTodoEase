@@ -18,8 +18,35 @@ import { useCalendarEvents } from '../api/hooks';
 import { planDay } from '../lib/plan';
 import { showToast } from '../lib/toast';
 import type { ExternalEvent } from '../api/types';
-import { Check, ChevronDown, GripVertical, Layers, MoreHorizontal, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react';
+import {
+  CalendarDays,
+  Check,
+  ChevronDown,
+  Flag,
+  GripVertical,
+  Layers,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  SlidersHorizontal,
+  Sparkles,
+  Tag,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { inboxTasks, setInboxFilter, useInboxFilter, type InboxFilter } from '../lib/inboxFilter';
+import {
+  DEFAULT_VIEW_OPTIONS,
+  setViewOptions,
+  sortTasks,
+  useViewOptions,
+  viewOptionsKey,
+  type GroupBy,
+  type SortBy,
+  type ViewOptions,
+} from '../lib/viewOptions';
+import { colorHex, PRIORITY_META } from '../lib/colors';
+import type { Priority } from '../api/types';
 import { ProjectIcon } from './Pickers';
 import { Popover } from './Popover';
 import { useRef, useState, type ReactNode } from 'react';
@@ -145,6 +172,111 @@ function InboxFilterPicker({ projects, tasks, filter }: { projects: Project[]; t
           {row('all', <Layers size={14} />, 'All projects', close)}
           <div className="menu-sep" role="separator" />
           {ordered.map((p) => row(p.id, <ProjectIcon project={p} />, p.name, close))}
+        </div>
+      )}
+    </Popover>
+  );
+}
+
+/**
+ * "View options": how this page groups and sorts its tasks. "Default" names the page's own layout
+ * (sections, projects, days; manual or due-date order) so it is clear what resetting goes back to.
+ */
+function ViewOptionsMenu({
+  options,
+  onChange,
+  defaultGroupLabel,
+  defaultSortLabel,
+  showProjectGrouping,
+}: {
+  options: ViewOptions;
+  onChange: (options: ViewOptions) => void;
+  defaultGroupLabel: string;
+  defaultSortLabel: string;
+  showProjectGrouping: boolean;
+}) {
+  const groupChoices: [GroupBy, string][] = [
+    ['default', defaultGroupLabel],
+    ['none', 'None'],
+    ...(showProjectGrouping ? ([['project', 'Project']] as [GroupBy, string][]) : []),
+    ['date', 'Due date'],
+    ['priority', 'Priority'],
+    ['label', 'Label'],
+  ];
+  const sortChoices: [SortBy, string][] = [
+    ['default', defaultSortLabel],
+    ['date', 'Due date'],
+    ['priority', 'Priority'],
+    ['name', 'Name'],
+    ['added', 'Date added'],
+  ];
+  // A choice that matches the page's default is the same thing; drop the duplicate row.
+  const dedupe = <T extends string>(choices: [T, string][]) =>
+    choices.filter(([value, label], i) => i === 0 || value === 'default' || label !== choices[0][1]);
+  const customized = options.groupBy !== 'default' || options.sortBy !== 'default';
+  const row = <T extends string>(
+    selected: T,
+    value: T,
+    label: string,
+    pick: (value: T) => void,
+  ) => (
+    <button
+      key={value}
+      type="button"
+      role="menuitemradio"
+      aria-checked={selected === value}
+      className={`picker-row ${selected === value ? 'is-selected' : ''}`}
+      onClick={() => pick(value)}
+    >
+      <span className="row-label">{label}</span>
+      {selected === value && <Check size={14} className="row-check" />}
+    </button>
+  );
+  return (
+    <Popover
+      align="right"
+      trigger={({ onClick, open }) => (
+        <button
+          type="button"
+          className={`icon-btn view-options-btn ${open ? 'is-open' : ''} ${customized ? 'is-customized' : ''}`}
+          onClick={onClick}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={customized ? 'View options (customized)' : 'View options'}
+          data-tooltip="Group and sort"
+        >
+          <SlidersHorizontal size={16} />
+        </button>
+      )}
+    >
+      {(close) => (
+        <div className="picker view-options" role="menu" aria-label="View options">
+          <div className="picker-heading" role="presentation">Group by</div>
+          <div role="group" aria-label="Group by">
+            {dedupe(groupChoices).map(([value, label]) =>
+              row(options.groupBy, value, label, (groupBy) => onChange({ ...options, groupBy })),
+            )}
+          </div>
+          <div className="menu-sep" role="separator" />
+          <div className="picker-heading" role="presentation">Sort by</div>
+          <div role="group" aria-label="Sort by">
+            {dedupe(sortChoices).map(([value, label]) =>
+              row(options.sortBy, value, label, (sortBy) => onChange({ ...options, sortBy })),
+            )}
+          </div>
+          <div className="menu-sep" role="separator" />
+          <button
+            type="button"
+            role="menuitem"
+            className="picker-row"
+            disabled={!customized}
+            onClick={() => {
+              onChange(DEFAULT_VIEW_OPTIONS);
+              close();
+            }}
+          >
+            <span className="row-label">Reset to defaults</span>
+          </button>
         </div>
       )}
     </Popover>
@@ -408,6 +540,120 @@ export function TaskList({
     }
   };
 
+  // ----- View options (group by / sort by), remembered per page -----
+
+  const optionsKey = viewOptionsKey(view);
+  const viewOptions = useViewOptions(optionsKey);
+  const defaultGroupLabel =
+    view.kind === 'project' ? 'Sections'
+    : view.kind === 'inbox' ? (inboxAll ? 'Projects' : 'Sections')
+    : view.kind === 'today' || view.kind === 'upcoming' ? 'Days'
+    : 'None';
+  const defaultSortLabel = view.kind === 'project' ? 'Manual' : 'Due date';
+  // Grouping by project is the Inbox's own default and meaningless on a single project's page.
+  const showProjectGrouping = view.kind !== 'project' && view.kind !== 'inbox';
+
+  /** Re-buckets the page's tasks by the chosen field; "Add task" in a bucket pre-fills that field. */
+  const regroup = (base: Group[], groupBy: Exclude<GroupBy, 'default'>): Group[] => {
+    const seen = new Set<string>();
+    const all = base.flatMap((g) => g.tasks).filter((t) => (seen.has(t.id) ? false : (seen.add(t.id), true)));
+    const nested = base.some((g) => g.nested);
+    const firstDefaults = base.find((g) => g.defaults)?.defaults ?? null;
+    // A bucket is not a section, so new tasks land outside sections.
+    const baseDefaults = firstDefaults ? { ...firstDefaults, sectionId: undefined } : null;
+    const withDefaults = (extra: Partial<TaskInput>) => (baseDefaults ? { ...baseDefaults, ...extra } : null);
+    const emptyText = base.find((g) => g.emptyText)?.emptyText ?? 'No tasks here yet.';
+    const showsEvents = view.kind === 'today' || view.kind === 'upcoming';
+
+    let groups: Group[] = [];
+    switch (groupBy) {
+      case 'none':
+        groups = [{ key: 'all', title: null, tasks: sortForAgenda(all), defaults: baseDefaults, nested }];
+        break;
+      case 'project': {
+        const ordered = [...projects].sort((a, b) => Number(b.isInbox) - Number(a.isInbox) || a.order - b.order);
+        groups = ordered.map((project) => ({
+          key: `by-project:${project.id}`,
+          title: project.name,
+          icon: <ProjectIcon project={project} />,
+          tasks: sortForAgenda(all.filter((t) => t.projectId === project.id)),
+          defaults: withDefaults({ projectId: project.id }),
+          nested,
+        }));
+        break;
+      }
+      case 'date': {
+        const overdue = all.filter((t) => isOverdue(t, today));
+        if (overdue.length > 0) {
+          groups.push({ key: 'overdue', title: 'Overdue', tasks: sortForAgenda(overdue), defaults: null, nested, isOverdue: true });
+        }
+        const days = [...new Set(all.map((t) => t.dueDate).filter((d): d is string => d !== null && d >= today))].sort();
+        for (const day of days) {
+          groups.push({
+            key: `by-date:${day}`,
+            title: describeDayHeading(day),
+            icon: <CalendarDays size={14} className="group-icon" />,
+            tasks: sortForAgenda(all.filter((t) => t.dueDate === day)),
+            defaults: withDefaults({ dueDate: day }),
+            nested,
+            events: showsEvents ? eventsFor(day) : undefined,
+          });
+        }
+        groups.push({
+          key: 'by-date:none',
+          title: 'No date',
+          tasks: sortForAgenda(all.filter((t) => t.dueDate === null)),
+          defaults: withDefaults({ dueDate: null }),
+          nested,
+        });
+        break;
+      }
+      case 'priority':
+        groups = ([1, 2, 3, 4] as Priority[]).map((p) => ({
+          key: `by-priority:${p}`,
+          title: PRIORITY_META[p].label,
+          icon: <Flag size={14} color={PRIORITY_META[p].hex} fill={p < 4 ? PRIORITY_META[p].hex : 'none'} />,
+          tasks: sortForAgenda(all.filter((t) => t.priority === p)),
+          defaults: withDefaults({ priority: p }),
+          nested,
+        }));
+        break;
+      case 'label': {
+        // A task with several labels shows under each of them.
+        const ordered = [...labels].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+        groups = ordered.map((label) => ({
+          key: `by-label:${label.id}`,
+          title: label.name,
+          icon: <Tag size={14} color={colorHex(label.color)} />,
+          tasks: sortForAgenda(all.filter((t) => t.labelIds.includes(label.id))),
+          defaults: withDefaults({ labelIds: [...new Set([...(baseDefaults?.labelIds ?? []), label.id])] }),
+          nested,
+        }));
+        groups.push({
+          key: 'by-label:none',
+          title: 'No label',
+          tasks: sortForAgenda(all.filter((t) => t.labelIds.length === 0)),
+          defaults: baseDefaults,
+          nested,
+        });
+        break;
+      }
+    }
+    const nonEmpty = groups.filter((g) => g.tasks.length > 0);
+    return nonEmpty.length > 0
+      ? nonEmpty
+      : [{ key: 'all', title: null, tasks: [], defaults: baseDefaults, nested, emptyText }];
+  };
+
+  const arrangeGroups = (): Group[] => {
+    let groups = buildGroups();
+    if (viewOptions.groupBy !== 'default') groups = regroup(groups, viewOptions.groupBy);
+    const sortBy = viewOptions.sortBy;
+    // Any explicit sort replaces manual order, so dragging is off until it is reset.
+    if (sortBy !== 'default') groups = groups.map((g) => ({ ...g, tasks: sortTasks(g.tasks, sortBy), sortable: false }));
+    return groups;
+  };
+
   const rescheduleOverdue = async () => {
     const overdue = tasks.filter((t) => isOverdue(t, today));
     await Promise.all(
@@ -576,7 +822,7 @@ export function TaskList({
     );
   }
 
-  const groups = buildGroups();
+  const groups = arrangeGroups();
   const subtitle = view.kind === 'today' ? format(new Date(), 'EEEE d MMMM') : null;
   const totalShown = groups.reduce((n, g) => n + g.tasks.length, 0);
 
@@ -612,6 +858,13 @@ export function TaskList({
               <span>{planning ? 'Planning…' : 'Plan my day'}</span>
             </button>
           )}
+          <ViewOptionsMenu
+            options={viewOptions}
+            onChange={(options) => setViewOptions(optionsKey, options)}
+            defaultGroupLabel={defaultGroupLabel}
+            defaultSortLabel={defaultSortLabel}
+            showProjectGrouping={showProjectGrouping}
+          />
         </div>
         {subtitle && <p className="muted">{subtitle}</p>}
         {view.kind === 'search' && <p className="muted">{totalShown} result{totalShown === 1 ? '' : 's'}</p>}
