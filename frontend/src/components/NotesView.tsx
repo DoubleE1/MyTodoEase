@@ -34,9 +34,12 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), M
 const NOTE_HEIGHT_GUESS = 230;
 const GAP = 20;
 const KEY_STEP = 16;
-/** Canvas coordinates stay within what the API accepts. */
-const POS_LIMIT = 100000;
-const clampPos = (v: number) => Math.round(clamp(v, -POS_LIMIT, POS_LIMIT));
+/** The board: a large, bounded surface (several screens wide); notes stay inside it. */
+const BOARD_W = 4000;
+const BOARD_H = 3000;
+/** A note's left/top, kept so that the whole note is on the board. */
+const clampX = (x: number, w: number) => Math.round(clamp(x, 0, BOARD_W - w));
+const clampY = (y: number, h: number) => Math.round(clamp(y, 0, BOARD_H - h));
 
 /** Canvas view: pan offset in screen pixels and zoom factor. Remembered per device. */
 interface CanvasView {
@@ -44,11 +47,23 @@ interface CanvasView {
   y: number;
   z: number;
 }
-const MIN_ZOOM = 0.2;
+/** Zoom out stops once the whole board is in view (never below this). */
+const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 2.5;
-const DOT_SPACING = 24;
+/** How far past the board's edge the view can be pulled. */
+const EDGE_ROOM = 80;
 const VIEW_KEY = 'todoease.notes.view';
-const DEFAULT_VIEW: CanvasView = { x: 40, y: 24, z: 1 };
+const DEFAULT_VIEW: CanvasView = { x: 24, y: 24, z: 1 };
+
+/** Keep the board in sight: limit zoom-out to "whole board fits", and pan to just past its edges
+ * (a board smaller than the window is centred). */
+function clampView(v: CanvasView, width: number, height: number): CanvasView {
+  const fit = Math.min(width / BOARD_W, height / BOARD_H);
+  const z = clamp(v.z, Math.max(MIN_ZOOM, Math.min(1, fit)), MAX_ZOOM);
+  const axis = (pos: number, size: number, room: number) =>
+    size <= room ? (room - size) / 2 : clamp(pos, room - size - EDGE_ROOM, EDGE_ROOM);
+  return { x: axis(v.x, BOARD_W * z, width), y: axis(v.y, BOARD_H * z, height), z };
+}
 
 function loadView(): CanvasView {
   try {
@@ -101,18 +116,19 @@ function findFreeSpotNear(placed: Rect[], cx: number, cy: number): { x: number; 
     for (let j = -reach; j <= reach; j++) candidates.push({ x: i * step, y: j * step, d: i * i + j * j });
   }
   candidates.sort((a, b) => a.d - b.d);
-  const left = cx - NOTE_WIDTH / 2;
-  const top = cy - NOTE_HEIGHT_GUESS / 2;
+  const left = clampX(cx - NOTE_WIDTH / 2, NOTE_WIDTH);
+  const top = clampY(cy - NOTE_HEIGHT_GUESS / 2, NOTE_HEIGHT_GUESS);
   for (const c of candidates) {
     const rect = { x: left + c.x, y: top + c.y, w: NOTE_WIDTH, h: NOTE_HEIGHT_GUESS };
-    if (!placed.some((p) => overlaps(rect, p))) return { x: clampPos(rect.x), y: clampPos(rect.y) };
+    if (rect.x < 0 || rect.y < 0 || rect.x + rect.w > BOARD_W || rect.y + rect.h > BOARD_H) continue;
+    if (!placed.some((p) => overlaps(rect, p))) return { x: rect.x, y: rect.y };
   }
-  return { x: clampPos(left), y: clampPos(top) };
+  return { x: left, y: top };
 }
 
 /**
- * The Notes board: an endless canvas, like a whiteboard. Drag the background (or with the middle mouse
- * button anywhere) to move around, scroll to zoom, pinch on touch screens. Notes keep their place on every
+ * The Notes board: a large board, several screens wide, like a whiteboard. Drag the background (or with the
+ * middle mouse button anywhere) to move around, scroll to zoom, pinch on touch screens. Notes keep their place on every
  * device and screen size; the last one moved or created sits on top. Notes save while typing, can be
  * coloured and resized, and "Turn into tasks" suggests tasks from the text for the user to approve.
  */
@@ -138,6 +154,7 @@ export function NotesView({
   const [converting, setConverting] = useState<Note | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const zoomLabelRef = useRef<HTMLSpanElement>(null);
   const heights = useRef(new Map<string, number>());
   const [, setMeasured] = useState(0);
@@ -158,18 +175,13 @@ export function NotesView({
   const applyView = useCallback(() => {
     const { x, y, z } = view.current;
     if (worldRef.current) worldRef.current.style.transform = `translate(${x}px, ${y}px) scale(${z})`;
-    const canvas = canvasRef.current;
-    if (canvas) {
-      // The dot grid moves and scales with the canvas, so the space reads as one surface.
-      canvas.style.backgroundSize = `${DOT_SPACING * z}px ${DOT_SPACING * z}px`;
-      canvas.style.backgroundPosition = `${x}px ${y}px`;
-    }
     if (zoomLabelRef.current) zoomLabelRef.current.textContent = `${Math.round(z * 100)}%`;
   }, []);
 
   const setView = useCallback(
     (next: CanvasView) => {
-      view.current = { x: next.x, y: next.y, z: clamp(next.z, MIN_ZOOM, MAX_ZOOM) };
+      const canvas = canvasRef.current;
+      view.current = canvas ? clampView(next, canvas.clientWidth, canvas.clientHeight) : next;
       applyView();
       window.clearTimeout(saveViewTimer.current);
       saveViewTimer.current = window.setTimeout(() => {
@@ -183,7 +195,22 @@ export function NotesView({
     [applyView],
   );
 
-  useLayoutEffect(applyView, [applyView, notesQuery.isLoading]);
+  // Apply (and re-fit) the view when the board appears and whenever the window changes size.
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    setView(view.current);
+    const observer = new ResizeObserver(() => setView(view.current));
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [setView, notesQuery.isLoading]);
+
+  /** The smallest zoom: the whole board in view. */
+  const minZoom = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return MIN_ZOOM;
+    return Math.max(MIN_ZOOM, Math.min(1, canvas.clientWidth / BOARD_W, canvas.clientHeight / BOARD_H));
+  };
 
   /** Zoom to `z`, keeping the canvas point under (clientX, clientY) where it is. */
   const zoomAt = useCallback(
@@ -192,11 +219,13 @@ export function NotesView({
       if (!canvas) return;
       const r = canvas.getBoundingClientRect();
       const { x, y, z: oldZ } = view.current;
-      const nz = clamp(z, MIN_ZOOM, MAX_ZOOM);
+      const nz = clamp(z, minZoom(), MAX_ZOOM);
       const px = clientX - r.left;
       const py = clientY - r.top;
       setView({ x: px - ((px - x) / oldZ) * nz, y: py - ((py - y) / oldZ) * nz, z: nz });
     },
+    // minZoom only reads the canvas ref.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [setView],
   );
 
@@ -212,13 +241,18 @@ export function NotesView({
     return r ? { x: (r.width / 2 - x) / z, y: (r.height / 2 - y) / z } : { x: 400, y: 300 };
   };
 
-  const rectOf = useCallback(
-    (note: Note): Rect | null =>
-      note.x == null || note.y == null
-        ? null
-        : { x: note.x, y: note.y, w: note.w ?? NOTE_WIDTH, h: heights.current.get(note.id) ?? NOTE_HEIGHT_GUESS },
-    [],
-  );
+  const rectOf = useCallback((note: Note): Rect | null => {
+    if (note.x == null || note.y == null) return null;
+    const w = note.w ?? NOTE_WIDTH;
+    const h = heights.current.get(note.id) ?? NOTE_HEIGHT_GUESS;
+    return { x: clampX(note.x, w), y: clampY(note.y, h), w, h };
+  }, []);
+
+  /** Where a note is drawn: its saved place, pulled onto the board if it was outside. */
+  const posOf = (note: Note) => {
+    const r = rectOf(note);
+    return r ? { x: r.x, y: r.y } : { x: 0, y: 0 };
+  };
 
   /** Show every note: zoom out (never in past 100%) and centre them. */
   const fitAll = () => {
@@ -235,7 +269,7 @@ export function NotesView({
     const pad = 48;
     const z = clamp(
       Math.min((canvas.clientWidth - pad * 2) / (right - left), (canvas.clientHeight - pad * 2) / (bottom - top), 1),
-      MIN_ZOOM,
+      minZoom(),
       MAX_ZOOM,
     );
     setView({
@@ -291,7 +325,8 @@ export function NotesView({
   };
 
   const onCanvasPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    const onBackground = e.target === canvasRef.current || e.target === worldRef.current;
+    const onBackground =
+      e.target === canvasRef.current || e.target === worldRef.current || e.target === surfaceRef.current;
     if (!(onBackground && e.button === 0) && e.button !== 1) return;
     e.preventDefault();
     (document.activeElement as HTMLElement | null)?.blur?.();
@@ -321,7 +356,7 @@ export function NotesView({
       // Pinch: scale around where the fingers started, and follow them as they move.
       const r = canvasRef.current!.getBoundingClientRect();
       const spread = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-      const z = clamp(g.start.z * (spread / g.spread), MIN_ZOOM, MAX_ZOOM);
+      const z = clamp(g.start.z * (spread / g.spread), minZoom(), MAX_ZOOM);
       const ax = g.anchor.x - r.left;
       const ay = g.anchor.y - r.top;
       const wx = (ax - g.start.x) / g.start.z;
@@ -393,8 +428,7 @@ export function NotesView({
     activate(note);
     const card = (event.currentTarget as HTMLElement).closest('.note-card') as HTMLElement | null;
     const start = {
-      x: note.x ?? 0,
-      y: note.y ?? 0,
+      ...posOf(note),
       w: widthOf(note),
       h: card?.offsetHeight ?? note.h ?? NOTE_HEIGHT_GUESS,
     };
@@ -411,18 +445,18 @@ export function NotesView({
       const dx = (e.clientX - startX) / z;
       const dy = (e.clientY - startY) / z;
       let { x, y, w, h } = start;
-      if (edge.includes('e')) w = clamp(start.w + dx, MIN_W, MAX_W);
+      // Edges stop at the board's edges; the opposite edge stays put.
+      if (edge.includes('e')) w = clamp(start.w + dx, MIN_W, Math.min(MAX_W, BOARD_W - start.x));
       if (edge.includes('w')) {
-        // The right edge stays put.
-        w = clamp(start.w - dx, MIN_W, MAX_W);
+        w = clamp(start.w - dx, MIN_W, Math.min(MAX_W, start.x + start.w));
         x = start.x + start.w - w;
       }
-      if (edge.includes('s')) h = clamp(start.h + dy, MIN_H, MAX_H);
+      if (edge.includes('s')) h = clamp(start.h + dy, MIN_H, Math.min(MAX_H, BOARD_H - start.y));
       if (edge.includes('n')) {
-        h = clamp(start.h - dy, MIN_H, MAX_H);
+        h = clamp(start.h - dy, MIN_H, Math.min(MAX_H, start.y + start.h));
         y = start.y + start.h - h;
       }
-      return { x: clampPos(x), y: clampPos(y), w: Math.round(w), h: Math.round(h) };
+      return { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
     };
     const move = (e: PointerEvent) => setResize({ id: note.id, ...rectAt(e) });
     const up = (e: PointerEvent) => {
@@ -441,8 +475,9 @@ export function NotesView({
   };
 
   const resizeBy = (note: Note, card: HTMLElement | null, dw: number, dh: number) => {
-    const w = Math.round(clamp(widthOf(note) + dw, MIN_W, MAX_W));
-    const h = Math.round(clamp((card?.offsetHeight ?? note.h ?? NOTE_HEIGHT_GUESS) + dh, MIN_H, MAX_H));
+    const { x, y } = posOf(note);
+    const w = Math.round(clamp(widthOf(note) + dw, MIN_W, Math.min(MAX_W, BOARD_W - x)));
+    const h = Math.round(clamp((card?.offsetHeight ?? note.h ?? NOTE_HEIGHT_GUESS) + dh, MIN_H, Math.min(MAX_H, BOARD_H - y)));
     save(note, { w, h, ...front(note) });
   };
 
@@ -455,6 +490,8 @@ export function NotesView({
     event.preventDefault();
     event.stopPropagation();
     const z = view.current.z;
+    const from = posOf(note);
+    const size = { w: widthOf(note), h: (event.currentTarget as HTMLElement).offsetHeight || NOTE_HEIGHT_GUESS };
     const startX = event.clientX;
     const startY = event.clientY;
     const target = event.currentTarget;
@@ -473,9 +510,14 @@ export function NotesView({
       frame = 0;
       target.style.transform = `translate(${offset.dx}px, ${offset.dy}px)`;
     };
+    const placeAt = (e: PointerEvent) => ({
+      x: clampX(from.x + (e.clientX - startX) / z, size.w),
+      y: clampY(from.y + (e.clientY - startY) / z, size.h),
+    });
     const move = (e: PointerEvent) => {
-      const dx = (e.clientX - startX) / z;
-      const dy = (e.clientY - startY) / z;
+      const to = placeAt(e);
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
       if (!moved && Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY) < 3) return;
       if (!moved) setDrag({ id: note.id });
       moved = true;
@@ -489,8 +531,7 @@ export function NotesView({
       cancelAnimationFrame(frame);
       setDrag(null);
       if (!moved) return;
-      const x = clampPos((note.x ?? 0) + (e.clientX - startX) / z);
-      const y = clampPos((note.y ?? 0) + (e.clientY - startY) / z);
+      const { x, y } = placeAt(e);
       // Put the card at its new place in the same frame the offset goes, so it never jumps back while the
       // save is on its way; the next render writes the same values.
       target.style.left = `${x}px`;
@@ -504,9 +545,10 @@ export function NotesView({
   };
 
   const nudge = (note: Note, dx: number, dy: number) => {
+    const r = rectOf(note) ?? { x: 0, y: 0, w: widthOf(note), h: NOTE_HEIGHT_GUESS };
     save(note, {
-      x: clampPos((note.x ?? 0) + dx),
-      y: clampPos((note.y ?? 0) + dy),
+      x: clampX(r.x + dx, r.w),
+      y: clampY(r.y + dy, r.h),
       order: note.order === topOrder ? note.order : topOrder + 1,
     });
   };
@@ -538,7 +580,7 @@ export function NotesView({
         <div>
           <h1>Notes</h1>
           <p className="muted small">
-            Drag the background to move around, scroll to zoom, double-click to add a note. Turn a note into tasks
+            Drag the board to move around, scroll to zoom, double-click to add a note. Turn a note into tasks
             when you are ready.
           </p>
         </div>
@@ -567,20 +609,22 @@ export function NotesView({
           onPointerUp={onCanvasPointerUp}
           onPointerCancel={onCanvasPointerUp}
           onDoubleClick={(e) => {
-            if (e.target !== canvasRef.current && e.target !== worldRef.current) return;
+            if (e.target !== surfaceRef.current) return;
             const r = canvasRef.current!.getBoundingClientRect();
             const { x, y, z } = view.current;
             void addNote({ x: (e.clientX - r.left - x) / z, y: (e.clientY - r.top - y) / z });
           }}
         >
           <div ref={worldRef} className="notes-board notes-world">
+            <div ref={surfaceRef} className="notes-surface" style={{ width: BOARD_W, height: BOARD_H }} />
             {active.map((note) => {
               const dragging = drag?.id === note.id;
               const resizing = resize?.id === note.id ? resize : null;
               const height = resizing ? resizing.h : note.h ?? undefined;
+              const at = posOf(note);
               const style = {
-                left: resizing ? resizing.x : note.x ?? 0,
-                top: resizing ? resizing.y : note.y ?? 0,
+                left: resizing ? resizing.x : at.x,
+                top: resizing ? resizing.y : at.y,
                 width: resizing ? resizing.w : widthOf(note),
                 height,
                 zIndex: dragging ? 1000 : zOrder.get(note.id),

@@ -3920,8 +3920,8 @@ p.detail-description {
   min-height: 0;
   overflow: hidden;
   border-top: 1px solid var(--border);
-  background-color: var(--bg-canvas);
-  background-image: radial-gradient(circle at center, var(--dot-color) 1px, transparent 1.6px);
+  /* Around the board: a plain, slightly deeper backdrop, so the board's edges are clear. */
+  background: color-mix(in srgb, var(--bg-canvas) 86%, #4a3f8a);
   cursor: grab;
   /* Touch: one finger pans, two pinch; the browser must not scroll or zoom the page instead. */
   touch-action: none;
@@ -3947,6 +3947,24 @@ p.detail-description {
   width: 320px;
   cursor: default;
   user-select: text;
+}
+
+/* The board itself: a dotted surface with soft edges (sized from code). */
+.notes-surface {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 24px;
+  background-color: var(--bg-canvas);
+  background-image: radial-gradient(circle at center, var(--dot-color) 1px, transparent 1.6px);
+  background-size: 24px 24px;
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--text) 12%, transparent),
+    0 24px 80px rgba(0, 0, 0, 0.22);
+}
+
+:root[data-theme='dark'] .notes-canvas {
+  background: color-mix(in srgb, var(--bg-canvas) 62%, #000);
 }
 
 /* Zoom controls, bottom left of the canvas. */

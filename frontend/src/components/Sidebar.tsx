@@ -72,16 +72,42 @@ function readMode(): SidebarMode {
   }
 }
 
-/** The sidebar mode, remembered on this device; "m" switches between full and icons. */
+/** Below this window width the sidebar starts as icons, whatever the saved choice. */
+const NARROW_QUERY = '(max-width: 720px)';
+
+function useNarrow() {
+  const [narrow, setNarrow] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia(NARROW_QUERY).matches);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia(NARROW_QUERY);
+    const onChange = () => setNarrow(query.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+  return narrow;
+}
+
+/**
+ * The sidebar mode, remembered on this device; "m" switches between full and icons. On a narrow window the
+ * sidebar shows icons; opening it there is temporary (not saved) and it folds again after picking a view.
+ */
 function useSidebarMode() {
-  const [mode, setMode] = useState<SidebarMode>(readMode);
+  const [saved, setSaved] = useState<SidebarMode>(readMode);
+  const narrow = useNarrow();
+  const [openOnNarrow, setOpenOnNarrow] = useState(false);
   useEffect(() => {
     try {
-      window.localStorage.setItem(MODE_KEY, mode);
+      window.localStorage.setItem(MODE_KEY, saved);
     } catch {
       // Not persisted; fine.
     }
-  }, [mode]);
+  }, [saved]);
+  useEffect(() => setOpenOnNarrow(false), [narrow]);
+
+  const mode: SidebarMode = narrow ? (openOnNarrow ? 'full' : 'rail') : saved;
+  const setMode = (next: SidebarMode) => (narrow ? setOpenOnNarrow(next === 'full') : setSaved(next));
+  const latest = useRef({ mode, setMode });
+  latest.current = { mode, setMode };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -91,13 +117,18 @@ function useSidebarMode() {
       if (typing || event.ctrlKey || event.metaKey || event.altKey || event.key !== 'm') return;
       if (document.querySelector('.modal-overlay')) return;
       event.preventDefault();
-      setMode((current) => (current === 'rail' ? 'full' : 'rail'));
+      latest.current.setMode(latest.current.mode === 'rail' ? 'full' : 'rail');
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  return { mode, setMode };
+  /** After picking a view on a narrow window, fold the sidebar back to icons. */
+  const afterSelect = () => {
+    if (narrow) setOpenOnNarrow(false);
+  };
+
+  return { mode, setMode, afterSelect };
 }
 
 /** Lists longer than this show their first items and a "More" row, as in Gmail. */
@@ -244,7 +275,7 @@ function NavItem({
 
 export function Sidebar({
   view,
-  onSelectView,
+  onSelectView: selectView,
   projects,
   labels,
   tasks,
@@ -274,7 +305,11 @@ export function Sidebar({
   const userProjects = projects.filter((p) => !p.isInbox);
   const favorites = userProjects.filter((p) => p.isFavorite);
   const isActive = (candidate: View) => !search && viewEquals(view, candidate);
-  const { mode, setMode } = useSidebarMode();
+  const { mode, setMode, afterSelect } = useSidebarMode();
+  const onSelectView = (next: View) => {
+    selectView(next);
+    afterSelect();
+  };
   const rail = mode === 'rail';
   const searchRef = useRef<HTMLInputElement>(null);
   const navMore = useMore('nav');

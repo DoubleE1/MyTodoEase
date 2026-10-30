@@ -247,7 +247,7 @@ function validateNote(input: NoteInput) {
   if (input.taskIds !== undefined && (input.taskIds.length > 100 || !input.taskIds.every(isValidId)))
     errors.taskIds = ['Task ids must be valid, at most 100.'];
   for (const v of [input.x, input.y])
-    if (v !== undefined && !(Number.isFinite(v) && v >= -100000 && v <= 100000)) errors.position = ['Position must be between -100000 and 100000.'];
+    if (v !== undefined && !(Number.isFinite(v) && v >= 0 && v <= 100000)) errors.position = ['Position must be between 0 and 100000.'];
   if (input.w !== undefined && !(Number.isFinite(input.w) && input.w >= 220 && input.w <= 1200)) errors.w = ['Width must be between 220 and 1200.'];
   if (input.h !== undefined && !(Number.isFinite(input.h) && input.h >= 160 && input.h <= 1600)) errors.h = ['Height must be between 160 and 1600.'];
   if (Object.keys(errors).length) invalid(errors);
