@@ -11,7 +11,6 @@ import {
   Monitor,
   Moon,
   PanelLeftClose,
-  PanelLeftDashed,
   PanelLeftOpen,
   Pencil,
   Plus,
@@ -61,25 +60,21 @@ interface SidebarProps {
 const COLLAPSE_KEY_PREFIX = 'mytodoease.sidebar.collapsed.';
 const MODE_KEY = 'todoease.sidebar.mode';
 
-/** Full sidebar, a rail of icons, or hidden altogether (a button at the top left brings it back). */
-export type SidebarMode = 'full' | 'rail' | 'hidden';
+/** The full sidebar, or a rail of icons. */
+export type SidebarMode = 'full' | 'rail';
 
 function readMode(): SidebarMode {
   try {
-    const stored = window.localStorage.getItem(MODE_KEY);
-    return stored === 'rail' || stored === 'hidden' ? stored : 'full';
+    return window.localStorage.getItem(MODE_KEY) === 'rail' ? 'rail' : 'full';
   } catch {
     return 'full';
   }
 }
 
-/** The sidebar mode, remembered on this device; "m" hides or shows the sidebar, as in Todoist. */
+/** The sidebar mode, remembered on this device; "m" switches between full and icons. */
 function useSidebarMode() {
   const [mode, setMode] = useState<SidebarMode>(readMode);
-  // Where "show" returns to: the last visible mode.
-  const lastShown = useRef<Exclude<SidebarMode, 'hidden'>>(mode === 'rail' ? 'rail' : 'full');
   useEffect(() => {
-    if (mode !== 'hidden') lastShown.current = mode;
     try {
       window.localStorage.setItem(MODE_KEY, mode);
     } catch {
@@ -95,13 +90,13 @@ function useSidebarMode() {
       if (typing || event.ctrlKey || event.metaKey || event.altKey || event.key !== 'm') return;
       if (document.querySelector('.modal-overlay')) return;
       event.preventDefault();
-      setMode((current) => (current === 'hidden' ? lastShown.current : 'hidden'));
+      setMode((current) => (current === 'rail' ? 'full' : 'rail'));
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  return { mode, setMode, show: () => setMode(lastShown.current) };
+  return { mode, setMode };
 }
 
 function readCollapsed(id: string): boolean {
@@ -241,7 +236,7 @@ export function Sidebar({
   const userProjects = projects.filter((p) => !p.isInbox);
   const favorites = userProjects.filter((p) => p.isFavorite);
   const isActive = (candidate: View) => !search && viewEquals(view, candidate);
-  const { mode, setMode, show } = useSidebarMode();
+  const { mode, setMode } = useSidebarMode();
   const rail = mode === 'rail';
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -287,86 +282,61 @@ export function Sidebar({
     />
   );
 
-  const hideButton = (
-    <button
-      type="button"
-      className="icon-btn sidebar-toggle"
-      title="Hide sidebar (m)"
-      aria-label="Hide sidebar"
-      onClick={() => setMode('hidden')}
-    >
-      <PanelLeftDashed size={16} />
-    </button>
-  );
-
   return (
-    <>
-      {mode === 'hidden' && (
+    <aside className={`sidebar is-${mode}`} aria-label="Sidebar">
+      <div className="sidebar-top">
+        <div className="brand">
+          <Wordmark size={26} />
+          <div className="sidebar-toggles">
+            {rail ? (
+              <button
+                type="button"
+                className="icon-btn sidebar-toggle"
+                title="Expand sidebar (m)"
+                aria-label="Expand sidebar"
+                onClick={() => setMode('full')}
+              >
+                <PanelLeftOpen size={16} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="icon-btn sidebar-toggle"
+                title="Collapse to icons (m)"
+                aria-label="Collapse sidebar to icons"
+                onClick={() => setMode('rail')}
+              >
+                <PanelLeftClose size={16} />
+              </button>
+            )}
+          </div>
+        </div>
         <button
           type="button"
-          className="icon-btn sidebar-reveal"
-          title="Show sidebar (m)"
-          aria-label="Show sidebar"
-          onClick={show}
+          className="add-task-primary"
+          onClick={onAddTask}
+          title="Add task (q)"
+          aria-label={rail ? 'Add task' : undefined}
         >
-          <PanelLeftOpen size={18} />
+          <Plus size={18} />
+          <span>Add task</span>
         </button>
-      )}
-      <aside className={`sidebar is-${mode}`} inert={mode === 'hidden'} aria-label="Sidebar">
-        <div className="sidebar-top">
-          <div className="brand">
-            <Wordmark size={26} />
-            <div className="sidebar-toggles">
-              {rail ? (
-                <button
-                  type="button"
-                  className="icon-btn sidebar-toggle"
-                  title="Expand sidebar"
-                  aria-label="Expand sidebar"
-                  onClick={() => setMode('full')}
-                >
-                  <PanelLeftOpen size={16} />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="icon-btn sidebar-toggle"
-                  title="Collapse to icons"
-                  aria-label="Collapse sidebar to icons"
-                  onClick={() => setMode('rail')}
-                >
-                  <PanelLeftClose size={16} />
-                </button>
-              )}
-              {hideButton}
-            </div>
-          </div>
+        {rail && (
           <button
             type="button"
-            className="add-task-primary"
-            onClick={onAddTask}
-            title="Add task (q)"
-            aria-label={rail ? 'Add task' : undefined}
+            className="nav-item rail-search"
+            title="Search tasks"
+            aria-label="Search tasks"
+            onClick={() => {
+              setMode('full');
+              window.setTimeout(() => searchRef.current?.focus(), 0);
+            }}
           >
-            <Plus size={18} />
-            <span>Add task</span>
+            <span className="nav-icon">
+              <Search size={18} />
+            </span>
           </button>
-          {rail && (
-            <button
-              type="button"
-              className="nav-item rail-search"
-              title="Search tasks"
-              aria-label="Search tasks"
-              onClick={() => {
-                setMode('full');
-                window.setTimeout(() => searchRef.current?.focus(), 0);
-              }}
-            >
-              <span className="nav-icon">
-                <Search size={18} />
-              </span>
-            </button>
-          )}
+        )}
         <div className="search-box">
           <Search size={15} />
           <input
@@ -552,6 +522,5 @@ export function Sidebar({
         </button>
       </div>
     </aside>
-    </>
   );
 }

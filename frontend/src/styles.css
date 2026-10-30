@@ -5809,7 +5809,7 @@ p.detail-description {
 }
 
 /* ==========================================================================
-   Sidebar modes: full, a rail of icons, or hidden ("m" toggles hidden)
+   Sidebar modes: full, or a rail of icons ("m" switches)
    ========================================================================== */
 
 .sidebar {
@@ -5944,36 +5944,3 @@ p.detail-description {
   width: 40px;
 }
 
-/* ---- Hidden: the sidebar slides shut; a button at the top left brings it back ---- */
-
-.sidebar.is-hidden {
-  width: 0;
-  padding-left: 0;
-  padding-right: 0;
-  border-right-color: transparent;
-  overflow: hidden;
-}
-
-.sidebar-reveal {
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  z-index: 40;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: var(--bg-sidebar);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
-  animation: pop-in var(--dur-base) var(--ease-out);
-}
-
-.app.has-titlebar .sidebar-reveal {
-  top: calc(env(titlebar-area-height, 36px) + 10px);
-}
-
-/* Room for the show-sidebar button so it never covers the page title. */
-.sidebar.is-hidden ~ .main {
-  padding-left: 60px;
-}
