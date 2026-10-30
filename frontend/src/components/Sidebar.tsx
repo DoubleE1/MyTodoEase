@@ -488,14 +488,6 @@ export function Sidebar({
                 onClick={() => onSelectView({ kind: 'completed' })}
               />
             )}
-            {!rail && (navMore.expanded || isActive({ kind: 'insights' })) && (
-              <NavItem
-                icon={<ChartColumn size={18} />}
-                label="Insights"
-                active={isActive({ kind: 'insights' })}
-                onClick={() => onSelectView({ kind: 'insights' })}
-              />
-            )}
             {!rail && <MoreToggle expanded={navMore.expanded} onToggle={navMore.toggle} />}
           </nav>
 
