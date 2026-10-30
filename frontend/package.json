@@ -25,6 +25,7 @@
     "@tiptap/pm": "^3.32.1",
     "@tiptap/react": "^3.32.1",
     "@tiptap/starter-kit": "^3.32.1",
+    "chrono-node": "^2.10.3",
     "date-fns": "^4.4.0",
     "firebase": "^13.1.0",
     "lucide-react": "^1.57.0",

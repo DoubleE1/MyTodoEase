@@ -1,4 +1,5 @@
-import { addDays, addMonths, addWeeks, format, isValid, nextDay, nextMonday, parse, startOfDay } from 'date-fns';
+import { parse as chronoParse } from 'chrono-node/en';
+import { addDays, addMonths, addWeeks, endOfMonth, endOfWeek, format, isValid, nextDay, nextMonday, parse, startOfDay } from 'date-fns';
 import type { Label, Priority, Project, Recurrence } from '../api/types';
 import { DATE_FORMAT } from './dates';
 
@@ -35,7 +36,8 @@ const MONTHS = 'jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec';
 /**
  * Todoist-style quick add. Recognised tokens are removed from the content:
  *   p1..p4, #project, @label, today / tomorrow / monday / next week / in 3 days / 2026-10-20 / 20 oct,
- *   at 3pm / 15:00, every day / weekday / week / month / year / every monday.
+ *   at 3pm / 15:00, every day / weekday / week / month / year / every monday, end of the month / week.
+ * Any date phrase these miss ("the day after tomorrow", "Dec 3 at 10:30") is read by chrono-node.
  */
 export function parseQuickAdd(input: string, ctx: Context): QuickAddResult {
   const now = ctx.now ?? new Date();
@@ -113,6 +115,7 @@ export function parseQuickAdd(input: string, ctx: Context): QuickAddResult {
 
   // Dates
   take(/\s(today|tod)(?=\s)/i, () => { result.dueDate = format(today, DATE_FORMAT); });
+  take(/\s(?:the\s+)?day after (?:tomorrow|tmr|tmrw)(?=\s)/i, () => { result.dueDate = format(addDays(today, 2), DATE_FORMAT); });
   take(/\s(tomorrow|tmr|tmrw)(?=\s)/i, () => { result.dueDate = format(addDays(today, 1), DATE_FORMAT); });
   take(/\snext week(?=\s)/i, () => { result.dueDate = format(nextMonday(today), DATE_FORMAT); });
   take(/\snext month(?=\s)/i, () => { result.dueDate = format(addMonths(today, 1), DATE_FORMAT); });
@@ -137,10 +140,27 @@ export function parseQuickAdd(input: string, ctx: Context): QuickAddResult {
     if (!date) return false;
     result.dueDate = format(date, DATE_FORMAT);
   });
-  take(/\s(?:on\s+)?(sun|sunday|mon|monday|tue|tues|tuesday|wed|wednesday|thu|thur|thurs|thursday|fri|friday|sat|saturday)(?=\s)/i, (m) => {
+  take(/\s(?:by\s+)?(?:the\s+)?end of (?:the\s+)?(month|week)(?=\s)/i, (m) => {
+    const date = m[1].toLowerCase() === 'month' ? endOfMonth(today) : endOfWeek(today, { weekStartsOn: 1 });
+    result.dueDate = format(date, DATE_FORMAT);
+  });
+  // "next Friday" / "this Friday": the coming Friday, and the lead word goes with it.
+  take(/\s(?:on\s+|next\s+|this\s+)?(sun|sunday|mon|monday|tue|tues|tuesday|wed|wednesday|thu|thur|thurs|thursday|fri|friday|sat|saturday)(?=\s)/i, (m) => {
     const day = WEEKDAYS[m[1].toLowerCase()];
     result.dueDate = format(today.getDay() === day ? today : nextDay(today, day), DATE_FORMAT);
   });
+
+  // Whatever date phrase is left: chrono-node (English). Very short or number-only matches are ignored, so
+  // "2 tasks" or "may" in "may be" never become dates.
+  if (!result.dueDate) {
+    const found = chronoParse(text, now, { forwardDate: true }).find((r) => /[a-z]/i.test(r.text) && r.text.trim().length > 3);
+    if (found) {
+      const when = found.start.date();
+      result.dueDate = format(when, DATE_FORMAT);
+      if (!result.dueTime && found.start.isCertain('hour')) result.dueTime = format(when, 'HH:mm');
+      text = `${text.slice(0, found.index)} ${text.slice(found.index + found.text.length)}`;
+    }
+  }
 
   // A time without a date means today.
   if (result.dueTime && !result.dueDate) result.dueDate = format(today, DATE_FORMAT);
