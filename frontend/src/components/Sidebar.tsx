@@ -261,7 +261,10 @@ function NavItem({
       <span className="nav-icon">{icon}</span>
       <span className="nav-label">{label}</span>
       {actions && <span className="nav-actions">{actions}</span>}
-      {count !== undefined && count > 0 && <span className="nav-count">{count}</span>}
+      {/* The icon rail's badge has room for two digits; the tooltip keeps the exact number. */}
+      {count !== undefined && count > 0 && (
+        <span className="nav-count">{iconOnly && count > 99 ? '99+' : count}</span>
+      )}
     </div>
   );
 }
