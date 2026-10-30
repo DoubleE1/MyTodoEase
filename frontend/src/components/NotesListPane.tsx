@@ -1,9 +1,10 @@
 import { format, parseISO } from 'date-fns';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNoteMutations, useNotes } from '../api/hooks';
 import type { Note } from '../api/types';
 import { canPopOutNotes, popOutNote } from '../lib/notes';
+import { showToast } from '../lib/toast';
 import { useNoteDraft } from '../lib/useNoteDraft';
 
 /**
@@ -26,6 +27,19 @@ export function NotesListPane() {
   const open = (note: Note) => {
     if (popOut) popOutNote(note.id);
     else setEditingId(note.id);
+  };
+
+  // Deleting is immediate; the toast's Undo brings the note back with the same text and colour.
+  const remove = (note: Note) => {
+    noteMut.remove.mutate(note.id);
+    showToast('Note deleted', 'success', {
+      group: 'note-deleted',
+      duration: 5000,
+      action: {
+        label: 'Undo',
+        run: () => void noteMut.create.mutate({ text: note.text, color: note.color, taskIds: note.taskIds }),
+      },
+    });
   };
 
   const create = async () => {
@@ -56,16 +70,26 @@ export function NotesListPane() {
             </li>
           ) : (
             <li key={note.id}>
-              <button
-                type="button"
-                className="note-card note-list-card"
-                data-color={note.color}
-                data-tooltip={popOut ? 'Open in its own window' : 'Edit'}
-                onClick={() => open(note)}
-              >
-                <span className="note-list-date">{format(parseISO(note.updatedAt), 'd MMM yyyy')}</span>
-                <span className="note-list-text">{note.text.trim() || 'Empty note'}</span>
-              </button>
+              <div className="note-card note-list-card" data-color={note.color}>
+                <button
+                  type="button"
+                  className="note-list-open"
+                  aria-label={`${popOut ? 'Open' : 'Edit'} note: ${note.text.trim().slice(0, 60) || 'Empty note'}`}
+                  onClick={() => open(note)}
+                >
+                  <span className="note-list-date">{format(parseISO(note.updatedAt), 'd MMM yyyy')}</span>
+                  <span className="note-list-text">{note.text.trim() || 'Empty note'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="note-btn note-list-delete"
+                  data-tooltip="Delete note"
+                  aria-label="Delete note"
+                  onClick={() => remove(note)}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </li>
           ),
         )}

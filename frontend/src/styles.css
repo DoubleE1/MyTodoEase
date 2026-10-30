@@ -7210,3 +7210,38 @@ body.is-resizing-span * {
   line-height: 1.5;
   color: var(--note-text);
 }
+
+/* List card: the whole card opens the note; a delete button shows in the top-left corner on hover. */
+.note-list-card {
+  position: relative;
+  cursor: auto;
+}
+
+.note-list-open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.note-list-delete {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  opacity: 0;
+}
+
+.note-list-card:hover .note-list-delete,
+.note-list-delete:focus-visible {
+  opacity: 0.8;
+}
+
+.note-list-delete:hover {
+  opacity: 1;
+  color: var(--danger);
+}
