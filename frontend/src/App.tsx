@@ -25,6 +25,7 @@ import { TaskEditor } from './components/TaskEditor';
 import { TaskList } from './components/TaskList';
 import { TitleBar } from './components/TitleBar';
 import { Toasts } from './components/Toasts';
+import { TooltipLayer } from './components/TooltipLayer';
 
 // Loaded on first use: the calendar grid, Insights (with the World view and its sprites) and Settings are a large
 // share of the bundle and most sessions never open all three, so the first paint ships without them.
@@ -344,6 +345,7 @@ export default function App() {
 
       {confirmElement}
       <Toasts />
+      <TooltipLayer />
     </>
   );
 
