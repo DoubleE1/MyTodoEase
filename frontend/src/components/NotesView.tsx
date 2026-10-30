@@ -53,7 +53,17 @@ const MAX_ZOOM = 2.5;
 /** How far past the board's edge the view can be pulled. */
 const EDGE_ROOM = 80;
 const VIEW_KEY = 'todoease.notes.view';
-const DEFAULT_VIEW: CanvasView = { x: 24, y: 24, z: 1 };
+/** Set once the notes from the old top-left layout have been moved to the middle of the board. */
+const CENTERED_KEY = 'todoease.notes.centered';
+/** The old board was about one screen: a layout that fits in this corner predates the large board. */
+const OLD_LAYOUT = { w: 1600, h: 1400 };
+
+/** The home view: the middle of the board at 100%. */
+const centerView = (width: number, height: number): CanvasView => ({
+  x: width / 2 - BOARD_W / 2,
+  y: height / 2 - BOARD_H / 2,
+  z: 1,
+});
 
 /** Keep the board in sight: limit zoom-out to "whole board fits", and pan to just past its edges
  * (a board smaller than the window is centred). */
@@ -65,16 +75,17 @@ function clampView(v: CanvasView, width: number, height: number): CanvasView {
   return { x: axis(v.x, BOARD_W * z, width), y: axis(v.y, BOARD_H * z, height), z };
 }
 
-function loadView(): CanvasView {
+/** The view saved on this device, or null to start at the middle of the board. */
+function loadView(): CanvasView | null {
   try {
     const v = JSON.parse(window.localStorage.getItem(VIEW_KEY) ?? 'null') as CanvasView | null;
     if (v && Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z)) {
       return { x: v.x, y: v.y, z: clamp(v.z, MIN_ZOOM, MAX_ZOOM) };
     }
   } catch {
-    // Unreadable: start from the default view.
+    // Unreadable: start from the middle.
   }
-  return DEFAULT_VIEW;
+  return null;
 }
 
 /** Short "edited" time that fits the note footer: just now, 5m ago, 3h ago, then the date. */
@@ -169,7 +180,8 @@ export function NotesView({
 
   // ---- The view (pan and zoom) ----
   // Kept in a ref and written straight to the DOM: panning and zooming never re-render the notes.
-  const view = useRef<CanvasView>(loadView());
+  const saved = useRef(loadView());
+  const view = useRef<CanvasView>(saved.current ?? { x: 0, y: 0, z: 1 });
   const saveViewTimer = useRef<number | undefined>(undefined);
 
   const applyView = useCallback(() => {
@@ -199,6 +211,11 @@ export function NotesView({
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    // First visit on this device: open at the middle of the board.
+    if (!saved.current) {
+      saved.current = centerView(canvas.clientWidth, canvas.clientHeight);
+      view.current = saved.current;
+    }
     setView(view.current);
     const observer = new ResizeObserver(() => setView(view.current));
     observer.observe(canvas);
@@ -258,8 +275,9 @@ export function NotesView({
   const fitAll = () => {
     const canvas = canvasRef.current;
     const rects = active.map(rectOf).filter((r): r is Rect => r !== null);
-    if (!canvas || rects.length === 0) {
-      setView(DEFAULT_VIEW);
+    if (!canvas) return;
+    if (rects.length === 0) {
+      setView(centerView(canvas.clientWidth, canvas.clientHeight));
       return;
     }
     const left = Math.min(...rects.map((r) => r.x));
@@ -377,6 +395,33 @@ export function NotesView({
       restartGesture();
     }
   };
+
+  // Notes laid out on the old one-screen board all sit in its top-left corner. Move them, as a group, to the
+  // middle of the large board once, so there is room on every side. Saved, so other devices see it too.
+  useEffect(() => {
+    if (notesQuery.isLoading || !notesQuery.data) return;
+    try {
+      if (window.localStorage.getItem(CENTERED_KEY) === 'true') return;
+      window.localStorage.setItem(CENTERED_KEY, 'true');
+    } catch {
+      return;
+    }
+    const placed = active.filter((n) => n.x != null && n.y != null);
+    if (placed.length === 0) return;
+    const rects = placed.map((n) => rectOf(n)!);
+    const left = Math.min(...rects.map((r) => r.x));
+    const top = Math.min(...rects.map((r) => r.y));
+    const right = Math.max(...rects.map((r) => r.x + r.w));
+    const bottom = Math.max(...rects.map((r) => r.y + r.h));
+    if (right > OLD_LAYOUT.w || bottom > OLD_LAYOUT.h) return;
+    const dx = Math.round(BOARD_W / 2 - (left + right) / 2);
+    const dy = Math.round(BOARD_H / 2 - (top + bottom) / 2);
+    placed.forEach((note, i) => {
+      mut.update.mutate({ id: note.id, input: { x: clampX(rects[i].x + dx, rects[i].w), y: clampY(rects[i].y + dy, rects[i].h) } });
+    });
+    // Runs once per device, when the notes first load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notesQuery.isLoading, notesQuery.data]);
 
   // Notes without a place yet (made before free placement) get one near the middle of the view.
   const placing = useRef(false);
