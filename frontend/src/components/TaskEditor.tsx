@@ -1,9 +1,9 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { Label, Priority, Project, Recurrence, Section, Task, TaskInput } from '../api/types';
 import { parseQuickAdd } from '../lib/quickAdd';
 import { DuePicker, LabelPicker, PriorityPicker, ProjectPicker } from './Pickers';
 
-// The rich-text description editor is only needed once a task's detail is being edited; load it on demand.
+// The rich-text description editor (TipTap) is large; it loads on demand the first time any task editor opens.
 const DescriptionEditor = lazy(() => import('./DescriptionEditor'));
 
 export interface TaskEditorProps {
@@ -74,16 +74,9 @@ export function TaskEditor({
 
   const [content, setContent] = useState(base.content);
   const [description, setDescription] = useState(base.description ?? '');
-  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [toolbarHost, setToolbarHost] = useState<HTMLSpanElement | null>(null);
-
-  // Grow the description box to fit its text (CSS max-height caps it; past that it scrolls).
-  useLayoutEffect(() => {
-    const el = descriptionRef.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight + 2}px`;
-  }, [description]);
+  // The Markdown editor keeps its own content once open; bumping this starts it afresh (after a rapid-entry add).
+  const [descriptionKey, setDescriptionKey] = useState(0);
   const [fields, setFields] = useState<Fields>({
     projectId: base.projectId,
     sectionId: base.sectionId ?? null,
@@ -144,6 +137,7 @@ export function TaskEditor({
       // Clear immediately so anything typed during the request is not wiped afterwards.
       setContent('');
       setDescription('');
+      setDescriptionKey((k) => k + 1);
       inputRef.current?.focus();
     } else {
       setSubmitting(true);
@@ -162,6 +156,7 @@ export function TaskEditor({
       if (rapidEntry) {
         setContent((current) => current || snapshot.content);
         setDescription((current) => current || snapshot.description);
+        setDescriptionKey((k) => k + 1);
       }
     } finally {
       if (!rapidEntry) setSubmitting(false);
@@ -179,16 +174,6 @@ export function TaskEditor({
     }
   };
 
-  const onDescriptionKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-      event.preventDefault();
-      void submit();
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      onCancel();
-    }
-  };
 
   return (
     <form
@@ -207,28 +192,19 @@ export function TaskEditor({
         onKeyDown={onContentKeyDown}
         aria-label="Task name"
       />
-      {textOnly ? (
-        <Suspense fallback={<div className="rich-desc rich-desc-loading" aria-hidden="true" />}>
-          <DescriptionEditor
-            value={description}
-            onChange={setDescription}
-            onSubmit={() => void submit()}
-            onCancel={onCancel}
-            toolbarHost={toolbarHost}
-          />
-        </Suspense>
-      ) : (
-        <textarea
-          ref={descriptionRef}
-          className="editor-description"
-          placeholder="Description"
-          rows={2}
+      {/* The same Markdown editor everywhere (quick add, inline add, task detail); its toolbar sits in the footer. */}
+      <Suspense fallback={<div className={`rich-desc rich-desc-loading ${textOnly ? '' : 'is-compact'}`} aria-hidden="true" />}>
+        <DescriptionEditor
+          key={descriptionKey}
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          onKeyDown={onDescriptionKeyDown}
-          aria-label="Description"
+          onChange={setDescription}
+          onSubmit={() => void submit()}
+          onCancel={onCancel}
+          toolbarHost={toolbarHost}
+          autoFocus={!!textOnly}
+          compact={!textOnly}
         />
-      )}
+      </Suspense>
 
       {!textOnly && (
         <div className="editor-chips">
@@ -252,7 +228,7 @@ export function TaskEditor({
       )}
 
       <div className="editor-footer">
-        {!textOnly ? (
+        {!textOnly && (
           <ProjectPicker
             projects={projects}
             sections={sections}
@@ -260,9 +236,8 @@ export function TaskEditor({
             sectionId={effective.sectionId}
             onChange={(projectId, sectionId) => setFields((f) => ({ ...f, projectId, sectionId }))}
           />
-        ) : (
-          <span ref={setToolbarHost} className="editor-toolbar-host" />
         )}
+        <span ref={setToolbarHost} className="editor-toolbar-host" />
         <div className="editor-actions">
           <button type="button" className="btn" onClick={onCancel}>
             Cancel

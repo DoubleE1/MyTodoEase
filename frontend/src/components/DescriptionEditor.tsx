@@ -208,9 +208,21 @@ interface DescriptionEditorProps {
   onCancel: () => void;
   /** Where the toolbar is drawn (the editor footer, beside Cancel and Save). */
   toolbarHost: HTMLElement | null;
+  /** Put the cursor in the description on open (task detail). Off in quick add, where the task name comes first. */
+  autoFocus?: boolean;
+  /** Short box that grows with its text (quick add and inline add) instead of the roomy task-detail size. */
+  compact?: boolean;
 }
 
-export default function DescriptionEditor({ value, onChange, onSubmit, onCancel, toolbarHost }: DescriptionEditorProps) {
+export default function DescriptionEditor({
+  value,
+  onChange,
+  onSubmit,
+  onCancel,
+  toolbarHost,
+  autoFocus = true,
+  compact = false,
+}: DescriptionEditorProps) {
   const [mode, setMode] = useState<Mode>(readMode);
   const [markdown, setMarkdown] = useState(value);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -238,7 +250,7 @@ export default function DescriptionEditor({ value, onChange, onSubmit, onCancel,
     ],
     content: value,
     contentType: 'markdown',
-    autofocus: mode === 'rich' ? 'end' : false,
+    autofocus: autoFocus && mode === 'rich' ? 'end' : false,
     editorProps: {
       attributes: { class: 'md rich-desc-content', 'aria-label': 'Description' },
       handleKeyDown: (_view, event) => {
@@ -456,13 +468,13 @@ export default function DescriptionEditor({ value, onChange, onSubmit, onCancel,
     <>
       {rich ? (
         <>
-          <EditorContent editor={editor} className="rich-desc" />
+          <EditorContent editor={editor} className={`rich-desc ${compact ? 'is-compact' : ''}`} />
           {editor && <TableControls editor={editor} />}
         </>
       ) : (
         <textarea
           ref={textareaRef}
-          className="editor-description is-roomy is-markdown"
+          className={`editor-description is-markdown ${compact ? '' : 'is-roomy'}`}
           placeholder="Markdown: **bold**, _italic_, - list, 1. list, - [ ] checklist, [link](https://…), `code`"
           value={markdown}
           onChange={(e) => setText(e.target.value)}

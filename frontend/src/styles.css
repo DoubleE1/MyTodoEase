@@ -7052,3 +7052,10 @@ body.is-resizing-span * {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Quick add and inline add: a short Markdown box that grows with its text (task detail keeps the roomy one). */
+.rich-desc.is-compact .rich-desc-content,
+.rich-desc-loading.is-compact {
+  min-height: 44px;
+  max-height: 240px;
+}
