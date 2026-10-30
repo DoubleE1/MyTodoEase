@@ -492,9 +492,10 @@ ul {
   }
 }
 
+/* Light theme: soft lavender dots and a paler glow, so the field reads as tinted light rather than grey. */
 :root {
-  --dot-color: rgba(70, 60, 130, 0.26);
-  --glow-opacity: 0.85;
+  --dot-color: rgba(123, 92, 255, 0.2);
+  --glow-opacity: 0.5;
 }
 
 :root[data-theme='dark'] {
