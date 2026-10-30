@@ -6475,3 +6475,16 @@ p.detail-description {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Inbox: project filter in the header */
+
+.inbox-filter {
+  flex-shrink: 0;
+  max-width: 220px;
+}
+
+.inbox-filter > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -18,7 +18,10 @@ import { useCalendarEvents } from '../api/hooks';
 import { planDay } from '../lib/plan';
 import { showToast } from '../lib/toast';
 import type { ExternalEvent } from '../api/types';
-import { Check, ChevronDown, GripVertical, MoreHorizontal, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, GripVertical, Layers, MoreHorizontal, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react';
+import { inboxTasks, setInboxFilter, useInboxFilter, type InboxFilter } from '../lib/inboxFilter';
+import { ProjectIcon } from './Pickers';
+import { Popover } from './Popover';
 import { useRef, useState, type ReactNode } from 'react';
 import { queryKeys, useSectionMutations, useTaskMutations } from '../api/hooks';
 import type { Label, Project, ReorderItem, Section, Task, TaskInput } from '../api/types';
@@ -52,6 +55,10 @@ interface Group {
   section?: Section;
   /** Render subtasks nested under their parent (project views) instead of flat. */
   nested: boolean;
+  /** Tasks can be dragged to reorder (manual order in a project view). */
+  sortable?: boolean;
+  /** Shown before the title (a project's colour in the Inbox's "All projects" listing). */
+  icon?: ReactNode;
   emptyText?: string;
   isOverdue?: boolean;
   /** Google Calendar events on this day (Today and Upcoming views). */
@@ -90,6 +97,57 @@ function SortableTask({ task, ...rest }: Omit<TaskItemProps, 'handle' | 'innerRe
         </button>
       }
     />
+  );
+}
+
+/** The Inbox's project filter: "All projects" (the default) or one project, each with its open task count. */
+function InboxFilterPicker({ projects, tasks, filter }: { projects: Project[]; tasks: Task[]; filter: InboxFilter }) {
+  const ordered = [...projects].sort((a, b) => Number(b.isInbox) - Number(a.isInbox) || a.order - b.order);
+  const selected = filter === 'all' ? undefined : projects.find((p) => p.id === filter);
+  const countFor = (f: InboxFilter) => inboxTasks(tasks, f).length;
+  const row = (f: InboxFilter, icon: ReactNode, label: string, close: () => void) => (
+    <button
+      key={f}
+      type="button"
+      role="menuitemradio"
+      aria-checked={filter === f}
+      className={`picker-row ${filter === f ? 'is-selected' : ''}`}
+      onClick={() => {
+        setInboxFilter(f);
+        close();
+      }}
+    >
+      {icon}
+      <span className="row-label">{label}</span>
+      <span className="muted small">{countFor(f) || ''}</span>
+    </button>
+  );
+  return (
+    <Popover
+      align="right"
+      trigger={({ onClick, open }) => (
+        <button
+          type="button"
+          className={`chip inbox-filter ${open ? 'is-open' : ''}`}
+          onClick={onClick}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={`Show tasks from: ${selected?.name ?? 'All projects'}`}
+        >
+          {selected ? <ProjectIcon project={selected} /> : <Layers size={14} />}
+          <span>{selected?.name ?? 'All projects'}</span>
+          <ChevronDown size={14} aria-hidden="true" />
+        </button>
+      )}
+    >
+      {(close) => (
+        <div className="picker picker-scroll" role="menu" aria-label="Show tasks from">
+          {row('all', <Layers size={14} />, 'All projects', close)}
+          <div className="menu-sep" role="separator" />
+          {ordered.map((p) => row(p.id, <ProjectIcon project={p} />, p.name, close))}
+        </div>
+      )}
+    </Popover>
   );
 }
 
@@ -161,7 +219,11 @@ export function TaskList({
   const childrenOf = (id: string) => sortByOrder(tasks.filter((t) => t.parentId === id));
   const title = viewTitle(view, projects, labels);
   const isProjectView = view.kind === 'project' || view.kind === 'inbox';
-  const currentProjectId = view.kind === 'project' ? view.projectId : view.kind === 'inbox' ? inbox?.id : undefined;
+  // Inbox: every project's tasks grouped by project (sorted by due date), or one project picked in the filter.
+  const inboxFilter = useInboxFilter(projects);
+  const inboxAll = view.kind === 'inbox' && inboxFilter === 'all';
+  const currentProjectId =
+    view.kind === 'project' ? view.projectId : view.kind === 'inbox' ? (inboxAll ? inbox?.id : inboxFilter) : undefined;
   const showProject = !isProjectView;
 
   const editorProps = { projects, sections, labels, onCreateLabel };
@@ -189,38 +251,90 @@ export function TaskList({
     }
   };
 
+  const sectionsOf = (projectId: string) =>
+    sections
+      .filter((s) => s.projectId === projectId)
+      .sort((a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt));
+
+  /** One project's page: loose tasks, then its sections, in manual (draggable) order. */
+  const projectGroups = (): Group[] => {
+    if (!currentProjectId) return [];
+    const inProject = tasks.filter((t) => t.projectId === currentProjectId && !t.parentId);
+    const projectSections = sectionsOf(currentProjectId);
+    const sectionIds = new Set(projectSections.map((s) => s.id));
+    const groups: Group[] = [
+      {
+        key: NO_SECTION_KEY,
+        title: null,
+        tasks: sortByOrder(inProject.filter((t) => !t.sectionId || !sectionIds.has(t.sectionId))),
+        defaults: { projectId: currentProjectId },
+        nested: true,
+        sortable: true,
+        emptyText: projectSections.length === 0 ? 'No tasks here yet.' : undefined,
+      },
+    ];
+    for (const section of projectSections) {
+      groups.push({
+        key: section.id,
+        title: section.name,
+        tasks: sortByOrder(inProject.filter((t) => t.sectionId === section.id)),
+        defaults: { projectId: currentProjectId, sectionId: section.id },
+        section,
+        nested: true,
+        sortable: true,
+      });
+    }
+    return groups;
+  };
+
+  /**
+   * Inbox with "All projects": a fixed group per project (the Inbox first, then sidebar order; empty projects
+   * are left out), each sorted soonest due first. The Inbox's own sections follow its group as usual.
+   */
+  const allProjectGroups = (): Group[] => {
+    const topLevel = tasks.filter((t) => !t.parentId);
+    const ordered = [...projects].sort((a, b) => Number(b.isInbox) - Number(a.isInbox) || a.order - b.order);
+    const groups: Group[] = [];
+    for (const project of ordered) {
+      const own = topLevel.filter((t) => t.projectId === project.id);
+      const projectGroup = (groupTasks: Task[]): Group => ({
+        key: `project:${project.id}`,
+        title: project.name,
+        icon: <ProjectIcon project={project} />,
+        tasks: sortForAgenda(groupTasks),
+        defaults: { projectId: project.id },
+        nested: true,
+      });
+      if (!project.isInbox) {
+        if (own.length > 0) groups.push(projectGroup(own));
+        continue;
+      }
+      const inboxSections = sectionsOf(project.id);
+      const sectionIds = new Set(inboxSections.map((s) => s.id));
+      groups.push({
+        ...projectGroup(own.filter((t) => !t.sectionId || !sectionIds.has(t.sectionId))),
+        emptyText: topLevel.length === 0 ? 'No tasks here yet.' : undefined,
+      });
+      for (const section of inboxSections) {
+        groups.push({
+          key: section.id,
+          title: section.name,
+          tasks: sortForAgenda(own.filter((t) => t.sectionId === section.id)),
+          defaults: { projectId: project.id, sectionId: section.id },
+          section,
+          nested: true,
+        });
+      }
+    }
+    return groups;
+  };
+
   const buildGroups = (): Group[] => {
     switch (view.kind) {
       case 'inbox':
-      case 'project': {
-        if (!currentProjectId) return [];
-        const inProject = tasks.filter((t) => t.projectId === currentProjectId && !t.parentId);
-        const projectSections = sections
-          .filter((s) => s.projectId === currentProjectId)
-          .sort((a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt));
-        const sectionIds = new Set(projectSections.map((s) => s.id));
-        const groups: Group[] = [
-          {
-            key: NO_SECTION_KEY,
-            title: null,
-            tasks: sortByOrder(inProject.filter((t) => !t.sectionId || !sectionIds.has(t.sectionId))),
-            defaults: { projectId: currentProjectId },
-            nested: true,
-            emptyText: projectSections.length === 0 ? 'No tasks here yet.' : undefined,
-          },
-        ];
-        for (const section of projectSections) {
-          groups.push({
-            key: section.id,
-            title: section.name,
-            tasks: sortByOrder(inProject.filter((t) => t.sectionId === section.id)),
-            defaults: { projectId: currentProjectId, sectionId: section.id },
-            section,
-            nested: true,
-          });
-        }
-        return groups;
-      }
+        return inboxAll ? allProjectGroups() : projectGroups();
+      case 'project':
+        return projectGroups();
       case 'today': {
         const overdue = sortForAgenda(tasks.filter((t) => isOverdue(t, today)));
         const dueToday = sortForAgenda(tasks.filter((t) => t.dueDate === today));
@@ -463,7 +577,7 @@ export function TaskList({
   const totalShown = groups.reduce((n, g) => n + g.tasks.length, 0);
 
   const renderGroupTasks = (group: Group) => {
-    if (!isProjectView) {
+    if (!isProjectView || !group.sortable) {
       return <AnimatedList className="task-list">{group.tasks.map((task) => renderTask(task, group.nested, false))}</AnimatedList>;
     }
     // While dragging, follow the in-flight order instead of the server order.
@@ -481,6 +595,7 @@ export function TaskList({
       <header className="view-header">
         <div className="view-header-row">
           <h1>{title}</h1>
+          {view.kind === 'inbox' && <InboxFilterPicker projects={projects} tasks={tasks} filter={inboxFilter} />}
           {view.kind === 'today' && (
             <button
               type="button"
@@ -585,6 +700,7 @@ export function TaskList({
                 aria-label={`${collapsed.has(group.key) ? 'Expand' : 'Collapse'} ${group.title}`}
               >
                 <ChevronDown size={16} className={`group-chevron ${collapsed.has(group.key) ? 'is-collapsed' : ''}`} />
+                {group.icon}
                 <h2>{group.title}</h2>
               </button>
               <span className="muted count">{group.tasks.length || ''}</span>

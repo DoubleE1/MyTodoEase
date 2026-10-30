@@ -34,6 +34,7 @@ const NotesView = lazy(() => import('./components/NotesView').then((m) => ({ def
 const SettingsDialog = lazy(() => import('./components/SettingsDialog').then((m) => ({ default: m.SettingsDialog })));
 import { toDateStr, todayStr } from './lib/dates';
 import { useWindowMode } from './lib/desktop';
+import { useInboxFilter } from './lib/inboxFilter';
 import { useTheme } from './lib/theme';
 import type { View } from './lib/views';
 
@@ -259,9 +260,15 @@ export default function App() {
   const loading = projects.isLoading || sections.isLoading || labels.isLoading || tasks.isLoading;
   const loadError = projects.error ?? sections.error ?? labels.error ?? tasks.error;
   const inbox = projects.data?.find((p) => p.isInbox);
+  const inboxFilter = useInboxFilter(projects.data ?? []);
 
   const quickAddDefaults = {
-    projectId: view.kind === 'project' ? view.projectId : inbox?.id,
+    projectId:
+      view.kind === 'project'
+        ? view.projectId
+        : view.kind === 'inbox' && inboxFilter !== 'all'
+          ? inboxFilter
+          : inbox?.id,
     dueDate:
       dialog?.kind === 'quick-add' && dialog.dueDate ? dialog.dueDate : view.kind === 'today' ? todayStr() : undefined,
     dueTime: dialog?.kind === 'quick-add' ? dialog.dueTime : undefined,

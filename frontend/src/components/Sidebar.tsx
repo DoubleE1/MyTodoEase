@@ -23,6 +23,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { CompletionItem, Label, Project, Task } from '../api/types';
 import { colorHex } from '../lib/colors';
 import { todayStr } from '../lib/dates';
+import { inboxTasks, useInboxFilter } from '../lib/inboxFilter';
 import type { ThemePreference } from '../lib/theme';
 import { viewEquals, type View } from '../lib/views';
 import { Dashboard } from './Dashboard';
@@ -288,8 +289,8 @@ export function Sidebar({
   onCompact,
 }: SidebarProps) {
   const today = todayStr();
-  const inbox = projects.find((p) => p.isInbox);
-  const inboxCount = inbox ? tasks.filter((t) => t.projectId === inbox.id).length : 0;
+  // The Inbox count follows the Inbox page's project filter (all projects by default).
+  const inboxCount = inboxTasks(tasks, useInboxFilter(projects)).length;
   const todayCount = tasks.filter((t) => t.dueDate !== null && t.dueDate <= today).length;
   const countFor = (projectId: string) => tasks.filter((t) => t.projectId === projectId).length;
   const countForLabel = (labelId: string) => tasks.filter((t) => t.labelIds.includes(labelId)).length;
