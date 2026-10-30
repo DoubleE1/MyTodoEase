@@ -3,6 +3,7 @@ import { differenceInMinutes, format, parseISO } from 'date-fns';
 import { useEffect } from 'react';
 import { queryKeys } from '../api/hooks';
 import type { Note, NoteColor } from '../api/types';
+import { recordEvent } from './achievements';
 
 /** Short "edited" time that fits the note footer: just now, 5m ago, 3h ago, then the date. */
 export function editedLabel(iso: string): string {
@@ -31,6 +32,7 @@ export const noteTitle = (note: Pick<Note, 'text'>) => note.text.trim().split('\
 export const canPopOutNotes = () => typeof window !== 'undefined' && !!window.mytodoease?.openNote;
 
 export function popOutNote(id: string) {
+  recordEvent('notePopped');
   void window.mytodoease?.openNote?.(id);
 }
 

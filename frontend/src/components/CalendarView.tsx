@@ -36,6 +36,7 @@ import { compareDue, formatTime, toDateStr, todayStr } from '../lib/dates';
 import { layoutLanes, planDay, SNAP_MINUTES, taskDuration, toMinutes, toTime } from '../lib/plan';
 import { projectedOccurrences } from '../lib/recurrence';
 import { showToast } from '../lib/toast';
+import { recordEvent } from '../lib/achievements';
 import { taskToInput } from './TaskEditor';
 
 interface CalendarViewProps {
@@ -822,6 +823,7 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
     setPlanning(true);
     try {
       const { placed, unplaced } = planDay({ date: today, tasks, events: eventsByDate.get(today) ?? [] });
+      recordEvent('planDay');
       await taskMut.updateMany(
         `planned ${placed.length} task${placed.length === 1 ? '' : 's'} into today`,
         placed.map(({ task, dueTime }) => ({ task, input: { ...taskToInput(task), dueDate: today, dueTime } })),

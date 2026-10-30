@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { Label, Priority, Project, Recurrence, Section, Task, TaskInput } from '../api/types';
 import { parseQuickAdd } from '../lib/quickAdd';
+import { recordEvent } from '../lib/achievements';
 import { DuePicker, LabelPicker, PriorityPicker, ProjectPicker } from './Pickers';
 
 // The rich-text description editor (TipTap) is large; it loads on demand the first time any task editor opens.
@@ -151,6 +152,10 @@ export function TaskEditor({
         }
       }
       await onSubmit({ ...input, labelIds });
+      // "Quick draw" achievement: the task name carried a date, priority, #project or @label.
+      if (parsed && (parsed.dueDate || parsed.priority || parsed.projectId || parsed.labelIds.length || pendingLabels.length)) {
+        recordEvent('quickAddWords');
+      }
     } catch {
       // The mutation hook already shows a toast; give the text back so nothing is lost.
       if (rapidEntry) {

@@ -1,3 +1,4 @@
+import { recordEvent } from './achievements';
 import { dismissToastGroup, showToast } from './toast';
 
 /**
@@ -64,6 +65,7 @@ export async function undoLast(): Promise<void> {
   dismissToastGroup('task-completed');
   try {
     await runQuietly(entry);
+    recordEvent('undo');
     showToast(`Undone: ${entry.label}.`, 'info', { group: 'undo' });
   } catch (error) {
     showToast(error instanceof Error ? error.message : 'Could not undo that.', 'error', { group: 'undo' });

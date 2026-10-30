@@ -17,6 +17,7 @@ import {
   StickyNote,
   Tag,
   Trash2,
+  Trophy,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { CompletionItem, Label, Project, Task } from '../api/types';
@@ -469,6 +470,15 @@ export function Sidebar({
                 iconOnly={rail}
                 active={isActive({ kind: 'completed' })}
                 onClick={() => onSelectView({ kind: 'completed' })}
+              />
+            )}
+            {(rail || navMore.expanded || isActive({ kind: 'achievements' })) && (
+              <NavItem
+                icon={<Trophy size={18} />}
+                label="Achievements"
+                iconOnly={rail}
+                active={isActive({ kind: 'achievements' })}
+                onClick={() => onSelectView({ kind: 'achievements' })}
               />
             )}
             {!rail && <MoreToggle expanded={navMore.expanded} onToggle={navMore.toggle} />}

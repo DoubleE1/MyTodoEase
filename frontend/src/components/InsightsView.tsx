@@ -9,7 +9,8 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { Award, CalendarCheck, Flame, LayoutGrid, Sparkles, TreePine, TrendingUp } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { recordInsightsVisit } from '../lib/achievements';
 import { useCompletions } from '../api/hooks';
 import { HourHeatmap } from './HourHeatmap';
 import type { CompletionItem, Project } from '../api/types';
@@ -75,6 +76,10 @@ export function InsightsView({ projects, embedded = false }: InsightsViewProps) 
   }, [query.data, currentYear, year]);
 
   const stats = useMemo(() => buildYearStats(items, year, projects), [items, year, projects]);
+  // "Self-aware" achievement: the days Insights was opened (the mini window's embedded copy does not count).
+  useEffect(() => {
+    if (!embedded) recordInsightsVisit(todayStr());
+  }, [embedded]);
   const isCurrentYear = year === currentYear;
   const streakNow = isCurrentYear ? currentStreak(stats.perDay) : 0;
 

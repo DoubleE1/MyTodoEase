@@ -31,6 +31,7 @@ import { TooltipLayer } from './components/TooltipLayer';
 // Loaded on first use: the calendar grid, Insights (with the World view and its sprites) and Settings are a large
 // share of the bundle and most sessions never open all three, so the first paint ships without them.
 const CalendarView = lazy(() => import('./components/CalendarView').then((m) => ({ default: m.CalendarView })));
+const AchievementsView = lazy(() => import('./components/AchievementsView').then((m) => ({ default: m.AchievementsView })));
 const InsightsView = lazy(() => import('./components/InsightsView').then((m) => ({ default: m.InsightsView })));
 const NotesView = lazy(() => import('./components/NotesView').then((m) => ({ default: m.NotesView })));
 const SettingsDialog = lazy(() => import('./components/SettingsDialog').then((m) => ({ default: m.SettingsDialog })));
@@ -40,6 +41,8 @@ import { useHotkey } from './lib/hotkeys';
 import { useInboxFilter } from './lib/inboxFilter';
 import { motionReduced } from './lib/motion';
 import { undoLast } from './lib/undo';
+import { recordEvent } from './lib/achievements';
+import { useAchievementWatcher } from './lib/useAchievements';
 import { useNotesSync } from './lib/notes';
 import { useTheme } from './lib/theme';
 import type { View } from './lib/views';
@@ -110,6 +113,11 @@ export default function App() {
   useHotkey('search', () => setDialog({ kind: 'palette' }), !dialog && !openTaskId && !windowMode.compact);
   useHotkey('shortcuts', () => setDialog({ kind: 'shortcuts' }), dialog?.kind !== 'shortcuts');
   useHotkey('undo', () => void undoLast());
+  // Achievements: store new unlocks and say so; the toast's "View" opens the page.
+  useAchievementWatcher(() => {
+    setSearch('');
+    setView({ kind: 'achievements' });
+  });
 
   const createLabel = useCallback((name: string) => labelMut.create.mutateAsync({ name }), [labelMut.create]);
 
@@ -276,7 +284,10 @@ export default function App() {
       canDock={windowMode.canDock}
       onTogglePin={() => void windowMode.setAlwaysOnTop(!windowMode.alwaysOnTop)}
       onToggleCompact={() => void windowMode.setCompact(!windowMode.compact)}
-      onToggleDock={() => void windowMode.setDocked(!windowMode.docked)}
+      onToggleDock={() => {
+        if (!windowMode.docked) recordEvent('docked');
+        void windowMode.setDocked(!windowMode.docked);
+      }}
     />
   ) : null;
   const shellClass = windowMode.isDesktop ? 'has-titlebar' : '';
@@ -482,6 +493,10 @@ export default function App() {
               onOpenTask={setOpenTaskId}
               confirm={confirm}
             />
+          </Suspense>
+        ) : effectiveView.kind === 'achievements' ? (
+          <Suspense fallback={<div className="loading">Loading…</div>}>
+            <AchievementsView />
           </Suspense>
         ) : effectiveView.kind === 'insights' ? (
           <Suspense fallback={<div className="loading">Loading…</div>}>

@@ -51,6 +51,7 @@ import { colorHex, PRIORITY_META } from '../lib/colors';
 import type { Priority } from '../api/types';
 import { ProjectIcon } from './Pickers';
 import { BoardView, type BoardColumn } from './BoardView';
+import { recordEvent } from '../lib/achievements';
 import { Popover } from './Popover';
 import { useRef, useState, type ReactNode } from 'react';
 import { useSectionMutations, useTaskMutations } from '../api/hooks';
@@ -397,6 +398,7 @@ export function TaskList({
     setPlanning(true);
     try {
       const { placed, unplaced } = planDay({ date: today, tasks, events: eventsFor(today) });
+      recordEvent('planDay');
       await taskMut.updateMany(
         `planned ${placed.length} task${placed.length === 1 ? '' : 's'} into today`,
         placed.map(({ task, dueTime }) => ({ task, input: { ...taskToInput(task), dueDate: today, dueTime } })),

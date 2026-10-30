@@ -14,6 +14,7 @@ import {
   Sun,
   Tag,
   Tags,
+  Trophy,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
@@ -23,6 +24,7 @@ import { colorHex } from '../lib/colors';
 import { describeDue, todayStr } from '../lib/dates';
 import { hotkeyParts, useHotkeys, type HotkeyAction } from '../lib/hotkeys';
 import { motionReduced } from '../lib/motion';
+import { recordEvent } from '../lib/achievements';
 import { isOverdue, sortForAgenda, type View } from '../lib/views';
 import { ProjectIcon } from './Pickers';
 
@@ -155,6 +157,7 @@ export function CommandPalette({
 
   // Focus goes back where it was (e.g. the sidebar row) when the palette closes.
   useEffect(() => {
+    recordEvent('paletteOpened');
     const previous = document.activeElement as HTMLElement | null;
     inputRef.current?.focus();
     return () => previous?.focus?.();
@@ -238,6 +241,7 @@ export function CommandPalette({
         ['notes', 'Notes', <StickyNote size={16} />],
         ['insights', 'Insights', <ChartColumn size={16} />],
         ['completed', 'Completed', <CircleCheck size={16} />],
+        ['achievements', 'Achievements', <Trophy size={16} />],
       ] as const
     ).map(([kind, title, icon]) => ({
       key: `page:${kind}`,

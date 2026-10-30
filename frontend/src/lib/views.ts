@@ -9,6 +9,7 @@ export type View =
   | { kind: 'notes' }
   | { kind: 'insights' }
   | { kind: 'completed' }
+  | { kind: 'achievements' }
   | { kind: 'project'; projectId: string }
   | { kind: 'label'; labelId: string }
   | { kind: 'search'; query: string };
@@ -37,6 +38,8 @@ export function viewTitle(view: View, projects: Project[], labels: Label[]): str
       return 'Insights';
     case 'completed':
       return 'Completed';
+    case 'achievements':
+      return 'Achievements';
     case 'project':
       return projects.find((p) => p.id === view.projectId)?.name ?? 'Project';
     case 'label':
