@@ -1,4 +1,4 @@
-import { LogOut, UserRoundPen } from 'lucide-react';
+import { ChevronsUpDown, Laptop, LogOut, Minimize2, Settings, UserRoundPen } from 'lucide-react';
 import { useState } from 'react';
 import { IS_WEB_APP } from '../api/backend';
 import { signOutOfCloud, SignInCancelled, startDesktopSignIn } from '../api/cloudSession';
@@ -8,17 +8,33 @@ import type { ConfirmOptions } from './Dialogs';
 import { Popover } from './Popover';
 import { useCloudUser } from './SessionGate';
 
+/** Shortcut shown next to Settings (handled in App). */
+const SETTINGS_SHORTCUT = /Mac/i.test(navigator.platform) ? '⌘,' : 'Ctrl+,';
+
 /**
- * Sidebar footer control for the signed-in Google account: who is signed in, switch to another account, sign out.
- * Switching signs in again with the account chooser; Firebase replaces the current user only when that succeeds,
- * so cancelling leaves the current account in place. Hidden while the desktop app works on its local file.
+ * Sidebar footer profile button and its menu: who is signed in (or "This PC" for the local file), Settings,
+ * Mini mode (browser only; the desktop title bar has its own), and for a Google account: switch account and
+ * sign out. Switching signs in again with the account chooser; Firebase replaces the current user only when
+ * that succeeds, so cancelling leaves the current account in place.
  */
-export function AccountMenu({ confirm }: { confirm: (options: ConfirmOptions) => Promise<boolean> }) {
+export function ProfileMenu({
+  confirm,
+  rail,
+  onOpenSettings,
+  onCompact,
+}: {
+  confirm: (options: ConfirmOptions) => Promise<boolean>;
+  /** The sidebar shows icons only: the button is just the avatar. */
+  rail: boolean;
+  onOpenSettings: () => void;
+  /** Mini mode; omitted where the title bar offers it instead. */
+  onCompact?: () => void;
+}) {
   const user = useCloudUser();
   const [busy, setBusy] = useState<'switch' | 'signout' | null>(null);
-  if (!user) return null;
 
   const switchAccount = async () => {
+    if (!user) return;
     setBusy('switch');
     try {
       const next = IS_WEB_APP ? await signInWithGoogle() : await startDesktopSignIn().done;
@@ -51,7 +67,19 @@ export function AccountMenu({ confirm }: { confirm: (options: ConfirmOptions) =>
     }
   };
 
-  const initial = (user.displayName ?? user.email ?? '?').charAt(0).toUpperCase();
+  const name = user ? (user.displayName ?? user.email ?? 'Account') : 'This PC';
+  const where = user ? 'Cloud' : 'Local';
+  const avatar = user ? (
+    user.photoURL ? (
+      <img className="account-btn-avatar" src={user.photoURL} alt="" referrerPolicy="no-referrer" />
+    ) : (
+      <span className="account-btn-avatar account-avatar-fallback">{name.charAt(0).toUpperCase()}</span>
+    )
+  ) : (
+    <span className="account-btn-avatar profile-avatar-local">
+      <Laptop size={13} />
+    </span>
+  );
 
   return (
     <Popover
@@ -59,17 +87,23 @@ export function AccountMenu({ confirm }: { confirm: (options: ConfirmOptions) =>
       trigger={({ onClick, open }) => (
         <button
           type="button"
-          className={`footer-btn footer-btn-icon account-btn ${open ? 'is-active' : ''}`}
+          className={`profile-btn ${open ? 'is-active' : ''}`}
           onClick={onClick}
-          data-tooltip={`${user.displayName ?? user.email}: account options`}
-          aria-label="Account options"
+          data-tooltip={rail ? `${name} · ${where}` : undefined}
+          data-tooltip-side="right"
+          aria-label={`${name}: profile and settings`}
           aria-haspopup="menu"
           aria-expanded={open}
         >
-          {user.photoURL ? (
-            <img className="account-btn-avatar" src={user.photoURL} alt="" referrerPolicy="no-referrer" />
-          ) : (
-            <span className="account-btn-avatar account-avatar-fallback">{initial}</span>
+          {avatar}
+          {!rail && (
+            <>
+              <span className="profile-btn-text">
+                <strong>{name}</strong>
+                <span className="muted"> · {where}</span>
+              </span>
+              <ChevronsUpDown size={13} className="profile-btn-chevron" aria-hidden="true" />
+            </>
           )}
         </button>
       )}
@@ -77,35 +111,69 @@ export function AccountMenu({ confirm }: { confirm: (options: ConfirmOptions) =>
       {(close) => (
         <div className="account-menu" role="menu">
           <div className="account-menu-identity">
-            <strong>{user.displayName ?? user.email}</strong>
-            <span className="muted small">{user.email}</span>
+            <strong>{user?.email ?? 'This PC'}</strong>
+            <span className="muted small">
+              {user ? 'Synced through your Google account' : 'Tasks are stored on this computer'}
+            </span>
           </div>
           <button
             type="button"
             role="menuitem"
             className="menu-item"
-            disabled={busy !== null}
             onClick={() => {
               close();
-              void switchAccount();
+              onOpenSettings();
             }}
           >
-            <UserRoundPen size={14} />
-            <span>{busy === 'switch' ? 'Waiting for Google…' : 'Switch Google account'}</span>
+            <Settings size={14} />
+            <span>Settings</span>
+            <kbd className="menu-item-kbd">{SETTINGS_SHORTCUT}</kbd>
           </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="menu-item"
-            disabled={busy !== null}
-            onClick={() => {
-              close();
-              void signOut();
-            }}
-          >
-            <LogOut size={14} />
-            <span>Sign out</span>
-          </button>
+          {onCompact && (
+            <button
+              type="button"
+              role="menuitem"
+              className="menu-item"
+              onClick={() => {
+                close();
+                onCompact();
+              }}
+            >
+              <Minimize2 size={14} />
+              <span>Mini mode</span>
+            </button>
+          )}
+          {user && (
+            <>
+              <div className="menu-sep" role="separator" />
+              <button
+                type="button"
+                role="menuitem"
+                className="menu-item"
+                disabled={busy !== null}
+                onClick={() => {
+                  close();
+                  void switchAccount();
+                }}
+              >
+                <UserRoundPen size={14} />
+                <span>{busy === 'switch' ? 'Waiting for Google…' : 'Switch Google account'}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="menu-item"
+                disabled={busy !== null}
+                onClick={() => {
+                  close();
+                  void signOut();
+                }}
+              >
+                <LogOut size={14} />
+                <span>Sign out</span>
+              </button>
+            </>
+          )}
         </div>
       )}
     </Popover>

@@ -2,12 +2,12 @@ import { CheckCircle2, X } from 'lucide-react';
 import { dismissToast, useToasts } from '../lib/toast';
 import { UpdateBanner } from './UpdateBanner';
 
-/** Transient messages, plus the desktop "Restart to update" banner, which shares the same overlay layer. */
-export function Toasts() {
+/** Transient messages, plus (in the mini window, which has no sidebar) the "Restart to update" banner. */
+export function Toasts({ updateBanner = false }: { updateBanner?: boolean }) {
   const toasts = useToasts();
   return (
     <>
-      <UpdateBanner />
+      {updateBanner && <UpdateBanner />}
       {toasts.length > 0 && <ToastList toasts={toasts} />}
     </>
   );

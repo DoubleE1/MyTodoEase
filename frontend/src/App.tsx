@@ -16,7 +16,6 @@ import {
   useTaskMutations,
 } from './api/hooks';
 import type { Label, Project, Task } from './api/types';
-import { AccountMenu } from './components/AccountMenu';
 import { CompactView } from './components/CompactView';
 import { ConfirmDialog, LabelDialog, Modal, ProjectDialog, type ConfirmOptions } from './components/Dialogs';
 import { Sidebar } from './components/Sidebar';
@@ -92,6 +91,17 @@ export default function App() {
     () => (search.trim() ? { kind: 'search', query: search.trim() } : view),
     [search, view],
   );
+
+  // Ctrl+, (Cmd+, on a Mac) opens Settings from anywhere, even while typing.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== ',' || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+      event.preventDefault();
+      setDialog({ kind: 'settings' });
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   // "q" opens quick add from anywhere, as in Todoist, unless the user is typing or a dialog is open.
   useEffect(() => {
@@ -344,7 +354,7 @@ export default function App() {
       )}
 
       {confirmElement}
-      <Toasts />
+      <Toasts updateBanner={windowMode.compact} />
       <TooltipLayer />
     </>
   );
@@ -410,7 +420,7 @@ export default function App() {
         themePreference={theme.preference}
         onCycleTheme={theme.cycle}
         onOpenSettings={() => setDialog({ kind: 'settings' })}
-        accountMenu={<AccountMenu confirm={confirm} />}
+        confirm={confirm}
         showCompactButton={!windowMode.isDesktop}
         onCompact={() => void windowMode.setCompact(true)}
       />

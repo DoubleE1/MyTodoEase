@@ -9,8 +9,6 @@ import {
   ChevronUp,
   Hash,
   Inbox,
-  Minimize2,
-  Settings,
   Monitor,
   Moon,
   Pencil,
@@ -30,7 +28,10 @@ import { todayStr } from '../lib/dates';
 import type { ThemePreference } from '../lib/theme';
 import { viewEquals, type View } from '../lib/views';
 import { Dashboard } from './Dashboard';
+import { ProfileMenu } from './AccountMenu';
+import type { ConfirmOptions } from './Dialogs';
 import { Wordmark } from './Logo';
+import { SidebarUpdate } from './UpdateBanner';
 
 interface SidebarProps {
   view: View;
@@ -51,8 +52,8 @@ interface SidebarProps {
   themePreference: ThemePreference;
   onCycleTheme: () => void;
   onOpenSettings: () => void;
-  /** Signed-in account control for the footer (switch account, sign out); null in local mode. */
-  accountMenu?: ReactNode;
+  /** For the profile menu's sign-out confirmation. */
+  confirm: (options: ConfirmOptions) => Promise<boolean>;
   /** In the browser there is no title bar, so Mini mode lives here instead. */
   showCompactButton: boolean;
   onCompact: () => void;
@@ -292,7 +293,7 @@ export function Sidebar({
   themePreference,
   onCycleTheme,
   onOpenSettings,
-  accountMenu,
+  confirm,
   showCompactButton,
   onCompact,
 }: SidebarProps) {
@@ -597,32 +598,16 @@ export function Sidebar({
           </CollapsibleSection>
         </div>
 
+        <SidebarUpdate rail={rail} />
+
+        {/* One slim row: the profile (its menu holds Settings and Mini mode) and the theme switch. */}
         <div className="sidebar-footer">
-          {accountMenu}
-          <button
-            type="button"
-            className="footer-btn"
-            onClick={onOpenSettings}
-            data-tooltip="Settings"
-            data-tooltip-side={rail ? 'right' : 'top'}
-            aria-label="Settings"
-          >
-            <Settings size={15} />
-            <span>Settings</span>
-          </button>
-          {showCompactButton && (
-            <button
-              type="button"
-              className="footer-btn"
-              onClick={onCompact}
-              data-tooltip="Mini mode: only today's tasks"
-              data-tooltip-side={rail ? 'right' : 'top'}
-              aria-label="Switch to mini mode"
-            >
-              <Minimize2 size={15} />
-              <span>Mini</span>
-            </button>
-          )}
+          <ProfileMenu
+            confirm={confirm}
+            rail={rail}
+            onOpenSettings={onOpenSettings}
+            onCompact={showCompactButton ? onCompact : undefined}
+          />
           <button
             type="button"
             className="footer-btn footer-btn-icon"
