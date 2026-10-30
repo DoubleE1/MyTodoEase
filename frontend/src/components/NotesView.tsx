@@ -895,15 +895,42 @@ function NoteCard({
 
   const edited = note.updatedAt ? editedLabel(note.updatedAt) : '';
 
+  // Keyboard moving: works on a selected note (the card has focus: its top bar was clicked, Esc was pressed
+  // while typing, or the grip was reached with Tab). In the text, arrow keys stay with the cursor.
+  const onMoveKeys = (e: React.KeyboardEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.closest('.popover')) return;
+    const step = e.shiftKey ? KEY_STEP * 4 : KEY_STEP;
+    const moves: Record<string, [number, number]> = {
+      ArrowLeft: [-step, 0],
+      ArrowRight: [step, 0],
+      ArrowUp: [0, -step],
+      ArrowDown: [0, step],
+    };
+    const delta = moves[e.key];
+    if (!delta) return;
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) onResizeBy(cardRef.current, delta[0], delta[1]);
+    else onNudge(delta[0], delta[1]);
+  };
+
   return (
     <article
       ref={cardRef}
       className={`note-card ${dragging ? 'is-dragging' : ''} ${movable ? 'is-movable' : ''} ${sized ? 'is-sized' : ''} ${resizing ? 'is-resizing' : ''}`}
       data-color={note.color}
       style={style}
+      tabIndex={movable ? -1 : undefined}
+      aria-label={movable ? 'Note: arrow keys move it, Shift for bigger steps, Ctrl+arrow keys resize it' : undefined}
+      onKeyDown={movable ? onMoveKeys : undefined}
       onPointerDown={(e) => {
         // Any press on the note (text included) brings it to the front; the header also starts a drag.
         if (movable && e.button === 0) onActivate();
+        // A press on the top bar (not its buttons) selects the note, so the arrow keys move it.
+        const target = e.target as HTMLElement;
+        if (movable && target.closest('.note-head') && !target.closest('.note-btn, .popover')) {
+          cardRef.current?.focus({ preventScroll: true });
+        }
         onPointerDown(e);
       }}
     >
@@ -915,20 +942,6 @@ function NoteCard({
             className="note-grip"
             aria-label="Move note (drag, or arrow keys); Ctrl+arrow keys resize it"
             data-tooltip="Drag to move, or use the arrow keys. Ctrl+arrow keys resize."
-            onKeyDown={(e) => {
-              const step = e.shiftKey ? KEY_STEP * 4 : KEY_STEP;
-              const moves: Record<string, [number, number]> = {
-                ArrowLeft: [-step, 0],
-                ArrowRight: [step, 0],
-                ArrowUp: [0, -step],
-                ArrowDown: [0, step],
-              };
-              const delta = moves[e.key];
-              if (!delta) return;
-              e.preventDefault();
-              if (e.ctrlKey || e.metaKey) onResizeBy(cardRef.current, delta[0], delta[1]);
-              else onNudge(delta[0], delta[1]);
-            }}
           >
             <Grip size={14} />
           </button>
@@ -1011,6 +1024,13 @@ function NoteCard({
         placeholder="Write anything… e.g. a list of things to do"
         aria-label="Note"
         onFocus={() => setFocused(true)}
+        onKeyDown={(e) => {
+          // Esc leaves the text and selects the note, so the arrow keys move it.
+          if (e.key === 'Escape' && movable) {
+            e.preventDefault();
+            cardRef.current?.focus({ preventScroll: true });
+          }
+        }}
         onChange={(e) => {
           setText(e.target.value);
           textRef.current = e.target.value;

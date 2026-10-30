@@ -7046,3 +7046,9 @@ body.is-resizing-span * {
   cursor: ew-resize !important;
   user-select: none;
 }
+
+/* A selected note (its top bar clicked, or Esc pressed while typing): the arrow keys move it. */
+.note-card:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

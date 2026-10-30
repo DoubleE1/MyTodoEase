@@ -60,9 +60,10 @@ const FIXED_GROUPS: { title: string; items: FixedShortcut[] }[] = [
   {
     title: 'Notes board',
     items: [
-      { label: 'Move the focused note', keys: [['←↑→↓']] },
+      { label: 'Select a note (or click its top bar)', keys: [['Esc']] },
+      { label: 'Move the selected note', keys: [['←↑→↓']] },
       { label: 'Move it further', keys: [['Shift', '←↑→↓']] },
-      { label: 'Resize the focused note', keys: [[MOD_KEY, '←↑→↓']] },
+      { label: 'Resize the selected note', keys: [[MOD_KEY, '←↑→↓']] },
       { label: 'Zoom', keys: [['Scroll'], [MOD_KEY, 'Scroll']] },
       { label: 'Pan', keys: [['Shift', 'Scroll']] },
     ],
