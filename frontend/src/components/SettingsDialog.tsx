@@ -6,6 +6,7 @@ import { api, ApiError } from '../api/client';
 import { ACCENT_PRESETS, DEFAULT_ACCENT } from '../lib/accent';
 import type { ThemePreference } from '../lib/theme';
 import { useReduceMotionSetting } from '../lib/motion';
+import { setShowInsightsCard, useShowInsightsCard } from '../lib/insightsCard';
 import { showToast } from '../lib/toast';
 import type { ConfirmOptions } from './Dialogs';
 import { Modal } from './Dialogs';
@@ -206,6 +207,7 @@ export function SettingsDialog({
           </div>
 
           <ReduceMotionToggle />
+          <InsightsCardToggle />
         </section>
         )}
 
@@ -261,6 +263,35 @@ export function SettingsDialog({
         </div>
       </div>
     </Modal>
+  );
+}
+
+/** Settings > Appearance: show or hide the Insights card at the top of the sidebar. */
+function InsightsCardToggle() {
+  const show = useShowInsightsCard();
+  return (
+    <div className="settings-field">
+      <span className="settings-field-label">Sidebar</span>
+      <div className="settings-switch-row">
+        <span className="settings-switch-text" id="insights-card-label">
+          <span>Show Insights card</span>
+          <span className="muted small" id="insights-card-hint">
+            Today's progress ring, this week's chart and your streak. When hidden, Insights becomes a normal item in the sidebar list.
+          </span>
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={show}
+          aria-labelledby="insights-card-label"
+          aria-describedby="insights-card-hint"
+          className={`switch ${show ? 'is-on' : ''}`}
+          onClick={() => setShowInsightsCard(!show)}
+        >
+          <span className="switch-thumb" />
+        </button>
+      </div>
+    </div>
   );
 }
 

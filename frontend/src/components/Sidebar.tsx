@@ -24,6 +24,7 @@ import type { CompletionItem, Label, Project, Task } from '../api/types';
 import { colorHex } from '../lib/colors';
 import { todayStr } from '../lib/dates';
 import { inboxTasks, useInboxFilter } from '../lib/inboxFilter';
+import { useShowInsightsCard } from '../lib/insightsCard';
 import type { ThemePreference } from '../lib/theme';
 import { viewEquals, type View } from '../lib/views';
 import { Dashboard } from './Dashboard';
@@ -294,6 +295,7 @@ export function Sidebar({
   const today = todayStr();
   // The Inbox count follows the Inbox page's project filter (all projects by default).
   const inboxCount = inboxTasks(tasks, useInboxFilter(projects)).length;
+  const showInsightsCard = useShowInsightsCard();
   const todayCount = tasks.filter((t) => t.dueDate !== null && t.dueDate <= today).length;
   const countFor = (projectId: string) => tasks.filter((t) => t.projectId === projectId).length;
   const countForLabel = (labelId: string) => tasks.filter((t) => t.labelIds.includes(labelId)).length;
@@ -426,7 +428,7 @@ export function Sidebar({
 
         {/* Only the middle scrolls; the top and the footer stay in place. */}
         <div className="sidebar-scroll">
-          {!rail && (
+          {!rail && showInsightsCard && (
             <Dashboard
               tasks={tasks}
               completions={completions}
@@ -436,13 +438,14 @@ export function Sidebar({
           )}
 
           <nav className="sidebar-nav">
-            {rail && (
+            {/* Without the card (icon rail, or hidden in Settings) Insights is an ordinary nav item. */}
+            {(rail || !showInsightsCard) && (
               <NavItem
                 icon={<ChartColumn size={18} />}
                 label="Insights"
                 active={isActive({ kind: 'insights' })}
                 onClick={() => onSelectView({ kind: 'insights' })}
-                iconOnly
+                iconOnly={rail}
               />
             )}
             <NavItem
