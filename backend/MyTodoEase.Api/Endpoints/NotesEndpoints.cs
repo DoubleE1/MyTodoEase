@@ -101,8 +101,8 @@ public static class NotesEndpoints
             errors["color"] = [$"Color must be one of: {string.Join(", ", Note.Colors)}."];
         if (req.TaskIds is not null && (req.TaskIds.Count > 100 || req.TaskIds.Any(id => !AppDb.IsValidId(id))))
             errors["taskIds"] = ["Task ids must be valid, at most 100."];
-        if (req.X is < 0 or > 100000 || req.Y is < 0 or > 100000 || req.X is double.NaN || req.Y is double.NaN)
-            errors["position"] = ["Position must be between 0 and 100000."];
+        if (req.X is < -100000 or > 100000 || req.Y is < -100000 or > 100000 || req.X is double.NaN || req.Y is double.NaN)
+            errors["position"] = ["Position must be between -100000 and 100000."];
         if (req.W is double w && (double.IsNaN(w) || w < Note.MinWidth || w > Note.MaxWidth))
             errors["w"] = [$"Width must be between {Note.MinWidth} and {Note.MaxWidth}."];
         if (req.H is double h && (double.IsNaN(h) || h < Note.MinHeight || h > Note.MaxHeight))

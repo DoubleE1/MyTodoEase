@@ -1,5 +1,18 @@
 import { differenceInMinutes, format, parseISO } from 'date-fns';
-import { Archive, ArchiveRestore, Ellipsis, Grip, ListTodo, Palette, Plus, StickyNote, Trash2 } from 'lucide-react';
+import {
+  Archive,
+  ArchiveRestore,
+  Ellipsis,
+  Grip,
+  ListTodo,
+  Maximize,
+  Palette,
+  Plus,
+  StickyNote,
+  Trash2,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useNoteMutations, useNotes } from '../api/hooks';
 import { NOTE_COLORS, type Label, type Note, type NoteColor, type NoteInput, type Project, type Section } from '../api/types';
@@ -21,8 +34,33 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), M
 const NOTE_HEIGHT_GUESS = 230;
 const GAP = 20;
 const KEY_STEP = 16;
-/** Below this board width the notes stack in one column instead of floating freely. */
-const STACK_BELOW = 440;
+/** Canvas coordinates stay within what the API accepts. */
+const POS_LIMIT = 100000;
+const clampPos = (v: number) => Math.round(clamp(v, -POS_LIMIT, POS_LIMIT));
+
+/** Canvas view: pan offset in screen pixels and zoom factor. Remembered per device. */
+interface CanvasView {
+  x: number;
+  y: number;
+  z: number;
+}
+const MIN_ZOOM = 0.2;
+const MAX_ZOOM = 2.5;
+const DOT_SPACING = 24;
+const VIEW_KEY = 'todoease.notes.view';
+const DEFAULT_VIEW: CanvasView = { x: 40, y: 24, z: 1 };
+
+function loadView(): CanvasView {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(VIEW_KEY) ?? 'null') as CanvasView | null;
+    if (v && Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z)) {
+      return { x: v.x, y: v.y, z: clamp(v.z, MIN_ZOOM, MAX_ZOOM) };
+    }
+  } catch {
+    // Unreadable: start from the default view.
+  }
+  return DEFAULT_VIEW;
+}
 
 /** Short "edited" time that fits the note footer: just now, 5m ago, 3h ago, then the date. */
 function editedLabel(iso: string): string {
@@ -54,23 +92,29 @@ interface Rect {
 const overlaps = (a: Rect, b: Rect) =>
   a.x < b.x + b.w + GAP && b.x < a.x + a.w + GAP && a.y < b.y + b.h + GAP && b.y < a.y + a.h + GAP;
 
-/** First spot (scanning rows from `fromY`) where a note fits without touching any placed note. */
-function findFreeSpot(placed: Rect[], boardWidth: number, fromY = 0): { x: number; y: number } {
-  const maxX = Math.max(0, boardWidth - NOTE_WIDTH);
+/** The free spot closest to (cx, cy) where a new note fits without touching any placed note. */
+function findFreeSpotNear(placed: Rect[], cx: number, cy: number): { x: number; y: number } {
   const step = 24;
-  for (let y = Math.max(0, fromY); y < fromY + 20000; y += step) {
-    for (let x = 0; x <= maxX; x += step) {
-      const candidate = { x, y, w: NOTE_WIDTH, h: NOTE_HEIGHT_GUESS };
-      if (!placed.some((p) => overlaps(candidate, p))) return { x, y };
-    }
+  const reach = 60;
+  const candidates: { x: number; y: number; d: number }[] = [];
+  for (let i = -reach; i <= reach; i++) {
+    for (let j = -reach; j <= reach; j++) candidates.push({ x: i * step, y: j * step, d: i * i + j * j });
   }
-  return { x: 0, y: fromY };
+  candidates.sort((a, b) => a.d - b.d);
+  const left = cx - NOTE_WIDTH / 2;
+  const top = cy - NOTE_HEIGHT_GUESS / 2;
+  for (const c of candidates) {
+    const rect = { x: left + c.x, y: top + c.y, w: NOTE_WIDTH, h: NOTE_HEIGHT_GUESS };
+    if (!placed.some((p) => overlaps(rect, p))) return { x: clampPos(rect.x), y: clampPos(rect.y) };
+  }
+  return { x: clampPos(left), y: clampPos(top) };
 }
 
 /**
- * The Notes board: sticky notes placed freely anywhere on the page, like notes on a desk. A note keeps its
- * place on every device; the last one moved or created sits on top. Notes save while typing, can be coloured,
- * and "Turn into tasks" suggests tasks from the text for the user to approve.
+ * The Notes board: an endless canvas, like a whiteboard. Drag the background (or with the middle mouse
+ * button anywhere) to move around, scroll to zoom, pinch on touch screens. Notes keep their place on every
+ * device and screen size; the last one moved or created sits on top. Notes save while typing, can be
+ * coloured and resized, and "Turn into tasks" suggests tasks from the text for the user to approve.
  */
 export function NotesView({
   projects,
@@ -92,27 +136,81 @@ export function NotesView({
   const [showArchived, setShowArchived] = useState(false);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [converting, setConverting] = useState<Note | null>(null);
-  const boardRef = useRef<HTMLDivElement>(null);
-  const [boardWidth, setBoardWidth] = useState(0);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const worldRef = useRef<HTMLDivElement>(null);
+  const zoomLabelRef = useRef<HTMLSpanElement>(null);
   const heights = useRef(new Map<string, number>());
   const [, setMeasured] = useState(0);
   const [drag, setDrag] = useState<{ id: string } | null>(null);
   const [resize, setResize] = useState<{ id: string; x: number; y: number; w: number; h: number } | null>(null);
+  const [panning, setPanning] = useState(false);
 
   const all = notesQuery.data ?? [];
   const active = useMemo(() => all.filter((n) => !n.isArchived), [all]);
   const archived = useMemo(() => all.filter((n) => n.isArchived), [all]);
-  const stacked = boardWidth > 0 && boardWidth < STACK_BELOW;
   const topOrder = active.reduce((max, n) => Math.max(max, n.order), 0);
 
-  useLayoutEffect(() => {
-    const el = boardRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(() => setBoardWidth(el.clientWidth));
-    observer.observe(el);
-    setBoardWidth(el.clientWidth);
-    return () => observer.disconnect();
-  }, [notesQuery.isLoading]);
+  // ---- The view (pan and zoom) ----
+  // Kept in a ref and written straight to the DOM: panning and zooming never re-render the notes.
+  const view = useRef<CanvasView>(loadView());
+  const saveViewTimer = useRef<number | undefined>(undefined);
+
+  const applyView = useCallback(() => {
+    const { x, y, z } = view.current;
+    if (worldRef.current) worldRef.current.style.transform = `translate(${x}px, ${y}px) scale(${z})`;
+    const canvas = canvasRef.current;
+    if (canvas) {
+      // The dot grid moves and scales with the canvas, so the space reads as one surface.
+      canvas.style.backgroundSize = `${DOT_SPACING * z}px ${DOT_SPACING * z}px`;
+      canvas.style.backgroundPosition = `${x}px ${y}px`;
+    }
+    if (zoomLabelRef.current) zoomLabelRef.current.textContent = `${Math.round(z * 100)}%`;
+  }, []);
+
+  const setView = useCallback(
+    (next: CanvasView) => {
+      view.current = { x: next.x, y: next.y, z: clamp(next.z, MIN_ZOOM, MAX_ZOOM) };
+      applyView();
+      window.clearTimeout(saveViewTimer.current);
+      saveViewTimer.current = window.setTimeout(() => {
+        try {
+          window.localStorage.setItem(VIEW_KEY, JSON.stringify(view.current));
+        } catch {
+          // Not remembered; fine.
+        }
+      }, 300);
+    },
+    [applyView],
+  );
+
+  useLayoutEffect(applyView, [applyView, notesQuery.isLoading]);
+
+  /** Zoom to `z`, keeping the canvas point under (clientX, clientY) where it is. */
+  const zoomAt = useCallback(
+    (clientX: number, clientY: number, z: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const r = canvas.getBoundingClientRect();
+      const { x, y, z: oldZ } = view.current;
+      const nz = clamp(z, MIN_ZOOM, MAX_ZOOM);
+      const px = clientX - r.left;
+      const py = clientY - r.top;
+      setView({ x: px - ((px - x) / oldZ) * nz, y: py - ((py - y) / oldZ) * nz, z: nz });
+    },
+    [setView],
+  );
+
+  const zoomFromCenter = (factor: number) => {
+    const r = canvasRef.current?.getBoundingClientRect();
+    if (r) zoomAt(r.left + r.width / 2, r.top + r.height / 2, view.current.z * factor);
+  };
+
+  /** Canvas point at the middle of what the user is looking at. */
+  const viewCenter = () => {
+    const r = canvasRef.current?.getBoundingClientRect();
+    const { x, y, z } = view.current;
+    return r ? { x: (r.width / 2 - x) / z, y: (r.height / 2 - y) / z } : { x: 400, y: 300 };
+  };
 
   const rectOf = useCallback(
     (note: Note): Rect | null =>
@@ -122,42 +220,160 @@ export function NotesView({
     [],
   );
 
-  // Notes without a place yet (made before free placement, or on a phone) get one, saved for every device.
+  /** Show every note: zoom out (never in past 100%) and centre them. */
+  const fitAll = () => {
+    const canvas = canvasRef.current;
+    const rects = active.map(rectOf).filter((r): r is Rect => r !== null);
+    if (!canvas || rects.length === 0) {
+      setView(DEFAULT_VIEW);
+      return;
+    }
+    const left = Math.min(...rects.map((r) => r.x));
+    const top = Math.min(...rects.map((r) => r.y));
+    const right = Math.max(...rects.map((r) => r.x + r.w));
+    const bottom = Math.max(...rects.map((r) => r.y + r.h));
+    const pad = 48;
+    const z = clamp(
+      Math.min((canvas.clientWidth - pad * 2) / (right - left), (canvas.clientHeight - pad * 2) / (bottom - top), 1),
+      MIN_ZOOM,
+      MAX_ZOOM,
+    );
+    setView({
+      x: (canvas.clientWidth - (right - left) * z) / 2 - left * z,
+      y: (canvas.clientHeight - (bottom - top) * z) / 2 - top * z,
+      z,
+    });
+  };
+
+  // Scrolling zooms around the pointer (Shift+scroll pans). A note whose text overflows scrolls its text.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onWheel = (e: WheelEvent) => {
+      const target = e.target as Element;
+      if (target.closest('.notes-archived, .notes-zoombar, .popover')) return;
+      const area = target.closest('textarea');
+      if (area && !e.ctrlKey && area.scrollHeight > area.clientHeight) return;
+      e.preventDefault();
+      const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
+      if (e.shiftKey) {
+        const { x, y, z } = view.current;
+        setView({ x: x - e.deltaX * unit, y: y - (e.deltaX ? 0 : e.deltaY * unit), z });
+        return;
+      }
+      // Pinch on a touchpad arrives as Ctrl+wheel with small deltas; give it a stronger response.
+      const speed = e.ctrlKey ? 0.01 : 0.0015;
+      zoomAt(e.clientX, e.clientY, view.current.z * Math.exp(-e.deltaY * unit * speed));
+    };
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', onWheel);
+  }, [notesQuery.isLoading, setView, zoomAt]);
+
+  // Pan by dragging the background (any button-0 press on empty canvas, or the middle button anywhere);
+  // two fingers pinch to zoom on touch screens.
+  const gesture = useRef<{
+    pointers: Map<number, { x: number; y: number }>;
+    start: CanvasView;
+    anchor: { x: number; y: number };
+    spread: number;
+  } | null>(null);
+
+  const restartGesture = () => {
+    const g = gesture.current;
+    if (!g) return;
+    const pts = [...g.pointers.values()];
+    g.start = { ...view.current };
+    g.anchor = {
+      x: pts.reduce((s, p) => s + p.x, 0) / pts.length,
+      y: pts.reduce((s, p) => s + p.y, 0) / pts.length,
+    };
+    g.spread = pts.length > 1 ? Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) : 0;
+  };
+
+  const onCanvasPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const onBackground = e.target === canvasRef.current || e.target === worldRef.current;
+    if (!(onBackground && e.button === 0) && e.button !== 1) return;
+    e.preventDefault();
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Already released.
+    }
+    if (!gesture.current) {
+      gesture.current = { pointers: new Map(), start: view.current, anchor: { x: 0, y: 0 }, spread: 0 };
+      setPanning(true);
+    }
+    gesture.current.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    restartGesture();
+  };
+
+  const onCanvasPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const g = gesture.current;
+    if (!g || !g.pointers.has(e.pointerId)) return;
+    g.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const pts = [...g.pointers.values()];
+    const mid = {
+      x: pts.reduce((s, p) => s + p.x, 0) / pts.length,
+      y: pts.reduce((s, p) => s + p.y, 0) / pts.length,
+    };
+    if (pts.length > 1 && g.spread > 0) {
+      // Pinch: scale around where the fingers started, and follow them as they move.
+      const r = canvasRef.current!.getBoundingClientRect();
+      const spread = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      const z = clamp(g.start.z * (spread / g.spread), MIN_ZOOM, MAX_ZOOM);
+      const ax = g.anchor.x - r.left;
+      const ay = g.anchor.y - r.top;
+      const wx = (ax - g.start.x) / g.start.z;
+      const wy = (ay - g.start.y) / g.start.z;
+      setView({ x: ax - wx * z + (mid.x - g.anchor.x), y: ay - wy * z + (mid.y - g.anchor.y), z });
+      return;
+    }
+    setView({ x: g.start.x + mid.x - g.anchor.x, y: g.start.y + mid.y - g.anchor.y, z: g.start.z });
+  };
+
+  const onCanvasPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const g = gesture.current;
+    if (!g || !g.pointers.delete(e.pointerId)) return;
+    if (g.pointers.size === 0) {
+      gesture.current = null;
+      setPanning(false);
+    } else {
+      restartGesture();
+    }
+  };
+
+  // Notes without a place yet (made before free placement) get one near the middle of the view.
   const placing = useRef(false);
   useEffect(() => {
-    if (placing.current || stacked || boardWidth === 0) return;
+    if (placing.current || !canvasRef.current) return;
     const unplaced = active.filter((n) => n.x == null || n.y == null);
     if (unplaced.length === 0) return;
     placing.current = true;
     const placed = active.map(rectOf).filter((r): r is Rect => r !== null);
+    const center = viewCenter();
     for (const note of [...unplaced].sort((a, b) => a.order - b.order)) {
-      const spot = findFreeSpot(placed, boardWidth);
+      const spot = findFreeSpotNear(placed, center.x, center.y);
       placed.push({ ...spot, w: NOTE_WIDTH, h: NOTE_HEIGHT_GUESS });
       mut.update.mutate({ id: note.id, input: spot });
     }
     placing.current = false;
-  }, [active, boardWidth, stacked, rectOf, mut.update]);
+    // viewCenter only reads refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, rectOf, mut.update]);
 
-  const addNote = async () => {
-    let position: { x?: number; y?: number } = {};
-    if (!stacked && boardRef.current) {
-      // Somewhere free in the part of the board the user is looking at.
-      const scroller = boardRef.current.closest('.main');
-      const visibleTop = scroller ? Math.max(0, scroller.scrollTop - boardRef.current.offsetTop) : 0;
-      const placed = active.map(rectOf).filter((r): r is Rect => r !== null);
-      position = findFreeSpot(placed, boardWidth, visibleTop);
-    }
+  /** A new note in the free spot nearest `at` (canvas point), or the middle of the view. */
+  const addNote = async (at?: { x: number; y: number }) => {
+    const center = at ?? viewCenter();
+    const placed = active.map(rectOf).filter((r): r is Rect => r !== null);
+    const position = findFreeSpotNear(placed, center.x, center.y);
     const note = await mut.create.mutateAsync({ text: '', color: 'yellow', order: topOrder + 1, ...position });
     setFocusId(note.id);
   };
 
   const save = (note: Note, input: NoteInput) => mut.update.mutate({ id: note.id, input });
 
-  /** How wide the note is drawn: its saved width, never wider than the board. */
-  const widthOf = (note: Note) => Math.min(note.w ?? NOTE_WIDTH, Math.max(MIN_W, boardWidth));
-
-  /** Where the note is drawn: a note placed on a wider screen is pulled in to fit this board. */
-  const shownX = (note: Note) => Math.min(note.x ?? 0, Math.max(0, boardWidth - widthOf(note)));
+  const widthOf = (note: Note) => note.w ?? NOTE_WIDTH;
 
   const front = (note: Note) => (note.order === topOrder ? {} : { order: topOrder + 1 });
 
@@ -168,20 +384,21 @@ export function NotesView({
 
   /**
    * Resize by dragging any edge or corner, as with a window: the left and top edges move the note too.
-   * Live preview while dragging, saved on release.
+   * Live preview while dragging, saved on release. Pointer distances are divided by the zoom.
    */
   const startResize = (note: Note, edge: Edge, event: ReactPointerEvent<HTMLElement>) => {
-    if (stacked || event.button !== 0) return;
+    if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
     activate(note);
     const card = (event.currentTarget as HTMLElement).closest('.note-card') as HTMLElement | null;
     const start = {
-      x: shownX(note),
+      x: note.x ?? 0,
       y: note.y ?? 0,
       w: widthOf(note),
       h: card?.offsetHeight ?? note.h ?? NOTE_HEIGHT_GUESS,
     };
+    const z = view.current.z;
     const startX = event.clientX;
     const startY = event.clientY;
     const target = event.currentTarget;
@@ -191,21 +408,21 @@ export function NotesView({
       // Pointer already released; listeners below still finish the resize.
     }
     const rectAt = (e: PointerEvent) => {
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
+      const dx = (e.clientX - startX) / z;
+      const dy = (e.clientY - startY) / z;
       let { x, y, w, h } = start;
-      if (edge.includes('e')) w = clamp(start.w + dx, MIN_W, Math.min(MAX_W, boardWidth - start.x));
+      if (edge.includes('e')) w = clamp(start.w + dx, MIN_W, MAX_W);
       if (edge.includes('w')) {
-        // The right edge stays put; the left edge cannot leave the board.
-        w = clamp(start.w - dx, MIN_W, Math.min(MAX_W, start.x + start.w));
+        // The right edge stays put.
+        w = clamp(start.w - dx, MIN_W, MAX_W);
         x = start.x + start.w - w;
       }
       if (edge.includes('s')) h = clamp(start.h + dy, MIN_H, MAX_H);
       if (edge.includes('n')) {
-        h = clamp(start.h - dy, MIN_H, Math.min(MAX_H, start.y + start.h));
+        h = clamp(start.h - dy, MIN_H, MAX_H);
         y = start.y + start.h - h;
       }
-      return { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+      return { x: clampPos(x), y: clampPos(y), w: Math.round(w), h: Math.round(h) };
     };
     const move = (e: PointerEvent) => setResize({ id: note.id, ...rectAt(e) });
     const up = (e: PointerEvent) => {
@@ -224,18 +441,20 @@ export function NotesView({
   };
 
   const resizeBy = (note: Note, card: HTMLElement | null, dw: number, dh: number) => {
-    const w = Math.round(clamp(widthOf(note) + dw, MIN_W, Math.min(MAX_W, boardWidth - shownX(note))));
+    const w = Math.round(clamp(widthOf(note) + dw, MIN_W, MAX_W));
     const h = Math.round(clamp((card?.offsetHeight ?? note.h ?? NOTE_HEIGHT_GUESS) + dh, MIN_H, MAX_H));
     save(note, { w, h, ...front(note) });
   };
 
   /** Drag a note by its frame; the textarea and buttons keep their own behaviour. */
   const startDrag = (note: Note, event: ReactPointerEvent<HTMLElement>) => {
-    if (stacked || event.button !== 0) return;
+    if (event.button !== 0) return;
     // Text, buttons and links keep their own behaviour; the grip is a button but is meant to be dragged.
     const control = (event.target as Element).closest('textarea, button, input, a, [role="radiogroup"]');
     if (control && !control.classList.contains('note-grip')) return;
     event.preventDefault();
+    event.stopPropagation();
+    const z = view.current.z;
     const startX = event.clientX;
     const startY = event.clientY;
     const target = event.currentTarget;
@@ -245,7 +464,8 @@ export function NotesView({
       // The pointer is already gone (e.g. released during a re-render); the move listeners still work.
     }
     // The card follows the pointer by writing its transform directly, once per frame: re-rendering the
-    // board on every pointer move is what made dragging lag.
+    // board on every pointer move is what made dragging lag. The card lives inside the zoomed canvas, so
+    // screen distances are divided by the zoom.
     let moved = false;
     let frame = 0;
     let offset = { dx: 0, dy: 0 };
@@ -254,9 +474,9 @@ export function NotesView({
       target.style.transform = `translate(${offset.dx}px, ${offset.dy}px)`;
     };
     const move = (e: PointerEvent) => {
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
-      if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+      const dx = (e.clientX - startX) / z;
+      const dy = (e.clientY - startY) / z;
+      if (!moved && Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY) < 3) return;
       if (!moved) setDrag({ id: note.id });
       moved = true;
       offset = { dx, dy };
@@ -269,10 +489,8 @@ export function NotesView({
       cancelAnimationFrame(frame);
       setDrag(null);
       if (!moved) return;
-      const x = Math.round(
-        Math.min(Math.max(0, shownX(note) + e.clientX - startX), Math.max(0, boardWidth - widthOf(note))),
-      );
-      const y = Math.round(Math.max(0, (note.y ?? 0) + e.clientY - startY));
+      const x = clampPos((note.x ?? 0) + (e.clientX - startX) / z);
+      const y = clampPos((note.y ?? 0) + (e.clientY - startY) / z);
       // Put the card at its new place in the same frame the offset goes, so it never jumps back while the
       // save is on its way; the next render writes the same values.
       target.style.left = `${x}px`;
@@ -286,9 +504,11 @@ export function NotesView({
   };
 
   const nudge = (note: Note, dx: number, dy: number) => {
-    const x = Math.min(Math.max(0, shownX(note) + dx), Math.max(0, boardWidth - widthOf(note)));
-    const y = Math.max(0, (note.y ?? 0) + dy);
-    save(note, { x, y, order: note.order === topOrder ? note.order : topOrder + 1 });
+    save(note, {
+      x: clampPos((note.x ?? 0) + dx),
+      y: clampPos((note.y ?? 0) + dy),
+      order: note.order === topOrder ? note.order : topOrder + 1,
+    });
   };
 
   const remove = async (note: Note) => {
@@ -310,23 +530,17 @@ export function NotesView({
     }
   }, []);
 
-  // The board is as tall as its lowest note (plus room to drop more below), and at least the visible area.
-  const boardHeight = stacked
-    ? undefined
-    : Math.max(
-        480,
-        // While a note is dragged there is extra room below, so it can be pulled further down.
-        ...active.map((n) => (n.y ?? 0) + (heights.current.get(n.id) ?? NOTE_HEIGHT_GUESS) + (drag ? 560 : 160)),
-      );
   const zOrder = new Map([...active].sort((a, b) => a.order - b.order).map((n, i) => [n.id, i + 1]));
-  const stackedOrder = [...active].sort((a, b) => (a.y ?? 0) - (b.y ?? 0) || (a.x ?? 0) - (b.x ?? 0));
 
   return (
     <div className="view view-notes">
       <header className="view-header notes-header">
         <div>
           <h1>Notes</h1>
-          <p className="muted small">Jot things down as they come and put them anywhere. Turn a note into tasks when you are ready.</p>
+          <p className="muted small">
+            Drag the background to move around, scroll to zoom, double-click to add a note. Turn a note into tasks
+            when you are ready.
+          </p>
         </div>
         <div className="notes-header-actions">
           {archived.length > 0 && (
@@ -346,13 +560,57 @@ export function NotesView({
         <div className="loading">Loading…</div>
       ) : (
         <div
-          ref={boardRef}
-          className={`notes-board ${stacked ? 'is-stacked' : ''} ${drag ? 'is-dragging' : ''}`}
-          style={{ height: boardHeight }}
+          ref={canvasRef}
+          className={`notes-canvas ${panning ? 'is-panning' : ''} ${drag ? 'is-dragging' : ''}`}
+          onPointerDown={onCanvasPointerDown}
+          onPointerMove={onCanvasPointerMove}
+          onPointerUp={onCanvasPointerUp}
+          onPointerCancel={onCanvasPointerUp}
           onDoubleClick={(e) => {
-            if (e.target === e.currentTarget) void addNote();
+            if (e.target !== canvasRef.current && e.target !== worldRef.current) return;
+            const r = canvasRef.current!.getBoundingClientRect();
+            const { x, y, z } = view.current;
+            void addNote({ x: (e.clientX - r.left - x) / z, y: (e.clientY - r.top - y) / z });
           }}
         >
+          <div ref={worldRef} className="notes-board notes-world">
+            {active.map((note) => {
+              const dragging = drag?.id === note.id;
+              const resizing = resize?.id === note.id ? resize : null;
+              const height = resizing ? resizing.h : note.h ?? undefined;
+              const style = {
+                left: resizing ? resizing.x : note.x ?? 0,
+                top: resizing ? resizing.y : note.y ?? 0,
+                width: resizing ? resizing.w : widthOf(note),
+                height,
+                zIndex: dragging ? 1000 : zOrder.get(note.id),
+              };
+              return (
+                <NoteCard
+                  key={note.id}
+                  note={note}
+                  style={style}
+                  dragging={dragging}
+                  movable
+                  sized={height !== undefined}
+                  resizing={resizing !== null}
+                  onActivate={() => activate(note)}
+                  onResizeStart={(edge, e) => startResize(note, edge, e)}
+                  onResizeBy={(card, dw, dh) => resizeBy(note, card, dw, dh)}
+                  autoFocus={note.id === focusId}
+                  onFocused={() => setFocusId(null)}
+                  onPointerDown={(e) => startDrag(note, e)}
+                  onNudge={(dx, dy) => nudge(note, dx, dy)}
+                  onMeasure={onMeasure}
+                  onSave={(input) => save(note, input)}
+                  onConvert={() => setConverting(note)}
+                  onArchive={() => save(note, { isArchived: true })}
+                  onDelete={() => void remove(note)}
+                />
+              );
+            })}
+          </div>
+
           {active.length === 0 && (
             <div className="notes-empty">
               <StickyNote size={40} />
@@ -366,81 +624,75 @@ export function NotesView({
               </button>
             </div>
           )}
-          {(stacked ? stackedOrder : active).map((note) => {
-            const dragging = drag?.id === note.id;
-            const resizing = resize?.id === note.id ? resize : null;
-            const x = resizing ? resizing.x : shownX(note);
-            const height = resizing ? resizing.h : note.h ?? undefined;
-            const style = stacked
-              ? undefined
-              : {
-                  left: x,
-                  top: resizing ? resizing.y : note.y ?? 0,
-                  width: resizing ? resizing.w : widthOf(note),
-                  height,
-                  zIndex: dragging ? 1000 : zOrder.get(note.id),
-                };
-            return (
-              <NoteCard
-                key={note.id}
-                note={note}
-                style={style}
-                dragging={dragging}
-                movable={!stacked}
-                sized={!stacked && height !== undefined}
-                resizing={resizing !== null}
-                onActivate={() => activate(note)}
-                onResizeStart={(edge, e) => startResize(note, edge, e)}
-                onResizeBy={(card, dw, dh) => resizeBy(note, card, dw, dh)}
-                autoFocus={note.id === focusId}
-                onFocused={() => setFocusId(null)}
-                onPointerDown={(e) => startDrag(note, e)}
-                onNudge={(dx, dy) => nudge(note, dx, dy)}
-                onMeasure={onMeasure}
-                onSave={(input) => save(note, input)}
-                onConvert={() => setConverting(note)}
-                onArchive={() => save(note, { isArchived: true })}
-                onDelete={() => void remove(note)}
-              />
-            );
-          })}
-        </div>
-      )}
 
-      {showArchived && archived.length > 0 && (
-        <section className="notes-archived" aria-label="Archived notes">
-          <h2 className="notes-archived-title">Archived</h2>
-          <div className="notes-grid">
-            {archived.map((note) => (
-              <article key={note.id} className="note-card is-archived" data-color={note.color}>
-                <div className="note-text-static">{note.text || <span className="muted">(empty)</span>}</div>
-                <footer className="note-footer">
-                  {note.taskIds.length > 0 && (
-                    <button type="button" className="note-task-link" onClick={() => onOpenTask(note.taskIds[0])} data-tooltip="Open the first task made from this note">
-                      <ListTodo size={13} />
-                      <span>
-                        {note.taskIds.length} task{note.taskIds.length === 1 ? '' : 's'}
-                      </span>
-                    </button>
-                  )}
-                  <span className="spacer" />
-                  <button
-                    type="button"
-                    className="note-btn"
-                    data-tooltip="Put back on the board"
-                    aria-label="Restore note"
-                    onClick={() => save(note, { isArchived: false, order: topOrder + 1 })}
-                  >
-                    <ArchiveRestore size={15} />
-                  </button>
-                  <button type="button" className="note-btn" data-tooltip="Delete note" aria-label="Delete note" onClick={() => void remove(note)}>
-                    <Trash2 size={15} />
-                  </button>
-                </footer>
-              </article>
-            ))}
+          <div className="notes-zoombar" role="toolbar" aria-label="Zoom">
+            <button type="button" className="icon-btn" data-tooltip="Zoom out" aria-label="Zoom out" onClick={() => zoomFromCenter(1 / 1.2)}>
+              <ZoomOut size={16} />
+            </button>
+            <button
+              type="button"
+              className="notes-zoom-level"
+              data-tooltip="Back to 100%"
+              aria-label="Zoom level; reset to 100%"
+              onClick={() => zoomFromCenter(1 / view.current.z)}
+            >
+              <span ref={zoomLabelRef}>100%</span>
+            </button>
+            <button type="button" className="icon-btn" data-tooltip="Zoom in" aria-label="Zoom in" onClick={() => zoomFromCenter(1.2)}>
+              <ZoomIn size={16} />
+            </button>
+            <button type="button" className="icon-btn" data-tooltip="Show all notes" aria-label="Show all notes" onClick={fitAll}>
+              <Maximize size={15} />
+            </button>
           </div>
-        </section>
+
+          {showArchived && archived.length > 0 && (
+            <section className="notes-archived" aria-label="Archived notes">
+              <h2 className="notes-archived-title">Archived</h2>
+              <div className="notes-grid">
+                {archived.map((note) => (
+                  <article key={note.id} className="note-card is-archived" data-color={note.color}>
+                    <div className="note-text-static">{note.text || <span className="muted">(empty)</span>}</div>
+                    <footer className="note-footer">
+                      {note.taskIds.length > 0 && (
+                        <button
+                          type="button"
+                          className="note-task-link"
+                          onClick={() => onOpenTask(note.taskIds[0])}
+                          data-tooltip="Open the first task made from this note"
+                        >
+                          <ListTodo size={13} />
+                          <span>
+                            {note.taskIds.length} task{note.taskIds.length === 1 ? '' : 's'}
+                          </span>
+                        </button>
+                      )}
+                      <span className="spacer" />
+                      <button
+                        type="button"
+                        className="note-btn"
+                        data-tooltip="Put back on the board"
+                        aria-label="Restore note"
+                        onClick={() => save(note, { isArchived: false, order: topOrder + 1 })}
+                      >
+                        <ArchiveRestore size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        className="note-btn"
+                        data-tooltip="Delete note"
+                        aria-label="Delete note"
+                        onClick={() => void remove(note)}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </footer>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
       )}
 
       {converting && (
