@@ -355,8 +355,9 @@ midnight Pacific. The limits that matter, in the order they would be hit:
 
 1. **Hosting transfer, 360 MB/day.** A first visit downloads about 0.5 MB compressed (returning visitors are
    cached: assets are immutable and the vendor chunk only changes when a dependency does), so roughly 600 new
-   visitors in a day take the site offline until the reset. The calendar grid, Insights, Settings and the privacy
-   page are loaded on first use (`React.lazy` in `App.tsx` / `main.tsx`) to keep the first paint small.
+   visitors in a day take the site offline until the reset. The calendar grid, Insights and Settings
+   are loaded on first use (`React.lazy` in `App.tsx`) to keep the first paint small; the privacy policy is a static
+   page (`frontend/public/privacy.html`, served at `/privacy` by a Hosting rewrite) outside the bundle.
 2. **Firestore reads, 50,000/day.** About 30 to 50 typical daily active users; every app open loads the user's
    whole tree once, after that only changed documents count.
 3. **Firestore writes, 20,000/day.** The one a hostile client could exhaust on purpose.

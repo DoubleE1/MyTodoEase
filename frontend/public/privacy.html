@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="TodoEase privacy policy: what the app stores, how Google account and Google Calendar data are used and protected, and how to delete your data." />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <title>Privacy policy · TodoEase</title>
+    <!--
+      Served at https://todoease.com/privacy through a Hosting rewrite (firebase.json). Plain static HTML on purpose:
+      Google's OAuth verification fetches the privacy policy URL without running scripts, and the app itself renders
+      only with JavaScript. Keep this page self-contained (no app bundle, no iframes).
+    -->
+    <style>
+      :root {
+        color-scheme: light;
+        --text: #1b1b24;
+        --muted: #5b5b6b;
+        --link: #4f46e5;
+        --brand-1: #4f46e5;
+        --brand-2: #a855f7;
+        --brand-3: #ec4899;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; }
+      body {
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        font-size: 15px;
+        line-height: 1.65;
+        color: var(--text);
+        min-height: 100vh;
+        background:
+          radial-gradient(900px 420px at 20% -10%, rgba(168, 85, 247, 0.18), transparent 70%),
+          radial-gradient(700px 380px at 90% 10%, rgba(236, 72, 153, 0.14), transparent 70%),
+          #f7f7fb;
+        -webkit-font-smoothing: antialiased;
+      }
+      header { display: flex; align-items: center; padding: 18px 24px; }
+      .home { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; font-weight: 700; font-size: 18px; }
+      .home img { width: 26px; height: 26px; border-radius: 7px; }
+      .home b { background: linear-gradient(90deg, var(--brand-1), var(--brand-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      main { max-width: 720px; margin: 0 auto; padding: 40px 24px 80px; }
+      h1 { font-size: clamp(28px, 4vw, 36px); letter-spacing: -0.02em; margin: 0 0 4px; }
+      .muted { color: var(--muted); margin: 0 0 32px; font-size: 13px; }
+      h2 { font-size: 18px; margin: 32px 0 8px; }
+      p, li { color: #3a3a48; margin: 0 0 12px; }
+      ul { padding-left: 20px; margin: 0 0 12px; }
+      a { color: var(--link); }
+      strong { color: var(--text); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a class="home" href="/"><img src="/logo.png" alt="" />Todo<b>Ease</b></a>
+    </header>
+    <main>
+      <h1>Privacy policy</h1>
+      <p class="muted">Last updated 31 October 2026</p>
+
+      <h2>What TodoEase stores</h2>
+      <p>
+        TodoEase stores the tasks, projects, sections, labels, notes and completion history you create. When you sign
+        in with Google, this data is kept in a Google Firebase (Cloud Firestore) database under your own Google account
+        and is readable only by you; the security rules allow each user to read and write their own data only. Without
+        signing in, the Windows app keeps everything in a file on your computer and nothing is sent anywhere.
+      </p>
+
+      <h2>Your Google account</h2>
+      <p>
+        Signing in uses Google Sign-In. TodoEase receives your name, email address and profile picture to show who is
+        signed in. It does not read your contacts, Gmail or Drive.
+      </p>
+
+      <h2>Google Calendar</h2>
+      <p>
+        Connecting Google Calendar is optional and asks for the calendar permission separately. With it, TodoEase does
+        two things, and nothing else:
+      </p>
+      <ul>
+        <li>
+          <strong>Shows your events next to your tasks.</strong> It reads the list of your calendars and, from the
+          calendars you tick, the events from about two weeks ago to three months ahead. Of each event it keeps the
+          title, time, location, calendar name and a link to open it in Google. It does not store attendees, event
+          descriptions or attachments.
+        </li>
+        <li>
+          <strong>Mirrors dated tasks into a calendar named “TodoEase”.</strong> It creates that calendar in your
+          account and creates, updates and deletes only the events it made there. It never changes events in your
+          other calendars.
+        </li>
+      </ul>
+      <p>
+        The events it keeps are stored in the same Firestore database as your tasks, under your account, and are
+        replaced on every sync. Sync runs when you press <em>Sync now</em> or change a task; TodoEase has no server
+        that reads your calendar in the background.
+      </p>
+      <p>
+        TodoEase’s use and transfer to any other app of information received from Google APIs will adhere to the
+        <a href="https://developers.google.com/terms/api-services-user-data-policy#additional_requirements_for_specific_api_scopes" target="_blank" rel="noreferrer">Google API Services User Data Policy</a>,
+        including the Limited Use requirements. Google user data is used only to provide the features described here,
+        is never used for advertising, never sold, never shared with third parties and never used to train AI models,
+        and no person reads it except with your explicit permission to resolve a problem you report.
+      </p>
+
+      <h2>How your data is protected</h2>
+      <ul>
+        <li>
+          <strong>Encryption in transit.</strong> All traffic between the app, Google and the database uses HTTPS (TLS).
+          The site is served over HTTPS only.
+        </li>
+        <li>
+          <strong>Encryption at rest.</strong> Cloud Firestore encrypts everything it stores at rest with Google managed
+          keys. On Windows, the local data file lives inside your own user profile, protected by your account.
+        </li>
+        <li>
+          <strong>Access control.</strong> Every request to the database carries your Firebase Authentication identity,
+          and the security rules reject any read or write outside your own data and any document that does not match
+          the shapes the app writes. There is no administrator path that exposes user data in the app.
+        </li>
+        <li>
+          <strong>Google tokens.</strong> In the web app, the calendar permission is a short-lived access token (about
+          one hour) that stays in your browser; it is never sent to or stored by TodoEase’s servers or database, and
+          Google asks you to confirm again when it expires. In the Windows app, the longer-lived refresh token is stored
+          on your computer only, encrypted with the Windows Data Protection API for your user account, and it never
+          leaves the device.
+        </li>
+        <li>
+          <strong>Least privilege.</strong> TodoEase requests only the calendar scope it needs and only when you choose
+          to connect a calendar; sign-in alone grants no calendar access.
+        </li>
+        <li>
+          <strong>Incident response.</strong> If we learn of a security incident affecting your data, we will notify
+          affected users by the email of their Google account without undue delay.
+        </li>
+      </ul>
+
+      <h2>What TodoEase does not do</h2>
+      <ul>
+        <li>No advertising, no analytics trackers, no sale or sharing of your data with third parties.</li>
+        <li>No access to your data by the developer, other than what Google Cloud operations require.</li>
+      </ul>
+
+      <h2>Deleting your data</h2>
+      <p>
+        <strong>Google Calendar:</strong> Settings → Google Calendar → <em>Disconnect</em> removes the events TodoEase
+        mirrored, deletes the stored calendar events and forgets the token; you can also revoke TodoEase at any time
+        under <a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer">your Google account’s third-party access</a>.
+        <strong>Everything else:</strong> Settings → Data lets you export everything as a JSON file. To delete your
+        cloud data, import an empty backup or ask us to remove your account, which deletes all data stored for it;
+        signing out of the Windows app leaves your cloud data untouched until then.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about this policy: open an issue on the project’s GitHub repository or reply to the email shown on
+        the Google sign-in screen.
+      </p>
+    </main>
+  </body>
+</html>
