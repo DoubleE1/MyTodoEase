@@ -7059,3 +7059,19 @@ body.is-resizing-span * {
   min-height: 44px;
   max-height: 240px;
 }
+
+/* Mini mode pane picker: labels fold under one "Labels" row. */
+.picker-fold {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: rotate var(--dur-fast) var(--ease-out);
+  rotate: -90deg;
+}
+
+.picker-fold.is-open {
+  rotate: 0deg;
+}
+
+.picker-row-nested {
+  padding-left: 22px;
+}

@@ -293,23 +293,24 @@ export function CompactView({
     { value: { kind: 'inbox' }, label: 'Inbox', icon: <Inbox size={14} /> },
     { value: { kind: 'upcoming' }, label: 'Upcoming (7 days)', icon: <CalendarDays size={14} /> },
   ];
-  const lowerOptions: { value: Secondary; label: string; icon: ReactNode }[] = [
-    ...builtinOptions,
-    ...projects
-      .filter((p) => !p.isInbox)
-      .map((p) => ({
-        value: { kind: 'project', id: p.id } as Secondary,
-        label: p.name,
-        icon: <span className="dot" style={{ background: colorHex(p.color) }} />,
-      })),
-    ...labels.map((l) => ({
-      value: { kind: 'label', id: l.id } as Secondary,
-      label: l.name,
-      icon: <Tag size={14} color={colorHex(l.color)} />,
-    })),
-  ];
+  const projectOptions: { value: Secondary; label: string; icon: ReactNode }[] = projects
+    .filter((p) => !p.isInbox)
+    .map((p) => ({
+      value: { kind: 'project', id: p.id } as Secondary,
+      label: p.name,
+      icon: <span className="dot" style={{ background: colorHex(p.color) }} />,
+    }));
+  const labelOptions: { value: Secondary; label: string; icon: ReactNode }[] = labels.map((l) => ({
+    value: { kind: 'label', id: l.id } as Secondary,
+    label: l.name,
+    icon: <Tag size={14} color={colorHex(l.color)} />,
+  }));
+  const lowerOptions = [...builtinOptions, ...projectOptions, ...labelOptions];
   const currentKey = serialize(secondary);
   const currentOption = lowerOptions.find((o) => serialize(o.value) === currentKey);
+  // Labels sit folded under one row so a long label list does not bury the projects; open when one is shown.
+  const [labelsOpen, setLabelsOpen] = useState(false);
+  const showLabels = labelsOpen || secondary.kind === 'label';
 
   const panePicker = (
     <Popover
@@ -329,8 +330,8 @@ export function CompactView({
       )}
     >
       {(close) => (
-        <div className="picker">
-          {lowerOptions.map((o, i) => {
+        <div className="picker picker-scroll">
+          {[...builtinOptions, ...projectOptions].map((o, i) => {
             const key = serialize(o.value);
             const startsCustomGroup = i === builtinOptions.length;
             return (
@@ -349,6 +350,38 @@ export function CompactView({
               </button>
             );
           })}
+          {labelOptions.length > 0 && (
+            <button
+              type="button"
+              className={`picker-row ${projectOptions.length === 0 ? 'picker-row-divider' : ''}`}
+              aria-expanded={showLabels}
+              onClick={() => setLabelsOpen(!showLabels)}
+            >
+              <Tag size={14} />
+              <span className="row-label">Labels</span>
+              <span className="muted small">{labelOptions.length}</span>
+              <ChevronDown size={13} className={`picker-fold ${showLabels ? 'is-open' : ''}`} />
+            </button>
+          )}
+          {showLabels &&
+            labelOptions.map((o) => {
+              const key = serialize(o.value);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className={`picker-row picker-row-nested ${key === currentKey ? 'is-selected' : ''}`}
+                  onClick={() => {
+                    setSecondary(o.value);
+                    close();
+                  }}
+                >
+                  {o.icon}
+                  <span className="row-label">{o.label}</span>
+                  {key === currentKey && <Check size={14} className="row-check" />}
+                </button>
+              );
+            })}
           <button
             type="button"
             className="picker-row picker-row-divider"
