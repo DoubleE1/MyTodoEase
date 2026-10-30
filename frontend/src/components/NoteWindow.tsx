@@ -1,10 +1,11 @@
 import { AppWindow, Archive, Ellipsis, Palette, Plus, Trash2, X } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNoteMutations, useNotes } from '../api/hooks';
 import { NOTE_COLORS } from '../api/types';
 import { COLOR_LABELS, editedLabel, noteTitle, popOutNote, useNotesSync } from '../lib/notes';
 import { useNoteDraft } from '../lib/useNoteDraft';
 import { useTheme } from '../lib/theme';
+import { NoteEditor } from './NoteEditor';
 import { Popover } from './Popover';
 import { Toasts } from './Toasts';
 import { TooltipLayer } from './TooltipLayer';
@@ -20,7 +21,8 @@ export function NoteWindow({ noteId }: { noteId: string }) {
   const notes = useNotes();
   const noteMut = useNoteMutations();
   const note = notes.data?.find((n) => n.id === noteId);
-  const { text, setText, flush } = useNoteDraft(note);
+  const { text, setText, flush, version } = useNoteDraft(note);
+  const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
 
   // Deleted or archived elsewhere: this window has nothing left to show.
   const gone = notes.isSuccess && (!note || note.isArchived);
@@ -138,17 +140,21 @@ export function NoteWindow({ noteId }: { noteId: string }) {
             <X size={16} />
           </button>
         </header>
-        <textarea
-          className="note-text"
-          value={text}
-          placeholder="Write anything… e.g. a list of things to do"
-          aria-label="Note"
-          autoFocus={!note.text}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={flush}
-        />
-        <footer className="note-footer">
-          <span className="note-meta">{note.updatedAt ? `Edited ${editedLabel(note.updatedAt)}` : ''}</span>
+        <div className="note-body" onBlur={flush}>
+          <NoteEditor
+            value={text}
+            version={version}
+            onChange={setText}
+            onDone={flush}
+            onEscape={flush}
+            toolbarHost={toolbarHost}
+            autoFocus={!note.text}
+          />
+        </div>
+        {/* Formatting toolbar along the bottom, as in Windows Sticky Notes; the edit time on the right. */}
+        <footer className="note-footer note-window-footer">
+          <div ref={setToolbarHost} className="note-toolbar" />
+          <span className="note-meta note-window-meta">{note.updatedAt ? editedLabel(note.updatedAt) : ''}</span>
         </footer>
       </article>
       <Toasts updateBanner={false} />

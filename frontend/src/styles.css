@@ -7192,6 +7192,8 @@ body.is-resizing-span * {
 
 .note-list-date {
   display: block;
+  /* Room for the delete button that appears beside it. */
+  padding-right: 28px;
   text-align: right;
   font-size: 11px;
   color: var(--note-c, var(--text-muted));
@@ -7231,8 +7233,8 @@ body.is-resizing-span * {
 
 .note-list-delete {
   position: absolute;
-  top: 6px;
-  left: 8px;
+  top: 4px;
+  right: 6px;
   opacity: 0;
 }
 
@@ -7244,4 +7246,104 @@ body.is-resizing-span * {
 .note-list-delete:hover {
   opacity: 1;
   color: var(--danger);
+}
+
+/* ---- Sticky note text with formatting (the description editor, note variant) ---- */
+
+.note-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rich-desc.is-note {
+  flex: 1;
+  min-height: 0;
+  margin-top: 0;
+  overflow-y: auto;
+}
+
+/* A card with a saved height: the text fills it exactly and scrolls only when it is longer. */
+.note-card.is-sized .rich-desc.is-note .rich-desc-content,
+.note-card-window .rich-desc.is-note .rich-desc-content {
+  box-sizing: border-box;
+  min-height: 100%;
+}
+
+/* A card without a saved height grows with its text up to a point, then scrolls. */
+.note-card:not(.is-sized):not(.note-card-window) .note-body,
+.note-card:not(.is-sized):not(.note-card-window) .rich-desc.is-note {
+  flex: 1 1 auto;
+}
+
+.note-card:not(.is-sized):not(.note-card-window) .rich-desc.is-note {
+  max-height: 420px;
+}
+
+.rich-desc.is-note .rich-desc-content,
+.editor-description.is-note {
+  min-height: 110px;
+  max-height: none;
+  padding: 12px 6px 14px;
+  background: transparent;
+  color: var(--note-text);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.rich-desc.is-note.rich-desc-loading {
+  min-height: 110px;
+}
+
+/* Formatting toolbar along the bottom of a note. */
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  min-height: 30px;
+}
+
+/* Board cards: the toolbar sits in the footer in place of the edit time, only while hovered or being edited. */
+.note-board-toolbar {
+  min-height: 0;
+}
+
+.note-card:not(:hover):not(:focus-within) .note-board-toolbar,
+.note-card:hover .note-footer .note-meta,
+.note-card:focus-within .note-footer .note-meta {
+  display: none;
+}
+
+.note-list-card.is-editing .note-toolbar {
+  border-top: 1px solid var(--note-line);
+  padding-top: 4px;
+}
+
+.note-window-footer {
+  padding-top: 4px;
+}
+
+.note-window-meta {
+  flex: 0 0 auto;
+}
+
+/* Formatted previews (list cards, archived notes): a few lines, fading out when longer. */
+.note-list-text.md {
+  display: block;
+  max-height: 9.5em;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 75%, transparent);
+  mask-image: linear-gradient(to bottom, #000 75%, transparent);
+}
+
+.note-list-text.md > :first-child,
+.note-text-static.md > :first-child {
+  margin-top: 0;
+}
+
+.note-list-text.md p,
+.note-text-static.md p {
+  margin: 0 0 4px;
 }

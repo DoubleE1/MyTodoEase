@@ -303,8 +303,37 @@ function collectItems(text: string, ctx: Context): Item[] {
   return items;
 }
 
+/**
+ * Notes are written with the rich editor and stored as Markdown; read them as the plain lines this parser
+ * expects. Headings become "Heading:" lines, quotes and formatting marks go, links keep their address, and a
+ * struck-through item counts as done (a ticked box), like crossing it off on paper.
+ */
+export function plainNoteText(text: string): string {
+  return text
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => {
+      // Markdown escapes (the editor writes "\-" for a literal dash at a line start, and so on).
+      let l = line.replace(/\\([\\`*_{}[\]()#+\-.!~>|])/g, '$1');
+      const heading = /^\s*#{1,6}\s+(.*)$/.exec(l);
+      if (heading) l = heading[1].replace(/\s*[:：]?\s*$/, ':');
+      l = l.replace(/^(\s*)>\s?/, '$1');
+      // A struck-through item is done: "- ~~call Ann~~" reads as "- [x] call Ann".
+      l = l.replace(/^(\s*(?:[-*+]|\d{1,3}[.)])\s+)(?:\[[ xX]\]\s+)?~~(.+)~~\s*$/, '$1[x] $2');
+      l = l.replace(/^(\s*)~~(.+)~~\s*$/, '$1- [x] $2');
+      return l
+        .replace(/\*\*(.+?)\*\*/g, '$1')
+        .replace(/__(.+?)__/g, '$1')
+        .replace(/~~(.+?)~~/g, '$1')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/(^|[\s(])[*_]([^*_\s][^*_]*?)[*_](?=[\s).,!?:;]|$)/g, '$1$2')
+        .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '$1 ($2)');
+    })
+    .join('\n');
+}
+
 export function noteToTasks(text: string, ctx: Context): TaskSuggestion[] {
-  const items = collectItems(text, ctx).filter((item) => !item.done);
+  const items = collectItems(plainNoteText(text), ctx).filter((item) => !item.done);
   const suggestions: TaskSuggestion[] = [];
   for (const [index, item] of items.entries()) {
     const parsed = parseLine(item.text, ctx);

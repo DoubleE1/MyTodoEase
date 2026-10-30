@@ -1,6 +1,8 @@
 import { format, parseISO } from 'date-fns';
 import { Plus, Search, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { MarkdownText } from './MarkdownText';
+import { NoteEditor } from './NoteEditor';
 import { useNoteMutations, useNotes } from '../api/hooks';
 import type { Note } from '../api/types';
 import { canPopOutNotes, popOutNote } from '../lib/notes';
@@ -78,7 +80,11 @@ export function NotesListPane() {
                   onClick={() => open(note)}
                 >
                   <span className="note-list-date">{format(parseISO(note.updatedAt), 'd MMM yyyy')}</span>
-                  <span className="note-list-text">{note.text.trim() || 'Empty note'}</span>
+                  {note.text.trim() ? (
+                    <MarkdownText text={note.text} className="md note-list-text" />
+                  ) : (
+                    <span className="note-list-text muted">Empty note</span>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -100,27 +106,23 @@ export function NotesListPane() {
 
 /** Browser only: a note opened for editing inside the list. */
 function EditableCard({ note, onDone }: { note: Note; onDone: () => void }) {
-  const { text, setText, flush } = useNoteDraft(note);
+  const { text, setText, flush, version } = useNoteDraft(note);
+  const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
+  const finish = () => {
+    flush();
+    onDone();
+  };
   return (
-    <div className="note-card note-list-card is-editing" data-color={note.color}>
-      <textarea
-        className="note-text"
-        value={text}
-        autoFocus
-        aria-label="Note"
-        placeholder="Write anything… e.g. a list of things to do"
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => {
-          flush();
-          onDone();
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') {
-            e.preventDefault();
-            (e.target as HTMLTextAreaElement).blur();
-          }
-        }}
-      />
+    <div
+      className="note-card note-list-card is-editing"
+      data-color={note.color}
+      // Leaving the card (not moving between its text and toolbar) ends editing.
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null) && !(e.relatedTarget as Element | null)?.closest?.('.popover')) finish();
+      }}
+    >
+      <NoteEditor value={text} version={version} onChange={setText} onDone={finish} onEscape={finish} toolbarHost={toolbarHost} autoFocus />
+      <div ref={setToolbarHost} className="note-toolbar" />
     </div>
   );
 }

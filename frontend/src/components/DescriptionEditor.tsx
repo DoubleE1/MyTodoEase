@@ -215,6 +215,11 @@ interface DescriptionEditorProps {
   autoFocus?: boolean;
   /** Short box that grows with its text (quick add and inline add) instead of the roomy task-detail size. */
   compact?: boolean;
+  /** 'note': a sticky note's text (larger type, fills the card) instead of a task description. */
+  variant?: 'description' | 'note';
+  placeholder?: string;
+  /** Accessible name of the text area. */
+  label?: string;
 }
 
 export default function DescriptionEditor({
@@ -225,7 +230,11 @@ export default function DescriptionEditor({
   toolbarHost,
   autoFocus = true,
   compact = false,
+  variant = 'description',
+  placeholder = 'Add details: notes, steps, links…',
+  label = 'Description',
 }: DescriptionEditorProps) {
+  const variantClass = `${compact ? 'is-compact' : ''} ${variant === 'note' ? 'is-note' : ''}`;
   const [mode, setMode] = useState<Mode>(readMode);
   const [markdown, setMarkdown] = useState(value);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -259,14 +268,14 @@ export default function DescriptionEditor({
       TaskItem.configure({ nested: true }),
       TableKit.configure({ table: { resizable: false } }),
       Image,
-      Placeholder.configure({ placeholder: 'Add details: notes, steps, links…' }),
+      Placeholder.configure({ placeholder }),
       Markdown.configure({ markedOptions: { gfm: true, breaks: true } }),
     ],
     content: value,
     contentType: 'markdown',
     autofocus: autoFocus && mode === 'rich' ? 'end' : false,
     editorProps: {
-      attributes: { class: 'md rich-desc-content', 'aria-label': 'Description' },
+      attributes: { class: 'md rich-desc-content', 'aria-label': label },
       handleKeyDown: (_view, event) => {
         if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
           event.preventDefault();
@@ -540,13 +549,13 @@ export default function DescriptionEditor({
     <>
       {rich ? (
         <>
-          <EditorContent editor={editor} className={`rich-desc ${compact ? 'is-compact' : ''}`} />
+          <EditorContent editor={editor} className={`rich-desc ${variantClass}`} />
           {editor && <TableControls editor={editor} />}
         </>
       ) : (
         <textarea
           ref={textareaRef}
-          className={`editor-description is-markdown ${compact ? '' : 'is-roomy'}`}
+          className={`editor-description is-markdown ${compact || variant === 'note' ? '' : 'is-roomy'} ${variantClass}`}
           placeholder="Markdown: **bold**, _italic_, - list, 1. list, - [ ] checklist, [link](https://…), `code`"
           value={markdown}
           onChange={(e) => setText(e.target.value)}
@@ -569,7 +578,7 @@ export default function DescriptionEditor({
               setLinkOpen(true);
             }
           }}
-          aria-label="Description (Markdown)"
+          aria-label={`${label} (Markdown)`}
         />
       )}
       {toolbarHost ? createPortal(narrow ? compactToolbar : fullToolbar, toolbarHost) : null}

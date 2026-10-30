@@ -17,6 +17,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { useNoteMutations, useNotes } from '../api/hooks';
 import { NOTE_COLORS, type Label, type Note, type NoteInput, type Project, type Section } from '../api/types';
 import type { ConfirmOptions } from './Dialogs';
+import { MarkdownText } from './MarkdownText';
+import { NoteEditor } from './NoteEditor';
 import { NoteToTasksDialog } from './NoteToTasksDialog';
 import { COLOR_LABELS, canPopOutNotes, editedLabel, popOutNote } from '../lib/notes';
 import { Popover } from './Popover';
@@ -286,7 +288,7 @@ export function NotesView({
     const onWheel = (e: WheelEvent) => {
       const target = e.target as Element;
       if (target.closest('.notes-archived, .notes-zoombar, .popover')) return;
-      const area = target.closest('textarea');
+      const area = target.closest('textarea, .rich-desc');
       if (area && !e.ctrlKey && area.scrollHeight > area.clientHeight) return;
       e.preventDefault();
       const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
@@ -512,7 +514,7 @@ export function NotesView({
   const startDrag = (note: Note, event: ReactPointerEvent<HTMLElement>) => {
     if (event.button !== 0) return;
     // Text, buttons and links keep their own behaviour; the grip is a button but is meant to be dragged.
-    const control = (event.target as Element).closest('textarea, button, input, a, [role="radiogroup"]');
+    const control = (event.target as Element).closest('textarea, button, input, a, [role="radiogroup"], .rich-desc, .note-toolbar');
     if (control && !control.classList.contains('note-grip')) return;
     event.preventDefault();
     event.stopPropagation();
@@ -723,7 +725,13 @@ export function NotesView({
               <div className="notes-grid">
                 {archived.map((note) => (
                   <article key={note.id} className="note-card is-archived" data-color={note.color}>
-                    <div className="note-text-static">{note.text || <span className="muted">(empty)</span>}</div>
+                    {note.text ? (
+                      <MarkdownText text={note.text} className="md note-text-static" />
+                    ) : (
+                      <div className="note-text-static">
+                        <span className="muted">(empty)</span>
+                      </div>
+                    )}
                     <footer className="note-footer">
                       {note.taskIds.length > 0 && (
                         <button
@@ -831,16 +839,18 @@ function NoteCard({
   const textRef = useRef(note.text);
   const savedRef = useRef(note.text);
   const timer = useRef<number | undefined>(undefined);
-  const areaRef = useRef<HTMLTextAreaElement>(null);
   const cardRef = useRef<HTMLElement>(null);
   const [focused, setFocused] = useState(false);
+  const [editorVersion, setEditorVersion] = useState(0);
+  const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
 
-  // Take edits made on another device, unless this card is being typed in.
+  // Take edits made on another device or window, unless this card is being typed in.
   useEffect(() => {
     if (!focused && note.text !== savedRef.current) {
       savedRef.current = note.text;
       textRef.current = note.text;
       setText(note.text);
+      setEditorVersion((v) => v + 1);
     }
   }, [note.text, focused]);
 
@@ -855,25 +865,22 @@ function NoteCard({
   // Save what is pending when the card goes away (view change, archive).
   useEffect(() => () => flush(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A brand-new note: the editor takes focus itself (autoFocus below); tell the board it has been handled.
   useEffect(() => {
-    if (autoFocus) {
-      areaRef.current?.focus();
-      onFocused();
-    }
+    if (autoFocus) onFocused();
   }, [autoFocus, onFocused]);
 
+  // The card grows with its text (the editor sizes itself); report the height so the board can place notes.
   useLayoutEffect(() => {
-    const el = areaRef.current;
-    if (el) {
-      if (sized) {
-        el.style.height = '';
-      } else {
-        el.style.height = 'auto';
-        el.style.height = `${el.scrollHeight + 2}px`;
-      }
-    }
     if (cardRef.current) onMeasure(note.id, cardRef.current.offsetHeight);
   }, [text, note.id, onMeasure, sized, note.h]);
+
+  const onType = (next: string) => {
+    setText(next);
+    textRef.current = next;
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(flush, SAVE_DELAY_MS);
+  };
 
   const edited = note.updatedAt ? editedLabel(note.updatedAt) : '';
 
@@ -881,7 +888,7 @@ function NoteCard({
   // while typing, or the grip was reached with Tab). In the text, arrow keys stay with the cursor.
   const onMoveKeys = (e: React.KeyboardEvent) => {
     const target = e.target as HTMLElement;
-    if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.closest('.popover')) return;
+    if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.isContentEditable || target.closest('.popover, .rich-desc')) return;
     const step = e.shiftKey ? KEY_STEP * 4 : KEY_STEP;
     const moves: Record<string, [number, number]> = {
       ArrowLeft: [-step, 0],
@@ -1014,32 +1021,34 @@ function NoteCard({
           )}
         </Popover>
       </header>
-      <textarea
-        ref={areaRef}
-        className="note-text"
-        value={text}
-        placeholder="Write anything… e.g. a list of things to do"
-        aria-label="Note"
+      <div
+        className="note-body"
         onFocus={() => setFocused(true)}
-        onKeyDown={(e) => {
-          // Esc leaves the text and selects the note, so the arrow keys move it.
-          if (e.key === 'Escape' && movable) {
-            e.preventDefault();
-            cardRef.current?.focus({ preventScroll: true });
-          }
-        }}
-        onChange={(e) => {
-          setText(e.target.value);
-          textRef.current = e.target.value;
-          window.clearTimeout(timer.current);
-          timer.current = window.setTimeout(flush, SAVE_DELAY_MS);
-        }}
-        onBlur={() => {
+        onBlur={(e) => {
+          // Moving between the text and its formatting menus is still editing.
+          const next = e.relatedTarget as Element | null;
+          if (next && (e.currentTarget.contains(next) || next.closest?.('.popover'))) return;
           setFocused(false);
           flush();
         }}
-      />
+      >
+        <NoteEditor
+          value={text}
+          version={editorVersion}
+          onChange={onType}
+          onDone={flush}
+          onEscape={() => {
+            // Esc leaves the text and selects the note, so the arrow keys move it.
+            flush();
+            if (movable) cardRef.current?.focus({ preventScroll: true });
+          }}
+          toolbarHost={toolbarHost}
+          autoFocus={autoFocus}
+        />
+      </div>
       <footer className="note-footer">
+        {/* Formatting toolbar: takes the edit time's place while the pointer is over the note or it is being edited. */}
+        <div ref={setToolbarHost} className="note-toolbar note-board-toolbar" />
         <span className="note-meta" data-tooltip={note.updatedAt ? `Edited ${new Date(note.updatedAt).toLocaleString()}` : undefined}>
           {note.taskIds.length > 0 ? (
             <>
