@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bot, CalendarDays, Check, Database, Download, Info, Monitor, Moon, Palette, Pipette, Sun, Upload, UserRound } from 'lucide-react';
+import { Bot, CalendarDays, Check, Database, Download, Info, Keyboard, Monitor, Moon, Palette, Pipette, Sun, Upload, UserRound } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { IS_WEB_APP } from '../api/backend';
 import { api, ApiError } from '../api/client';
@@ -13,6 +13,7 @@ import { Modal } from './Dialogs';
 import { CalendarSyncSection } from './CalendarSyncSection';
 import { CloudAccountSection } from './CloudAccountSection';
 import { McpSection } from './McpSection';
+import { ShortcutsSection } from './ShortcutsSection';
 import { useCloudUser } from './SessionGate';
 import { AboutSection } from './AboutSection';
 
@@ -22,10 +23,11 @@ const THEMES: { value: ThemePreference; label: string; icon: ReactNode }[] = [
   { value: 'system', label: 'System', icon: <Monitor size={15} /> },
 ];
 
-type SettingsTab = 'appearance' | 'account' | 'calendar' | 'ai' | 'data' | 'about';
+type SettingsTab = 'appearance' | 'shortcuts' | 'account' | 'calendar' | 'ai' | 'data' | 'about';
 
 const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
   { id: 'appearance', label: 'Appearance', icon: <Palette size={16} /> },
+  { id: 'shortcuts', label: 'Shortcuts', icon: <Keyboard size={16} /> },
   { id: 'account', label: 'Account', icon: <UserRound size={16} /> },
   { id: 'calendar', label: 'Google Calendar', icon: <CalendarDays size={16} /> },
   { id: 'ai', label: 'AI assistants', icon: <Bot size={16} /> },
@@ -211,6 +213,7 @@ export function SettingsDialog({
         </section>
         )}
 
+        {tab === 'shortcuts' && <ShortcutsSection />}
         {tab === 'account' && <CloudAccountSection confirm={confirm} />}
         {tab === 'calendar' && <CalendarSyncSection confirm={confirm} />}
         {tab === 'ai' && <McpSection />}

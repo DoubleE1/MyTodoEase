@@ -6,6 +6,9 @@ other two faster to build; the heatmap is self-contained; the board view is the 
 Ideas borrowed from an open-source admin scaffold (`wbr664393425-lgtm/scaffold-master`, Vue + Spring). Only the
 ideas are reused; no code is copied (different stack).
 
+Shipped first, ahead of this list (2026-10-30): the **command palette** (sidebar "Search", Ctrl+K) and
+**custom shortcuts** in Settings > Shortcuts.
+
 | # | Feature | Estimate | Touches the API? |
 | - | ------- | -------- | ---------------- |
 | 1 | Project map + changelog | 30–45 min | No |

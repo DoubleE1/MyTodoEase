@@ -16,6 +16,7 @@ import {
   useTaskMutations,
 } from './api/hooks';
 import type { Label, Project, Task } from './api/types';
+import { CommandPalette } from './components/CommandPalette';
 import { CompactView } from './components/CompactView';
 import { ConfirmDialog, LabelDialog, Modal, ProjectDialog, type ConfirmOptions } from './components/Dialogs';
 import { Sidebar } from './components/Sidebar';
@@ -34,6 +35,7 @@ const NotesView = lazy(() => import('./components/NotesView').then((m) => ({ def
 const SettingsDialog = lazy(() => import('./components/SettingsDialog').then((m) => ({ default: m.SettingsDialog })));
 import { toDateStr, todayStr } from './lib/dates';
 import { useWindowMode } from './lib/desktop';
+import { useHotkey } from './lib/hotkeys';
 import { useInboxFilter } from './lib/inboxFilter';
 import { useTheme } from './lib/theme';
 import type { View } from './lib/views';
@@ -41,8 +43,9 @@ import type { View } from './lib/views';
 type Dialog =
   | { kind: 'project'; project?: Project }
   | { kind: 'label'; label?: Label }
-  | { kind: 'quick-add'; dueDate?: string; dueTime?: string }
+  | { kind: 'quick-add'; dueDate?: string; dueTime?: string; content?: string }
   | { kind: 'settings' }
+  | { kind: 'palette' }
   | null;
 
 /** Promise-based confirm so callers can `await confirm(...)` and the UI stays a plain modal. */
@@ -93,32 +96,11 @@ export default function App() {
     [search, view],
   );
 
-  // Ctrl+, (Cmd+, on a Mac) opens Settings from anywhere, even while typing.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== ',' || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
-      event.preventDefault();
-      setDialog({ kind: 'settings' });
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
-
-  // "q" opens quick add from anywhere, as in Todoist, unless the user is typing or a dialog is open.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const typing =
-        target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-      if (typing || dialog || openTaskId) return;
-      if (event.key === 'q' && !event.ctrlKey && !event.metaKey && !event.altKey) {
-        event.preventDefault();
-        setDialog({ kind: 'quick-add' });
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [dialog, openTaskId]);
+  // Shortcuts (rebindable in Settings > Shortcuts). Settings opens from anywhere; quick add and search
+  // wait until no other dialog or task is open. Search (the palette) is the full window only.
+  useHotkey('settings', () => setDialog({ kind: 'settings' }));
+  useHotkey('quickAdd', () => setDialog({ kind: 'quick-add' }), !dialog && !openTaskId);
+  useHotkey('search', () => setDialog({ kind: 'palette' }), !dialog && !openTaskId && !windowMode.compact);
 
   const createLabel = useCallback((name: string) => labelMut.create.mutateAsync({ name }), [labelMut.create]);
 
@@ -272,6 +254,7 @@ export default function App() {
     dueDate:
       dialog?.kind === 'quick-add' && dialog.dueDate ? dialog.dueDate : view.kind === 'today' ? todayStr() : undefined,
     dueTime: dialog?.kind === 'quick-add' ? dialog.dueTime : undefined,
+    content: dialog?.kind === 'quick-add' ? dialog.content : undefined,
     labelIds: view.kind === 'label' ? [view.labelId] : undefined,
   };
 
@@ -329,6 +312,29 @@ export default function App() {
           onSave={(input) =>
             dialog.label ? labelMut.update.mutateAsync({ id: dialog.label.id, input }) : labelMut.create.mutateAsync(input)
           }
+        />
+      )}
+
+      {dialog?.kind === 'palette' && (
+        <CommandPalette
+          tasks={tasks.data ?? []}
+          projects={projects.data ?? []}
+          labels={labels.data ?? []}
+          onClose={closeDialog}
+          onSelectView={(next) => {
+            setSearch('');
+            setView(next);
+          }}
+          onOpenTask={setOpenTaskId}
+          onAddTask={(content) => setDialog({ kind: 'quick-add', content })}
+          onAddProject={() => setDialog({ kind: 'project' })}
+          onAddLabel={() => setDialog({ kind: 'label' })}
+          onOpenSettings={() => setDialog({ kind: 'settings' })}
+          onToggleTheme={() =>
+            theme.setPreference(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark')
+          }
+          onShowAllResults={setSearch}
+          onCompact={windowMode.isDesktop ? () => void windowMode.setCompact(true) : undefined}
         />
       )}
 
@@ -416,7 +422,7 @@ export default function App() {
         tasks={tasks.data ?? []}
         completions={recentCompletions.data?.items ?? []}
         search={search}
-        onSearch={setSearch}
+        onOpenSearch={() => setDialog({ kind: 'palette' })}
         onAddTask={() => setDialog({ kind: 'quick-add' })}
         onAddProject={() => setDialog({ kind: 'project' })}
         onEditProject={(project) => setDialog({ kind: 'project', project })}

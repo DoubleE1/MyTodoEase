@@ -17,7 +17,6 @@ import {
   StickyNote,
   Tag,
   Trash2,
-  X,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { CompletionItem, Label, Project, Task } from '../api/types';
@@ -25,6 +24,7 @@ import { colorHex } from '../lib/colors';
 import { todayStr } from '../lib/dates';
 import { inboxTasks, useInboxFilter } from '../lib/inboxFilter';
 import { useShowInsightsCard } from '../lib/insightsCard';
+import { formatHotkey, useHotkey, useHotkeys } from '../lib/hotkeys';
 import type { ThemePreference } from '../lib/theme';
 import { viewEquals, type View } from '../lib/views';
 import { Dashboard } from './Dashboard';
@@ -41,7 +41,8 @@ interface SidebarProps {
   tasks: Task[];
   completions: CompletionItem[];
   search: string;
-  onSearch: (query: string) => void;
+  /** Opens the search / command palette. */
+  onOpenSearch: () => void;
   onAddTask: () => void;
   onAddProject: () => void;
   onEditProject: (project: Project) => void;
@@ -109,19 +110,11 @@ function useSidebarMode() {
   const latest = useRef({ mode, setMode });
   latest.current = { mode, setMode };
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const typing =
-        target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-      if (typing || event.ctrlKey || event.metaKey || event.altKey || event.key !== 'm') return;
-      if (document.querySelector('.modal-overlay')) return;
-      event.preventDefault();
-      latest.current.setMode(latest.current.mode === 'rail' ? 'full' : 'rail');
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  // Collapse/expand shortcut (M by default, rebindable in Settings > Shortcuts); not while a dialog is open.
+  useHotkey('toggleSidebar', () => {
+    if (document.querySelector('.modal-overlay')) return;
+    latest.current.setMode(latest.current.mode === 'rail' ? 'full' : 'rail');
+  });
 
   /** After picking a view on a narrow window, fold the sidebar back to icons. */
   const afterSelect = () => {
@@ -233,6 +226,8 @@ function NavItem({
   onClick,
   actions,
   iconOnly,
+  kbd,
+  className,
 }: {
   icon: ReactNode;
   label: string;
@@ -242,13 +237,17 @@ function NavItem({
   actions?: ReactNode;
   /** In the icon rail the label is hidden, so it becomes the tooltip and the accessible name. */
   iconOnly?: boolean;
+  /** Keyboard shortcut, shown on hover (and in the rail's tooltip). */
+  kbd?: string;
+  className?: string;
 }) {
   return (
     <div
-      className={`nav-item ${active ? 'is-active' : ''}`}
+      className={`nav-item ${active ? 'is-active' : ''} ${className ?? ''}`}
       role="button"
       tabIndex={0}
       data-tooltip={iconOnly ? (count ? `${label} (${count})` : label) : undefined}
+      data-tooltip-kbd={iconOnly ? kbd : undefined}
       data-tooltip-side="right"
       aria-label={iconOnly ? label : undefined}
       onClick={onClick}
@@ -262,6 +261,7 @@ function NavItem({
       <span className="nav-icon">{icon}</span>
       <span className="nav-label">{label}</span>
       {actions && <span className="nav-actions">{actions}</span>}
+      {kbd && !iconOnly && <kbd className="nav-kbd">{kbd}</kbd>}
       {/* The icon rail's badge has room for two digits; the tooltip keeps the exact number. */}
       {count !== undefined && count > 0 && (
         <span className="nav-count">{iconOnly && count > 99 ? '99+' : count}</span>
@@ -278,7 +278,7 @@ export function Sidebar({
   tasks,
   completions,
   search,
-  onSearch,
+  onOpenSearch,
   onAddTask,
   onAddProject,
   onEditProject,
@@ -308,7 +308,7 @@ export function Sidebar({
     afterSelect();
   };
   const rail = mode === 'rail';
-  const searchRef = useRef<HTMLInputElement>(null);
+  const hotkeys = useHotkeys();
   const navMore = useMore('nav');
   const projectsMore = useMore('projects');
   const labelsMore = useMore('labels');
@@ -367,7 +367,7 @@ export function Sidebar({
         type="button"
         className="sidebar-edge-toggle"
         data-tooltip={rail ? 'Expand sidebar' : 'Collapse to icons'}
-        data-tooltip-kbd="m"
+        data-tooltip-kbd={formatHotkey(hotkeys.toggleSidebar) || undefined}
         data-tooltip-side="right"
         aria-label={rail ? 'Expand sidebar' : 'Collapse sidebar to icons'}
         aria-expanded={!rail}
@@ -380,50 +380,26 @@ export function Sidebar({
           <div className="brand">
             <Wordmark size={26} />
           </div>
-          <button
-            type="button"
-            className="add-task-primary"
-            onClick={onAddTask}
-            data-tooltip="Add task"
-            data-tooltip-kbd="q"
-            data-tooltip-side={rail ? 'right' : 'bottom'}
-            aria-label={rail ? 'Add task' : undefined}
-          >
-            <Plus size={18} />
-            <span>Add task</span>
-          </button>
-          {rail && (
-            <button
-              type="button"
-              className="nav-item rail-search"
-              data-tooltip="Search tasks"
-              data-tooltip-side="right"
-              aria-label="Search tasks"
-              onClick={() => {
-                setMode('full');
-                window.setTimeout(() => searchRef.current?.focus(), 0);
-              }}
-            >
-              <span className="nav-icon">
-                <Search size={18} />
-              </span>
-            </button>
-          )}
-          <div className="search-box">
-            <Search size={15} />
-            <input
-              ref={searchRef}
-              placeholder="Search tasks"
-              value={search}
-              onChange={(e) => onSearch(e.target.value)}
-              aria-label="Search tasks"
+          {/* New task and search, as plain rows like the nav below (search opens the command palette). */}
+          <nav className="sidebar-actions" aria-label="Add and search">
+            <NavItem
+              className="nav-add-task"
+              icon={<Plus size={18} />}
+              label="Add task"
+              kbd={formatHotkey(hotkeys.quickAdd)}
+              active={false}
+              onClick={onAddTask}
+              iconOnly={rail}
             />
-            {search && (
-              <button type="button" className="icon-btn" aria-label="Clear search" onClick={() => onSearch('')}>
-                <X size={14} />
-              </button>
-            )}
-          </div>
+            <NavItem
+              icon={<Search size={18} />}
+              label={search ? `Search: ${search}` : 'Search'}
+              kbd={formatHotkey(hotkeys.search)}
+              active={!!search}
+              onClick={onOpenSearch}
+              iconOnly={rail}
+            />
+          </nav>
         </div>
 
         {/* Only the middle scrolls; the top and the footer stay in place. */}
