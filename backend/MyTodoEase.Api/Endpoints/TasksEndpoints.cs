@@ -108,6 +108,9 @@ public static class TasksEndpoints
                 var next = RecurrenceService.Next(due, task.Recurrence, DateOnly.FromDateTime(DateTime.Now));
                 await store.Completions.UpsertAsync(Log(task), ct);
                 task.DueDate = next.ToString(DateFormat, CultureInfo.InvariantCulture);
+                // A multi-day task keeps its length: the start moves by as many days as the due date.
+                if (TryParseDate(task.StartDate, out var start))
+                    task.StartDate = start.AddDays(next.DayNumber - due.DayNumber).ToString(DateFormat, CultureInfo.InvariantCulture);
                 task.UpdatedAt = now;
                 await store.Tasks.UpsertAsync(task, ct);
                 sync.Enqueue(task.Id);
@@ -195,6 +198,10 @@ public static class TasksEndpoints
         task.Priority = req.Priority ?? 4;
         task.DueDate = string.IsNullOrEmpty(req.DueDate) ? null : req.DueDate;
         task.DueTime = task.DueDate is null || string.IsNullOrEmpty(req.DueTime) ? null : req.DueTime;
+        if (req.StartDate is not null) task.StartDate = req.StartDate == "" ? null : req.StartDate;
+        // A start only makes sense strictly before the due date; anything else is a one-day task again.
+        if (task.DueDate is null || task.StartDate is null || string.CompareOrdinal(task.StartDate, task.DueDate) >= 0)
+            task.StartDate = null;
         task.DurationMinutes = req.DurationMinutes;
         task.Recurrence = task.DueDate is null ? Recurrence.None : req.Recurrence ?? Recurrence.None;
         task.UpdatedAt = DateTime.UtcNow;
@@ -207,6 +214,7 @@ public static class TasksEndpoints
         if (req.Priority is < 1 or > 4) errors["priority"] = ["Priority must be between 1 and 4."];
         if (req.DurationMinutes is < 5 or > 1440) errors["durationMinutes"] = ["Duration must be between 5 and 1440 minutes."];
         if (!string.IsNullOrEmpty(req.DueDate) && !TryParseDate(req.DueDate, out _)) errors["dueDate"] = ["Due date must be yyyy-MM-dd."];
+        if (!string.IsNullOrEmpty(req.StartDate) && !TryParseDate(req.StartDate, out _)) errors["startDate"] = ["Start date must be yyyy-MM-dd."];
         if (!string.IsNullOrEmpty(req.DueTime) &&
             !TimeOnly.TryParseExact(req.DueTime, TimeFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
             errors["dueTime"] = ["Due time must be HH:mm."];

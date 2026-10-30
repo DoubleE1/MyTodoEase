@@ -18,6 +18,7 @@ import {
   addDays,
   addMonths,
   addWeeks,
+  differenceInCalendarDays,
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
@@ -28,7 +29,7 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { ChevronLeft, ChevronRight, Plus, Repeat, Sparkles } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { queryKeys, useCalendarEvents, useTaskMutations } from '../api/hooks';
 import type { ExternalEvent, Project, Task } from '../api/types';
 import { PRIORITY_META } from '../lib/colors';
@@ -54,8 +55,66 @@ const DAY_PREFIX = 'day:'; // month cell: sets the date
 const ALLDAY_PREFIX = 'allday:'; // week all-day row: sets the date, clears the time
 const COL_PREFIX = 'col:'; // week time column: sets date and time from the drop position
 const UNSCHEDULED_ID = 'unscheduled';
+const SPAN_PREFIX = 'span:'; // draggable id of a multi-day bar segment: span:<taskId>:<row>
 const HOUR_PX = 56;
 const MIN_BLOCK_MINUTES = 15;
+/** Height of one lane of multi-day bars (bar plus gap). */
+const LANE_PX = 24;
+/** Month cells: bars start below the day number row (cell padding + head + gap). */
+const MONTH_BAR_TOP = 32;
+const ALLDAY_BAR_TOP = 4;
+
+type Edge = 'start' | 'end';
+
+const shiftDate = (date: string, days: number) => toDateStr(addDays(parseISO(date), days));
+const daysBetween = (from: string, to: string) => differenceInCalendarDays(parseISO(to), parseISO(from));
+
+/** The day cell under a point: month cells, all-day cells and timeline columns carry data-date. */
+function dateAt(x: number, y: number): string | undefined {
+  const hit = document.elementsFromPoint(x, y).find((el) => el instanceof HTMLElement && el.dataset.date);
+  return (hit as HTMLElement | undefined)?.dataset.date;
+}
+
+/** First and last day a task covers (equal for a one-day task). */
+interface Span {
+  start: string;
+  end: string;
+}
+
+/** One week row's piece of a multi-day task: columns `from`..`to` (inclusive) in lane `lane`. */
+interface SpanSegment {
+  task: Task;
+  from: number;
+  to: number;
+  lane: number;
+  /** The task started before this row / goes on after it, so that end of the bar is drawn flat. */
+  before: boolean;
+  after: boolean;
+}
+
+/** Cuts multi-day tasks into per-row segments and stacks overlapping ones into lanes (longest first). */
+function layoutSpans(items: { task: Task; span: Span }[], rowDays: string[]): { segments: SpanSegment[]; lanes: number } {
+  const first = rowDays[0];
+  const last = rowDays[rowDays.length - 1];
+  const inRow = items
+    .filter(({ span }) => span.start <= last && span.end >= first)
+    .map(({ task, span }) => ({
+      task,
+      from: Math.max(0, daysBetween(first, span.start)),
+      to: Math.min(rowDays.length - 1, daysBetween(first, span.end)),
+      before: span.start < first,
+      after: span.end > last,
+    }))
+    .sort((a, b) => a.from - b.from || b.to - b.from - (a.to - a.from) || a.task.order - b.task.order);
+  const laneEnds: number[] = [];
+  const segments = inRow.map((seg) => {
+    let lane = laneEnds.findIndex((end) => end < seg.from);
+    if (lane === -1) lane = laneEnds.length;
+    laneEnds[lane] = seg.to;
+    return { ...seg, lane };
+  });
+  return { segments, lanes: laneEnds.length };
+}
 
 // The cell under the pointer wins; the overlay chip is wider than a cell, so its centre would be misleading.
 // Keyboard drags have no pointer and fall back to the nearest centre.
@@ -88,6 +147,8 @@ function TaskChip({
   onOpen,
   overlay,
   projected,
+  onResizeStart,
+  onNudgeEnd,
 }: {
   task: Task;
   project?: Project;
@@ -95,6 +156,10 @@ function TaskChip({
   overlay?: boolean;
   /** A preview of a future occurrence of a recurring task: not draggable, drawn faded. */
   projected?: boolean;
+  /** Dated chips: drag either end across days to turn the task into a multi-day one. */
+  onResizeStart?: (edge: Edge, event: ReactPointerEvent) => void;
+  /** Keyboard alternative: Shift+→ / Shift+← moves the last day. */
+  onNudgeEnd?: (days: number) => void;
 }) {
   const done = task.isCompleted;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, disabled: overlay || projected || done });
@@ -102,6 +167,7 @@ function TaskChip({
     .filter(Boolean)
     .join(' · ');
   const draggable = !overlay && !projected && !done;
+  const resizable = draggable && !!onResizeStart;
   return (
     <button
       type="button"
@@ -116,13 +182,92 @@ function TaskChip({
       }
       onClick={onOpen}
       {...(draggable ? { ...attributes, ...listeners } : {})}
+      onKeyDown={(e) => {
+        if (onNudgeEnd && resizable && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+          e.preventDefault();
+          onNudgeEnd(e.key === 'ArrowRight' ? 1 : -1);
+          return;
+        }
+        if (draggable) listeners?.onKeyDown?.(e);
+      }}
     >
+      {resizable && <ResizeHandle edge="start" onResizeStart={onResizeStart} />}
       <span className="cal-chip-dot" style={dotStyle(task)} />
       <span className="cal-chip-text">
         <span className="cal-chip-title">{task.content}</span>
         {subtitle && <span className="cal-chip-sub">{subtitle}</span>}
       </span>
       {task.recurrence !== 'none' && <Repeat size={10} className="cal-chip-repeat" />}
+      {resizable && <ResizeHandle edge="end" onResizeStart={onResizeStart} />}
+    </button>
+  );
+}
+
+/** Grip on the left or right end of a chip or bar; dragging it across days changes the first or last day. */
+function ResizeHandle({ edge, onResizeStart }: { edge: Edge; onResizeStart: (edge: Edge, event: ReactPointerEvent) => void }) {
+  return (
+    <span
+      className={`cal-span-handle is-${edge}`}
+      aria-hidden="true"
+      onPointerDown={(e) => onResizeStart(edge, e)}
+      onClick={(e) => e.stopPropagation()}
+    />
+  );
+}
+
+/**
+ * One week row's piece of a multi-day task, laid over the day cells in the same grid. Drag the body to move
+ * the whole span, drag an end to stretch or shrink it, click to open.
+ */
+function SpanBar({
+  segment,
+  row,
+  column,
+  top,
+  project,
+  onOpen,
+  onResizeStart,
+  onNudgeEnd,
+}: {
+  segment: SpanSegment;
+  /** Grid row and first grid column of the row's day cells. */
+  row: number;
+  column: number;
+  /** Offset of lane 0 from the top of the row. */
+  top: number;
+  project?: Project;
+  onOpen: () => void;
+  onResizeStart: (edge: Edge, event: ReactPointerEvent) => void;
+  onNudgeEnd: (days: number) => void;
+}) {
+  const { task, from, to, lane, before, after } = segment;
+  const done = task.isCompleted;
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `${SPAN_PREFIX}${task.id}:${row}`, disabled: done });
+  const range = `${format(parseISO(task.startDate ?? task.dueDate!), 'd MMM')} – ${format(parseISO(task.dueDate!), 'd MMM')}`;
+  return (
+    <button
+      type="button"
+      ref={done ? undefined : setNodeRef}
+      className={`cal-span ${before ? 'is-continued' : ''} ${after ? 'is-continuing' : ''} ${isDragging ? 'is-dragging' : ''} ${done ? 'is-done' : ''}`}
+      style={{ gridRow: row, gridColumn: `${column + from} / ${column + to + 1}`, marginTop: top + lane * LANE_PX }}
+      data-tooltip={`${task.content} · ${range}${project && !project.isInbox ? ` · ${project.name}` : ''}${done ? ' (completed)' : ''}`}
+      aria-label={`${task.content}, ${range}`}
+      onClick={onOpen}
+      {...(done ? {} : { ...attributes, ...listeners })}
+      onKeyDown={(e) => {
+        if (!done && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+          e.preventDefault();
+          onNudgeEnd(e.key === 'ArrowRight' ? 1 : -1);
+          return;
+        }
+        if (!done) listeners?.onKeyDown?.(e);
+      }}
+    >
+      {!done && !before && <ResizeHandle edge="start" onResizeStart={onResizeStart} />}
+      <span className="cal-chip-dot" style={dotStyle(task)} />
+      <span className="cal-span-title">{task.content}</span>
+      {task.recurrence !== 'none' && <Repeat size={10} className="cal-chip-repeat" />}
+      {!done && !after && <ResizeHandle edge="end" onResizeStart={onResizeStart} />}
     </button>
   );
 }
@@ -157,6 +302,12 @@ function DayCell({
   projectById,
   onOpenTask,
   onAddTask,
+  row,
+  column,
+  reservedLanes,
+  spanCount,
+  onResizeStart,
+  onNudgeEnd,
 }: {
   day: Date;
   inMonth: boolean;
@@ -168,15 +319,26 @@ function DayCell({
   projectById: Map<string, Project>;
   onOpenTask: (id: string) => void;
   onAddTask: (dueDate: string) => void;
+  /** Placement in the month grid; multi-day bars share the grid and sit over the cells. */
+  row: number;
+  column: number;
+  /** Lanes of multi-day bars in this week row: the cell keeps that much room free at the top. */
+  reservedLanes: number;
+  /** Open multi-day tasks covering this day, for the count. */
+  spanCount: number;
+  onResizeStart: (task: Task, edge: Edge, event: ReactPointerEvent) => void;
+  onNudgeEnd: (task: Task, days: number) => void;
 }) {
   const dateStr = toDateStr(day);
   const isToday = dateStr === todayStr();
   const isPast = dateStr < todayStr();
   const { setNodeRef, isOver } = useDroppable({ id: DAY_PREFIX + dateStr });
-  const openCount = tasks.filter((t) => !t.isCompleted).length;
+  const openCount = tasks.filter((t) => !t.isCompleted).length + spanCount;
   return (
     <div
       ref={setNodeRef}
+      data-date={dateStr}
+      style={{ gridRow: row, gridColumn: column }}
       className={`cal-cell cal-cell-month ${inMonth ? '' : 'is-outside'} ${isToday ? 'is-today' : ''} ${isPast ? 'is-past' : ''} ${isOver ? 'is-over' : ''}`}
     >
       <div className="cal-cell-head">
@@ -192,12 +354,19 @@ function DayCell({
           <Plus size={13} />
         </button>
       </div>
-      <div className="cal-cell-body">
+      <div className="cal-cell-body" style={reservedLanes ? { marginTop: reservedLanes * LANE_PX } : undefined}>
         {events.map((event) => (
           <EventChip key={`e-${event.calendarId}-${event.id}`} event={event} />
         ))}
         {tasks.map((task) => (
-          <TaskChip key={task.id} task={task} project={projectById.get(task.projectId)} onOpen={() => onOpenTask(task.id)} />
+          <TaskChip
+            key={task.id}
+            task={task}
+            project={projectById.get(task.projectId)}
+            onOpen={() => onOpenTask(task.id)}
+            onResizeStart={(edge, e) => onResizeStart(task, edge, e)}
+            onNudgeEnd={(days) => onNudgeEnd(task, days)}
+          />
         ))}
         {projected.map((task) => (
           <TaskChip key={`p-${task.id}`} task={task} project={projectById.get(task.projectId)} onOpen={() => onOpenTask(task.id)} projected />
@@ -314,10 +483,26 @@ function EventBlock({ event, top, height, lane, lanes }: { event: ExternalEvent;
   );
 }
 
-function AllDayCell({ date, children }: { date: string; children: React.ReactNode }) {
+function AllDayCell({
+  date,
+  column,
+  reservedLanes,
+  children,
+}: {
+  date: string;
+  /** Grid column; multi-day bars share the row's grid and sit over the cells. */
+  column: number;
+  reservedLanes: number;
+  children: React.ReactNode;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: ALLDAY_PREFIX + date });
   return (
-    <div ref={setNodeRef} className={`tl-allday-cell ${isOver ? 'is-over' : ''}`}>
+    <div
+      ref={setNodeRef}
+      data-date={date}
+      style={{ gridRow: 1, gridColumn: column, paddingTop: ALLDAY_BAR_TOP + reservedLanes * LANE_PX }}
+      className={`tl-allday-cell ${isOver ? 'is-over' : ''}`}
+    >
       {children}
     </div>
   );
@@ -343,6 +528,7 @@ function TimeColumn({
         setNodeRef(el);
         columnRef(el);
       }}
+      data-date={date}
       className={`tl-col ${isToday ? 'is-today' : ''} ${date < todayStr() ? 'is-past' : ''} ${isOver ? 'is-over' : ''}`}
       style={{ height: 24 * HOUR_PX, ['--hour-px' as string]: `${HOUR_PX}px` }}
       onDoubleClick={(e) => {
@@ -413,14 +599,33 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
     return { days: eachDayOfInterval({ start, end }), rangeStart: start, rangeEnd: end };
   }, [anchor, mode]);
 
+  // While an end of a chip or bar is being dragged: the span it would get, drawn live.
+  const [resizePreview, setResizePreview] = useState<({ taskId: string } & Span) | null>(null);
+
+  /** The days a dated task covers, using the live preview while it is being stretched. */
+  const spanOf = (task: Task & { dueDate: string }): Span =>
+    resizePreview?.taskId === task.id
+      ? resizePreview
+      : { start: task.startDate && task.startDate < task.dueDate ? task.startDate : task.dueDate, end: task.dueDate };
+
+  // Open tasks win over a stale completed copy while a complete or reopen is still settling.
+  const datedTasks = useMemo(() => {
+    const byId = new Map<string, Task & { dueDate: string }>();
+    for (const task of completedTasks) if (task.dueDate) byId.set(task.id, task as Task & { dueDate: string });
+    for (const task of tasks) if (task.dueDate) byId.set(task.id, task as Task & { dueDate: string });
+    return [...byId.values()];
+  }, [tasks, completedTasks]);
+
+  /** Tasks covering more than one day: drawn as bars across the cells instead of a chip on one day. */
+  const spanItems = datedTasks
+    .map((task) => ({ task, span: spanOf(task) }))
+    .filter(({ span }) => span.start < span.end);
+  const spanIds = new Set(spanItems.map(({ task }) => task.id));
+
   const tasksByDate = useMemo(() => {
-    // Open tasks win over a stale completed copy while a complete or reopen is still settling.
-    const byId = new Map<string, Task>();
-    for (const task of completedTasks) if (task.dueDate) byId.set(task.id, task);
-    for (const task of tasks) byId.set(task.id, task);
     const map = new Map<string, Task[]>();
-    for (const task of byId.values()) {
-      if (!task.dueDate) continue;
+    for (const task of datedTasks) {
+      if (spanIds.has(task.id)) continue;
       const list = map.get(task.dueDate) ?? [];
       list.push(task);
       map.set(task.dueDate, list);
@@ -429,7 +634,9 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
     for (const list of map.values())
       list.sort((a, b) => Number(a.isCompleted) - Number(b.isCompleted) || compareDue(a, b) || a.priority - b.priority || a.order - b.order);
     return map;
-  }, [tasks, completedTasks]);
+    // spanIds is derived from datedTasks and the resize preview.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datedTasks, resizePreview]);
 
   // Future occurrences of recurring tasks inside the visible range, so a fortnightly release shows
   // on every date it will land on, not only the next one.
@@ -500,10 +707,68 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
     update(task, changes);
   };
 
+  /** Saves a task's first and last day; equal days make it a one-day task again. */
+  const setSpan = (task: Task, start: string, end: string) => {
+    const startDate = start < end ? start : null;
+    if (task.dueDate === end && (task.startDate ?? null) === startDate) return;
+    queryClient.setQueryData<Task[]>(queryKeys.tasks, (old) =>
+      old?.map((t) => (t.id === task.id ? { ...t, dueDate: end, startDate } : t)),
+    );
+    // '' tells the API to clear the start (null would mean "leave it as it is").
+    taskMut.update.mutate({ id: task.id, input: { ...taskToInput(task), dueDate: end, startDate: startDate ?? '' } });
+  };
+
+  /**
+   * Stretching: follow the pointer from an end grip over the day cells, preview the new span live, save it on
+   * release. The first day can never pass the last one (and the other way round).
+   */
+  const startResize = (task: Task, edge: Edge, event: ReactPointerEvent) => {
+    if (!task.dueDate) return;
+    event.stopPropagation();
+    event.preventDefault();
+    const origin = spanOf(task as Task & { dueDate: string });
+    let current = origin;
+    const move = (e: PointerEvent) => {
+      const date = dateAt(e.clientX, e.clientY);
+      if (!date) return;
+      current =
+        edge === 'end'
+          ? { start: origin.start, end: date < origin.start ? origin.start : date }
+          : { start: date > origin.end ? origin.end : date, end: origin.end };
+      setResizePreview({ taskId: task.id, ...current });
+    };
+    const finish = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      document.body.classList.remove('is-resizing-span');
+      setResizePreview(null);
+      if (current.start !== origin.start || current.end !== origin.end) setSpan(task, current.start, current.end);
+    };
+    document.body.classList.add('is-resizing-span');
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+  };
+
+  /** Keyboard stretching (Shift+← / Shift+→ on a focused chip or bar): move the last day by one. */
+  const nudgeEnd = (task: Task, days: number) => {
+    if (!task.dueDate) return;
+    const { start } = spanOf(task as Task & { dueDate: string });
+    const end = shiftDate(task.dueDate, days);
+    if (end < start) return;
+    setSpan(task, start, end);
+  };
+
+  // A multi-day bar is dragged by its middle: remember which day was grabbed so the drop shifts the whole span
+  // by the distance moved, rather than snapping its first day to the drop.
+  const grabDate = useRef<string | null>(null);
+
   const onDragStart = (event: DragStartEvent) => {
     setActiveId(String(event.active.id));
     const activator = event.activatorEvent as PointerEvent | MouseEvent | undefined;
     const startY = activator && 'clientY' in activator ? activator.clientY : 0;
+    grabDate.current = activator && 'clientX' in activator ? (dateAt(activator.clientX, activator.clientY) ?? null) : null;
     pointerY.current = startY;
     // Measure the grabbed element directly: dnd-kit's own initial rect is not reliable this early.
     const grabbed = activator?.target instanceof Element ? activator.target.closest('.tl-block, .cal-chip') : null;
@@ -523,9 +788,27 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
     setActiveId(null);
     const { active, over } = event;
     if (!over) return;
-    const task = taskById.get(String(active.id));
-    if (!task) return;
+    const activeKey = String(active.id);
     const overId = String(over.id);
+
+    if (activeKey.startsWith(SPAN_PREFIX)) {
+      const task = taskById.get(activeKey.slice(SPAN_PREFIX.length).split(':')[0]);
+      if (!task?.dueDate) return;
+      if (overId === UNSCHEDULED_ID) {
+        update(task, { dueDate: null, startDate: null, dueTime: null, recurrence: 'none' });
+        return;
+      }
+      const target = [DAY_PREFIX, ALLDAY_PREFIX, COL_PREFIX].find((p) => overId.startsWith(p));
+      if (!target) return;
+      const { start, end } = spanOf(task as Task & { dueDate: string });
+      // Keyboard drags have no pointer to read the grabbed day from; they move the first day to the drop.
+      const days = daysBetween(grabDate.current ?? start, overId.slice(target.length));
+      if (days !== 0) setSpan(task, shiftDate(start, days), shiftDate(end, days));
+      return;
+    }
+
+    const task = taskById.get(activeKey);
+    if (!task) return;
     if (overId === UNSCHEDULED_ID) reschedule(task, null);
     else if (overId.startsWith(DAY_PREFIX)) reschedule(task, overId.slice(DAY_PREFIX.length));
     else if (overId.startsWith(ALLDAY_PREFIX)) reschedule(task, overId.slice(ALLDAY_PREFIX.length), null);
@@ -556,9 +839,33 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
     }
   };
 
-  const activeTask = activeId ? taskById.get(activeId) : undefined;
+  const activeTask = activeId
+    ? taskById.get(activeId.startsWith(SPAN_PREFIX) ? activeId.slice(SPAN_PREFIX.length).split(':')[0] : activeId)
+    : undefined;
+
+  /** Bars for one row of days (a month week or the week view), laid over that row's cells. */
+  const renderSpans = (segments: SpanSegment[], row: number, column: number, top: number) =>
+    segments.map((segment) => (
+      <SpanBar
+        key={`${segment.task.id}:${row}`}
+        segment={segment}
+        row={row}
+        column={column}
+        top={top}
+        project={projectById.get(segment.task.projectId)}
+        onOpen={() => onOpenTask(segment.task.id)}
+        onResizeStart={(edge, e) => startResize(segment.task, edge, e)}
+        onNudgeEnd={(days) => nudgeEnd(segment.task, days)}
+      />
+    ));
+
+  /** Open multi-day tasks covering a day, for the day's count. */
+  const spanCountOn = (date: string) =>
+    spanItems.filter(({ task, span }) => !task.isCompleted && span.start <= date && date <= span.end).length;
   const today = todayStr();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const weekLayout = mode === 'week' ? layoutSpans(spanItems, days.map(toDateStr)) : null;
 
   const renderWeek = () => (
     <div className="tl-wrap" ref={scrollRef}>
@@ -574,18 +881,27 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
         })}
       </div>
       <div className="tl-allday">
-        <div className="tl-gutter">all day</div>
-        {days.map((day) => {
+        <div className="tl-gutter" style={{ gridRow: 1, gridColumn: 1 }}>
+          all day
+        </div>
+        {days.map((day, i) => {
           const date = toDateStr(day);
           const dayTasks = (tasksByDate.get(date) ?? []).filter((t) => !t.dueTime);
           const dayEvents = (eventsByDate.get(date) ?? []).filter((e) => e.allDay);
           return (
-            <AllDayCell key={date} date={date}>
+            <AllDayCell key={date} date={date} column={i + 2} reservedLanes={weekLayout?.lanes ?? 0}>
               {dayEvents.map((event) => (
                 <EventChip key={`e-${event.calendarId}-${event.id}`} event={event} />
               ))}
               {dayTasks.map((task) => (
-                <TaskChip key={task.id} task={task} project={projectById.get(task.projectId)} onOpen={() => onOpenTask(task.id)} />
+                <TaskChip
+                  key={task.id}
+                  task={task}
+                  project={projectById.get(task.projectId)}
+                  onOpen={() => onOpenTask(task.id)}
+                  onResizeStart={(edge, e) => startResize(task, edge, e)}
+                  onNudgeEnd={(days) => nudgeEnd(task, days)}
+                />
               ))}
               {(projectedByDate.get(date) ?? []).map((task) => (
                 <TaskChip key={`p-${task.id}`} task={task} project={projectById.get(task.projectId)} onOpen={() => onOpenTask(task.id)} projected />
@@ -593,6 +909,7 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
             </AllDayCell>
           );
         })}
+        {weekLayout && renderSpans(weekLayout.segments, 1, 2, ALLDAY_BAR_TOP)}
       </div>
       <div className="tl-body">
         <div className="tl-gutter" style={{ height: 24 * HOUR_PX }}>
@@ -658,6 +975,15 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
     </div>
   );
 
+  // Month: one row per week, each with its own bar layout.
+  const monthRows =
+    mode === 'month'
+      ? Array.from({ length: days.length / 7 }, (_, w) => {
+          const rowDays = days.slice(w * 7, w * 7 + 7);
+          return { rowDays, layout: layoutSpans(spanItems, rowDays.map(toDateStr)) };
+        })
+      : [];
+
   const renderMonth = () => (
     <div className="cal-grid-wrap">
       <div className="cal-weekdays">
@@ -668,18 +994,29 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
         ))}
       </div>
       <div className="cal-grid cal-grid-month">
-        {days.map((day) => (
-          <DayCell
-            key={toDateStr(day)}
-            day={day}
-            inMonth={isSameMonth(day, anchor)}
-            projected={projectedByDate.get(toDateStr(day)) ?? []}
-            events={eventsByDate.get(toDateStr(day)) ?? []}
-            tasks={tasksByDate.get(toDateStr(day)) ?? []}
-            projectById={projectById}
-            onOpenTask={onOpenTask}
-            onAddTask={onAddTask}
-          />
+        {monthRows.map(({ rowDays, layout }, w) => (
+          <Fragment key={toDateStr(rowDays[0])}>
+            {rowDays.map((day, i) => (
+              <DayCell
+                key={toDateStr(day)}
+                day={day}
+                inMonth={isSameMonth(day, anchor)}
+                projected={projectedByDate.get(toDateStr(day)) ?? []}
+                events={eventsByDate.get(toDateStr(day)) ?? []}
+                tasks={tasksByDate.get(toDateStr(day)) ?? []}
+                projectById={projectById}
+                onOpenTask={onOpenTask}
+                onAddTask={onAddTask}
+                row={w + 1}
+                column={i + 1}
+                reservedLanes={layout.lanes}
+                spanCount={spanCountOn(toDateStr(day))}
+                onResizeStart={startResize}
+                onNudgeEnd={nudgeEnd}
+              />
+            ))}
+            {renderSpans(layout.segments, w + 1, 1, MONTH_BAR_TOP)}
+          </Fragment>
         ))}
       </div>
     </div>

@@ -177,6 +177,7 @@ export function useTaskMutations() {
           labelIds: before.labelIds,
           priority: before.priority,
           dueDate: before.dueDate,
+          startDate: before.startDate ?? '',
           dueTime: before.dueTime,
           durationMinutes: before.durationMinutes,
           recurrence: before.recurrence,

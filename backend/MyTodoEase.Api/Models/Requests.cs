@@ -18,7 +18,9 @@ public sealed record TaskWriteRequest(
     string? DueTime,
     int? DurationMinutes,
     Recurrence? Recurrence,
-    int? Order);
+    int? Order,
+    // Multi-day start: null = leave unchanged (older clients do not send it), "" = clear, otherwise set.
+    string? StartDate = null);
 
 /// <summary>SectionId / ParentId: null = leave unchanged, "" = clear, otherwise set.</summary>
 public sealed record ReorderItem(string Id, int Order, string? SectionId, string? ParentId);

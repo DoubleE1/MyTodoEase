@@ -6932,3 +6932,116 @@ p.detail-description {
   padding: 24px 0;
   text-align: center;
 }
+
+/* ---- Multi-day tasks: bars across the calendar cells, and the grips that stretch them ---- */
+
+/* Bars sit in the same grid as the day cells, over the top of each cell (the cells keep that room free). */
+.cal-span {
+  position: relative;
+  z-index: 1;
+  align-self: start;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  margin-inline: 4px;
+  padding: 0 8px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg));
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+  touch-action: none;
+  min-width: 0;
+}
+
+.cal-span:hover {
+  background: color-mix(in srgb, var(--accent) 32%, var(--bg));
+}
+
+.cal-span:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Continues from the previous week row / into the next one: that end runs to the cell edge, square. */
+.cal-span.is-continued {
+  margin-left: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.cal-span.is-continuing {
+  margin-right: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.cal-span.is-dragging {
+  opacity: 0.3;
+}
+
+.cal-span.is-done {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+.cal-span.is-done .cal-span-title {
+  text-decoration: line-through;
+}
+
+.cal-span .cal-chip-dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 0;
+}
+
+.cal-span .cal-chip-repeat {
+  margin-top: 0;
+}
+
+.cal-span-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-chip {
+  position: relative;
+}
+
+/* End grips: a thin strip on each end, shown on hover; dragging it across days moves that end. */
+.cal-span-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  cursor: ew-resize;
+  opacity: 0;
+}
+
+.cal-span-handle.is-start {
+  left: 0;
+  border-left: 3px solid var(--accent);
+  border-radius: 5px 0 0 5px;
+}
+
+.cal-span-handle.is-end {
+  right: 0;
+  border-right: 3px solid var(--accent);
+  border-radius: 0 5px 5px 0;
+}
+
+.cal-chip:hover .cal-span-handle,
+.cal-span:hover .cal-span-handle {
+  opacity: 1;
+}
+
+/* While stretching, keep the resize cursor everywhere and stop text getting selected. */
+body.is-resizing-span,
+body.is-resizing-span * {
+  cursor: ew-resize !important;
+  user-select: none;
+}

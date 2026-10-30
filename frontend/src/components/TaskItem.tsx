@@ -125,7 +125,8 @@ export function TaskItem({
               {due && (
                 <span className={`meta due tone-${due.tone}`}>
                   <Calendar size={12} />
-                  {due.text}
+                  {/* A multi-day task reads as a range ending on its due date. */}
+                  {task.startDate ? `${format(parseISO(task.startDate), 'd MMM')} – ${due.text}` : due.text}
                   {task.recurrence !== 'none' && <Repeat size={11} />}
                 </span>
               )}

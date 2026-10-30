@@ -34,6 +34,8 @@ export function taskToInput(task: Task): TaskInput {
     labelIds: [...task.labelIds],
     priority: task.priority,
     dueDate: task.dueDate,
+    // Unchanged unless the caller sets it ('' clears); the editor itself does not edit the start.
+    startDate: null,
     dueTime: task.dueTime,
     durationMinutes: task.durationMinutes,
     recurrence: task.recurrence,

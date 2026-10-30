@@ -33,6 +33,11 @@ public sealed class TodoTask
     /// <summary>1 = P1 (highest) .. 4 = P4 (none), matching the Todoist UI.</summary>
     public int Priority { get; set; } = 4;
     public string? DueDate { get; set; }
+    /// <summary>
+    /// First day of a multi-day task ("yyyy-MM-dd"), always before DueDate; null for a one-day task.
+    /// The due date stays the deadline, so overdue and Today keep working from it.
+    /// </summary>
+    public string? StartDate { get; set; }
     public string? DueTime { get; set; }
     /// <summary>How long the task takes when placed on the timeline; null means the default 30 minutes.</summary>
     public int? DurationMinutes { get; set; }

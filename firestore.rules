@@ -50,7 +50,7 @@ service cloud.firestore {
 
     function validTask(d, id) {
       return d.keys().hasOnly(['id', 'content', 'description', 'projectId', 'sectionId', 'parentId', 'labelIds',
-                               'priority', 'dueDate', 'dueTime', 'durationMinutes', 'recurrence', 'isCompleted',
+                               'priority', 'dueDate', 'startDate', 'dueTime', 'durationMinutes', 'recurrence', 'isCompleted',
                                'completedAt', 'order', 'createdAt', 'updatedAt'])
         && d.id == id
         && str(d.content, 2000) && str(d.description, 20000) && str(d.projectId, 64)
@@ -58,6 +58,7 @@ service cloud.firestore {
         && strList(d.labelIds, 100)
         && d.priority is number && d.priority >= 1 && d.priority <= 4
         && nullOrStr(d.dueDate, 10) && nullOrStr(d.dueTime, 5) && nullOrNumber(d.durationMinutes)
+        && (!('startDate' in d) || nullOrStr(d.startDate, 10))
         && d.recurrence in ['none', 'daily', 'weekdays', 'weekly', 'biweekly', 'monthly', 'yearly']
         && d.isCompleted is bool && nullOrStr(d.completedAt, 40)
         && d.order is number && str(d.createdAt, 40) && str(d.updatedAt, 40);

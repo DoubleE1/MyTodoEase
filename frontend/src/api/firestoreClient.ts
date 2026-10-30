@@ -26,6 +26,7 @@ import {
 import { firebase, googleProvider } from '../firebase/app';
 import { connectCalendar, disconnectCloudCalendar, getCalendarAccessToken } from './calendarAccess';
 import { calendarStatusFrom, runCalendarSync } from './calendarSync';
+import { addDays, differenceInCalendarDays } from 'date-fns';
 import { parseDateStr, toDateStr } from '../lib/dates';
 import { stepDate } from '../lib/recurrence';
 import type { Api } from './client';
@@ -355,6 +356,8 @@ async function validateTask(input: TaskInput, id?: string) {
     errors.durationMinutes = ['Duration must be between 5 and 1440 minutes.'];
   if (input.dueDate && (!DATE_RE.test(input.dueDate) || !parseDateStr(input.dueDate))) errors.dueDate = ['Due date must be yyyy-MM-dd.'];
   if (input.dueTime && !TIME_RE.test(input.dueTime)) errors.dueTime = ['Due time must be HH:mm.'];
+  if (input.startDate && (!DATE_RE.test(input.startDate) || !parseDateStr(input.startDate)))
+    errors.startDate = ['Start date must be yyyy-MM-dd.'];
   if (id && input.parentId === id) errors.parentId = ['A task cannot be its own parent.'];
 
   const [project, section, parent] = await Promise.all([
@@ -368,9 +371,22 @@ async function validateTask(input: TaskInput, id?: string) {
   if (Object.keys(errors).length) invalid(errors);
 }
 
+/**
+ * A one-day task carries no startDate key at all: documents written before multi-day tasks existed (and the
+ * security rules of that time) never had one, so leaving it out keeps every ordinary write valid.
+ */
+function withStart(task: Task, startDate: string | null | undefined): Task {
+  const next = { ...task };
+  if (startDate && task.dueDate && startDate < task.dueDate) next.startDate = startDate;
+  else delete next.startDate;
+  return next;
+}
+
 function applyTask(task: Task, input: TaskInput): Task {
   const dueDate = input.dueDate || null;
-  return {
+  // null/absent keeps the current start (older clients do not send it); '' clears it.
+  const startDate = input.startDate == null ? task.startDate : input.startDate || null;
+  return withStart({
     ...task,
     content: input.content.trim(),
     description: input.description?.trim() ?? '',
@@ -384,7 +400,7 @@ function applyTask(task: Task, input: TaskInput): Task {
     durationMinutes: input.durationMinutes ?? null,
     recurrence: dueDate ? (input.recurrence ?? 'none') : 'none',
     updatedAt: nowIso(),
-  };
+  }, startDate);
 }
 
 /** Next occurrence after completing a recurring task: step forward until the date is after today. */
@@ -475,7 +491,11 @@ const tasks: Api['tasks'] = {
 
     // Recurring tasks are not closed; they roll forward, but the completion still counts.
     if (task.recurrence !== 'none' && task.dueDate && parseDateStr(task.dueDate)) {
-      const next: Task = { ...task, dueDate: nextOccurrence(task.dueDate, task.recurrence), updatedAt: now };
+      const nextDue = nextOccurrence(task.dueDate, task.recurrence);
+      // A multi-day task keeps its length: the start moves by as many days as the due date.
+      const shift = differenceInCalendarDays(parseDateStr(nextDue)!, parseDateStr(task.dueDate)!);
+      const nextStart = task.startDate && parseDateStr(task.startDate) ? toDateStr(addDays(parseDateStr(task.startDate)!, shift)) : null;
+      const next: Task = withStart({ ...task, dueDate: nextDue, updatedAt: now }, nextStart);
       const log = completionOf(task, now);
       const batch = writeBatch(firebase().db);
       batch.set(ref('completions', log.id), log);
@@ -610,7 +630,7 @@ const backup: Api['backup'] = {
     sectionsIn = sectionsIn.filter((s) => projectIds.has(s.projectId)).map((s) => ({ ...s, name: s.name ?? '' }));
     tasksIn = tasksIn
       .filter((t) => projectIds.has(t.projectId))
-      .map((t) => ({
+      .map(({ startDate, ...t }) => ({
         ...t,
         sectionId: t.sectionId && sectionIds.has(t.sectionId) ? t.sectionId : null,
         parentId: t.parentId && taskIds.has(t.parentId) ? t.parentId : null,
@@ -619,6 +639,8 @@ const backup: Api['backup'] = {
         description: t.description ?? '',
         priority: t.priority >= 1 && t.priority <= 4 ? t.priority : 4,
         dueDate: t.dueDate ?? null,
+        // Only a valid multi-day start is kept, and a one-day task gets no key (see withStart).
+        ...(startDate && t.dueDate && startDate < t.dueDate ? { startDate } : {}),
         dueTime: t.dueTime ?? null,
         durationMinutes: t.durationMinutes ?? null,
         recurrence: t.recurrence ?? 'none',

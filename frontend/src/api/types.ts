@@ -75,6 +75,11 @@ export interface Task {
   priority: Priority;
   /** yyyy-MM-dd in the user's local calendar, or null. */
   dueDate: string | null;
+  /**
+   * First day of a multi-day task (yyyy-MM-dd), always before dueDate. Absent or null for a one-day task.
+   * The due date stays the deadline, so overdue and Today still go by it.
+   */
+  startDate?: string | null;
   /** HH:mm, only meaningful when dueDate is set. */
   dueTime: string | null;
   /** Minutes the task takes when placed on the timeline; null = default 30. */
@@ -96,6 +101,8 @@ export interface TaskInput {
   labelIds?: string[];
   priority?: Priority;
   dueDate?: string | null;
+  /** Multi-day start: null/absent = leave as it is, '' = clear (one-day task), otherwise set. */
+  startDate?: string | null;
   dueTime?: string | null;
   durationMinutes?: number | null;
   recurrence?: Recurrence;
