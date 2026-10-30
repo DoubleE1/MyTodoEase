@@ -349,144 +349,147 @@ export function Sidebar({
           </div>
         </div>
 
-        {!rail && (
-          <Dashboard
-            tasks={tasks}
-            completions={completions}
-            active={isActive({ kind: 'insights' })}
-            onSelectView={onSelectView}
-          />
-        )}
-
-        <nav className="sidebar-nav">
-          {rail && (
-            <NavItem
-              icon={<ChartColumn size={18} />}
-              label="Insights"
+        {/* Only the middle scrolls; the top and the footer stay in place. */}
+        <div className="sidebar-scroll">
+          {!rail && (
+            <Dashboard
+              tasks={tasks}
+              completions={completions}
               active={isActive({ kind: 'insights' })}
-              onClick={() => onSelectView({ kind: 'insights' })}
-              iconOnly
+              onSelectView={onSelectView}
             />
           )}
-          <NavItem
-            icon={<StickyNote size={18} />}
-            label="Notes"
-            iconOnly={rail}
-            active={isActive({ kind: 'notes' })}
-            onClick={() => onSelectView({ kind: 'notes' })}
-          />
-          <NavItem
-            icon={<Inbox size={18} />}
-            label="Inbox"
-            iconOnly={rail}
-            count={inboxCount}
-            active={isActive({ kind: 'inbox' })}
-            onClick={() => onSelectView({ kind: 'inbox' })}
-          />
-          <NavItem
-            icon={<CalendarDays size={18} />}
-            label="Today"
-            iconOnly={rail}
-            count={todayCount}
-            active={isActive({ kind: 'today' })}
-            onClick={() => onSelectView({ kind: 'today' })}
-          />
-          <NavItem
-            icon={<CalendarDays size={18} />}
-            label="Upcoming"
-            iconOnly={rail}
-            active={isActive({ kind: 'upcoming' })}
-            onClick={() => onSelectView({ kind: 'upcoming' })}
-          />
-          <NavItem
-            icon={<CalendarRange size={18} />}
-            label="Calendar"
-            iconOnly={rail}
-            active={isActive({ kind: 'calendar' })}
-            onClick={() => onSelectView({ kind: 'calendar' })}
-          />
-          <NavItem
-            icon={<CheckCircle2 size={18} />}
-            label="Completed"
-            iconOnly={rail}
-            active={isActive({ kind: 'completed' })}
-            onClick={() => onSelectView({ kind: 'completed' })}
-          />
-        </nav>
 
-        {favorites.length > 0 && (
-          <CollapsibleSection id="favorites" icon={<Star size={13} />} title="Favorites" forceOpen={rail}>
-            {favorites.map(projectItem)}
-          </CollapsibleSection>
-        )}
-
-        <CollapsibleSection
-          id="projects"
-          icon={<Hash size={13} />}
-          title="My Projects"
-          forceOpen={rail}
-          action={
-            <button type="button" className="icon-btn" data-tooltip="Add project" aria-label="Add project" onClick={onAddProject}>
-              <Plus size={15} />
-            </button>
-          }
-        >
-          {userProjects.length === 0 && <p className="sidebar-empty">No projects yet.</p>}
-          {userProjects.map(projectItem)}
-        </CollapsibleSection>
-
-        <CollapsibleSection
-          id="labels"
-          icon={<Tag size={13} />}
-          title="Labels"
-          forceOpen={rail}
-          action={
-            <button type="button" className="icon-btn" data-tooltip="Add label" aria-label="Add label" onClick={onAddLabel}>
-              <Plus size={15} />
-            </button>
-          }
-        >
-          {labels.length === 0 && <p className="sidebar-empty">No labels yet.</p>}
-          {labels.map((label) => (
+          <nav className="sidebar-nav">
+            {rail && (
+              <NavItem
+                icon={<ChartColumn size={18} />}
+                label="Insights"
+                active={isActive({ kind: 'insights' })}
+                onClick={() => onSelectView({ kind: 'insights' })}
+                iconOnly
+              />
+            )}
             <NavItem
-              key={label.id}
-              icon={<Tag size={15} color={colorHex(label.color)} />}
-              label={label.name}
-              count={countForLabel(label.id)}
+              icon={<StickyNote size={18} />}
+              label="Notes"
               iconOnly={rail}
-              active={isActive({ kind: 'label', labelId: label.id })}
-              onClick={() => onSelectView({ kind: 'label', labelId: label.id })}
-              actions={
-                <>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    data-tooltip="Edit label"
-                    aria-label={`Edit label ${label.name}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEditLabel(label);
-                    }}
-                  >
-                    <Pencil size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    data-tooltip="Delete label"
-                    aria-label={`Delete label ${label.name}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteLabel(label);
-                    }}
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </>
-              }
+              active={isActive({ kind: 'notes' })}
+              onClick={() => onSelectView({ kind: 'notes' })}
             />
-          ))}
-        </CollapsibleSection>
+            <NavItem
+              icon={<Inbox size={18} />}
+              label="Inbox"
+              iconOnly={rail}
+              count={inboxCount}
+              active={isActive({ kind: 'inbox' })}
+              onClick={() => onSelectView({ kind: 'inbox' })}
+            />
+            <NavItem
+              icon={<CalendarDays size={18} />}
+              label="Today"
+              iconOnly={rail}
+              count={todayCount}
+              active={isActive({ kind: 'today' })}
+              onClick={() => onSelectView({ kind: 'today' })}
+            />
+            <NavItem
+              icon={<CalendarDays size={18} />}
+              label="Upcoming"
+              iconOnly={rail}
+              active={isActive({ kind: 'upcoming' })}
+              onClick={() => onSelectView({ kind: 'upcoming' })}
+            />
+            <NavItem
+              icon={<CalendarRange size={18} />}
+              label="Calendar"
+              iconOnly={rail}
+              active={isActive({ kind: 'calendar' })}
+              onClick={() => onSelectView({ kind: 'calendar' })}
+            />
+            <NavItem
+              icon={<CheckCircle2 size={18} />}
+              label="Completed"
+              iconOnly={rail}
+              active={isActive({ kind: 'completed' })}
+              onClick={() => onSelectView({ kind: 'completed' })}
+            />
+          </nav>
+
+          {favorites.length > 0 && (
+            <CollapsibleSection id="favorites" icon={<Star size={13} />} title="Favorites" forceOpen={rail}>
+              {favorites.map(projectItem)}
+            </CollapsibleSection>
+          )}
+
+          <CollapsibleSection
+            id="projects"
+            icon={<Hash size={13} />}
+            title="My Projects"
+            forceOpen={rail}
+            action={
+              <button type="button" className="icon-btn" data-tooltip="Add project" aria-label="Add project" onClick={onAddProject}>
+                <Plus size={15} />
+              </button>
+            }
+          >
+            {userProjects.length === 0 && <p className="sidebar-empty">No projects yet.</p>}
+            {userProjects.map(projectItem)}
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            id="labels"
+            icon={<Tag size={13} />}
+            title="Labels"
+            forceOpen={rail}
+            action={
+              <button type="button" className="icon-btn" data-tooltip="Add label" aria-label="Add label" onClick={onAddLabel}>
+                <Plus size={15} />
+              </button>
+            }
+          >
+            {labels.length === 0 && <p className="sidebar-empty">No labels yet.</p>}
+            {labels.map((label) => (
+              <NavItem
+                key={label.id}
+                icon={<Tag size={15} color={colorHex(label.color)} />}
+                label={label.name}
+                count={countForLabel(label.id)}
+                iconOnly={rail}
+                active={isActive({ kind: 'label', labelId: label.id })}
+                onClick={() => onSelectView({ kind: 'label', labelId: label.id })}
+                actions={
+                  <>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      data-tooltip="Edit label"
+                      aria-label={`Edit label ${label.name}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditLabel(label);
+                      }}
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      data-tooltip="Delete label"
+                      aria-label={`Delete label ${label.name}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteLabel(label);
+                      }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </>
+                }
+              />
+            ))}
+          </CollapsibleSection>
+        </div>
 
         <div className="sidebar-footer">
           {accountMenu}

@@ -5813,11 +5813,24 @@ p.detail-description {
    ========================================================================== */
 
 .sidebar {
-  overflow-x: hidden;
+  overflow: hidden;
   transition:
     width var(--dur-base) var(--ease-out),
     padding var(--dur-base) var(--ease-out),
     border-color var(--dur-base) var(--ease-out);
+}
+
+/* The middle of the sidebar scrolls (wheel, keys, touch) without a visible scrollbar. */
+.sidebar > .sidebar-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .sidebar .brand {
