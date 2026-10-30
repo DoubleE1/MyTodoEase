@@ -3592,7 +3592,9 @@ p.detail-description {
 /* Web landing page (signed out) */
 
 .landing {
-  min-height: 100vh;
+  /* #root never scrolls (the app panes scroll themselves), so the landing and privacy pages scroll as a unit here. */
+  height: 100%;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   background:
