@@ -1,7 +1,7 @@
 # TodoEase developer guide
 
 How the project is built, run, released and wired together. The product overview is in the
-[README](../README.md).
+[README](../README.md). Where each feature lives: [project map](PROJECT_MAP.md). What changed in each release: [changelog](../CHANGELOG.md).
 
 ## Stack
 
