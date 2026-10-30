@@ -38,6 +38,7 @@ import { toDateStr, todayStr } from './lib/dates';
 import { useWindowMode } from './lib/desktop';
 import { useHotkey } from './lib/hotkeys';
 import { useInboxFilter } from './lib/inboxFilter';
+import { motionReduced } from './lib/motion';
 import { useTheme } from './lib/theme';
 import type { View } from './lib/views';
 
@@ -205,7 +206,8 @@ export default function App() {
 
     const onDown = (event: MouseEvent) => {
       const at = locate(event);
-      if (!at.inside || event.button !== 0) return;
+      // Reduce motion (OS or Settings) turns the click ripple off; checked per click so the switch applies at once.
+      if (!at.inside || event.button !== 0 || motionReduced()) return;
       const now = performance.now();
       const waves = 2;
       for (let i = 0; i < waves; i++) {
