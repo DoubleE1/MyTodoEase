@@ -2231,6 +2231,8 @@ ul {
 
 .desc-link-box {
   z-index: 300;
+  /* Never wider than a narrow (mini mode) window. */
+  max-width: calc(100vw - 16px);
   display: flex;
   gap: 6px;
   padding: 6px;
@@ -2242,6 +2244,8 @@ ul {
 
 .desc-link-box input {
   width: 260px;
+  min-width: 0;
+  flex: 1 1 auto;
   padding: 5px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;

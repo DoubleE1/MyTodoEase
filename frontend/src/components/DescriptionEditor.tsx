@@ -199,6 +199,9 @@ function runMarkdown(text: string, start: number, end: number, command: Command)
   }
 }
 
+/** Width the full toolbar needs; below it the toolbar becomes a single ··· menu. */
+const FULL_TOOLBAR_PX = 270;
+
 interface DescriptionEditorProps {
   value: string;
   onChange: (markdown: string) => void;
@@ -230,6 +233,17 @@ export default function DescriptionEditor({
   const handlers = useRef({ onSubmit, onCancel });
   handlers.current = { onSubmit, onCancel };
   const [linkOpen, setLinkOpen] = useState(false);
+  // Too little room in the footer (mini mode, narrow windows): the whole toolbar folds into one ··· menu.
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    if (!toolbarHost || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setNarrow(toolbarHost.clientWidth < FULL_TOOLBAR_PX);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(toolbarHost);
+    return () => observer.disconnect();
+  }, [toolbarHost]);
+  const compactLinkAnchor = useRef<HTMLSpanElement>(null);
   const editorRef = useRef<Editor | null>(null);
   // The editor tidies Markdown as it loads (spacing, table padding). Compare against that tidied starting point
   // so a description that was not actually changed is handed back exactly as the user wrote it.
@@ -384,7 +398,65 @@ export default function DescriptionEditor({
   const headingOn = on('h1') || on('h2') || on('h3');
   const listOn = on('bullet') || on('ordered') || on('task');
 
-  const toolbar = (
+  const compactToolbar = (
+    <div className="desc-toolbar is-compact" role="toolbar" aria-label="Formatting">
+      <span ref={compactLinkAnchor} className="desc-link-anchor">
+        <Menu
+          label="Formatting"
+          icon={Ellipsis}
+          hideChevron
+          pressed={headingOn || listOn || on('bold') || on('italic') || on('strike') || on('link') || on('code') || on('codeBlock') || on('quote')}
+          items={[
+            { label: 'Normal text', command: 'paragraph' },
+            { label: 'Heading 1', command: 'h1', icon: Heading, active: on('h1') },
+            { label: 'Heading 2', command: 'h2', icon: Heading, active: on('h2') },
+            { label: 'Heading 3', command: 'h3', icon: Heading, active: on('h3') },
+            { separator: true, label: 'lists' },
+            { label: 'Bulleted list', command: 'bullet', icon: List, active: on('bullet') },
+            { label: 'Numbered list', command: 'ordered', icon: ListOrdered, active: on('ordered') },
+            { label: 'Checklist', command: 'task', icon: ListChecks, active: on('task') },
+            { separator: true, label: 'marks' },
+            { label: 'Bold (Ctrl+B)', command: 'bold', icon: Bold, active: on('bold') },
+            { label: 'Italic (Ctrl+I)', command: 'italic', icon: Italic, active: on('italic') },
+            { label: 'Strikethrough', command: 'strike', icon: Strikethrough, active: on('strike') },
+            { label: 'Link… (Ctrl+K)', icon: Link2, active: on('link'), onSelect: () => setLinkOpen(true) },
+            { separator: true, label: 'blocks' },
+            { label: 'Inline code', command: 'code', icon: Code, active: on('code') },
+            { label: 'Code block', command: 'codeBlock', icon: SquareCode, active: on('codeBlock') },
+            { label: 'Quote', command: 'quote', icon: Quote, active: on('quote') },
+            { label: 'Divider', command: 'divider', icon: Minus },
+            { label: 'Table', command: 'table', icon: Table },
+            ...(on('table')
+              ? [
+                  { separator: true, label: 'table' },
+                  { label: 'Add row below', command: 'rowAfter' as const, icon: ArrowDownToLine },
+                  { label: 'Add column right', command: 'colAfter' as const, icon: ArrowRightToLine },
+                  { label: 'Delete row', command: 'deleteRow' as const, icon: Rows3, className: 'is-danger' },
+                  { label: 'Delete column', command: 'deleteCol' as const, icon: Columns3, className: 'is-danger' },
+                  { label: 'Delete table', command: 'deleteTable' as const, icon: Trash2, className: 'is-danger' },
+                ]
+              : []),
+            { separator: true, label: 'mode' },
+            { label: rich ? 'Switch to Markdown (M↓)' : 'Switch to rich text', onSelect: switchMode },
+          ]}
+          onRun={run}
+        />
+        {linkOpen && (
+          <LinkBox
+            anchor={compactLinkAnchor.current}
+            initialUrl={rich && editor ? ((editor.getAttributes('link').href as string | undefined) ?? '') : ''}
+            onClose={() => setLinkOpen(false)}
+            onApply={(url) => {
+              applyLink(url);
+              setLinkOpen(false);
+            }}
+          />
+        )}
+      </span>
+    </div>
+  );
+
+  const fullToolbar = (
     <div className="desc-toolbar" role="toolbar" aria-label="Formatting">
       <Menu
         label="Text style"
@@ -500,7 +572,7 @@ export default function DescriptionEditor({
           aria-label="Description (Markdown)"
         />
       )}
-      {toolbarHost ? createPortal(toolbar, toolbarHost) : null}
+      {toolbarHost ? createPortal(narrow ? compactToolbar : fullToolbar, toolbarHost) : null}
     </>
   );
 }
@@ -524,7 +596,11 @@ function ToolButton({ label, icon: Icon, pressed, onClick }: { label: string; ic
 
 interface MenuItem {
   label: string;
-  command: Command;
+  /** A formatting command; or `onSelect` for anything else (link box, Markdown switch). */
+  command?: Command;
+  onSelect?: () => void;
+  /** A divider line between groups (label is only its key). */
+  separator?: boolean;
   icon?: LucideIcon;
   active?: boolean;
   className?: string;
@@ -565,22 +641,27 @@ function Menu({
     >
       {(close) => (
         <div className="desc-menu" role="menu" aria-label={label}>
-          {items.map((item) => (
-            <button
-              key={item.command}
-              type="button"
-              role="menuitem"
-              className={`desc-menu-item ${item.active ? 'is-active' : ''} ${item.className ?? ''}`}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                onRun(item.command);
-                close();
-              }}
-            >
-              {item.icon && <item.icon size={14} />}
-              <span>{item.label}</span>
-            </button>
-          ))}
+          {items.map((item) =>
+            item.separator ? (
+              <div key={`sep-${item.label}`} className="menu-sep" role="separator" />
+            ) : (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                className={`desc-menu-item ${item.active ? 'is-active' : ''} ${item.className ?? ''}`}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  if (item.onSelect) item.onSelect();
+                  else if (item.command) onRun(item.command);
+                  close();
+                }}
+              >
+                {item.icon && <item.icon size={14} />}
+                <span>{item.label}</span>
+              </button>
+            ),
+          )}
         </div>
       )}
     </Popover>
@@ -649,7 +730,7 @@ function LinkBox({
     <form
       ref={boxRef}
       className="desc-link-box"
-      style={{ position: 'fixed', left: Math.max(8, rect.left - 120), top: rect.top - 52 }}
+      style={{ position: 'fixed', left: Math.max(8, Math.min(rect.left - 120, window.innerWidth - 8 - 340)), top: rect.top - 52 }}
       onSubmit={(e) => {
         e.preventDefault();
         e.stopPropagation();
