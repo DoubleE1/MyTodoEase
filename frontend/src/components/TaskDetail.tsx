@@ -7,6 +7,7 @@ import type { Label, Project, Section, Task, TaskInput } from '../api/types';
 import { PRIORITY_META } from '../lib/colors';
 import { toDateStr, todayStr } from '../lib/dates';
 import { showToast } from '../lib/toast';
+import { asOneUndo, runUndo } from '../lib/undo';
 import { sortByOrder } from '../lib/views';
 import { Modal } from './Dialogs';
 import { AnimatedList } from './AnimatedList';
@@ -99,38 +100,47 @@ export function TaskDetail({
       const from = task.dueDate > today ? task.dueDate : today;
       const nextDate = toDateStr(addDays(parseISO(from), 1));
       const { order: _order, ...input } = taskToInput(task);
-      const copy = await taskMut.create.mutateAsync({ ...input, dueDate: nextDate });
       const moved = subtasks.filter((s) => !s.isCompleted);
-      for (const sub of moved) {
-        await taskMut.update.mutateAsync({
-          id: sub.id,
-          input: { ...taskToInput(sub), parentId: copy.id, projectId: copy.projectId, sectionId: copy.sectionId },
-        });
-      }
-      await taskMut.complete.mutateAsync(task.id);
-
-      // Undo puts everything back: sub-tasks return to today's task first (deleting the copy would delete
-      // them with it), then today's task is reopened and tomorrow's copy deleted.
-      const undo = async () => {
-        try {
+      // One action for undo (Ctrl+Z or the toast): the copy, the moved sub-tasks and the completion.
+      const { result: copy, entry } = await asOneUndo(
+        `continued ${task.content.length > 40 ? `“${task.content.slice(0, 40)}…”` : `“${task.content}”`} tomorrow`,
+        async () => {
+          const created = await taskMut.create.mutateAsync({ ...input, dueDate: nextDate });
+          for (const sub of moved) {
+            await taskMut.update.mutateAsync({
+              id: sub.id,
+              input: { ...taskToInput(sub), parentId: created.id, projectId: created.projectId, sectionId: created.sectionId },
+            });
+          }
+          await taskMut.complete.mutateAsync(task.id);
+          return created;
+        },
+        // Sub-tasks return to today's task first (deleting the copy would delete them with it), then today's
+        // task is reopened and tomorrow's copy deleted.
+        async (created) => {
           for (const sub of moved) await taskMut.update.mutateAsync({ id: sub.id, input: taskToInput(sub) });
           await taskMut.reopen.mutateAsync(task.id);
           // Wait until the open list has today's task again: the dialog closes itself on a task it cannot find.
           await queryClient.refetchQueries({ queryKey: queryKeys.tasks });
           // Still looking at tomorrow's copy: switch to today's task before the copy goes, or the dialog would
           // close itself when its task disappears.
-          if (shownTaskId === copy.id) onOpenTask(task.id);
-          await taskMut.remove.mutateAsync(copy.id);
-          showToast('Undone: the task is back on its original day.', 'info', { group: 'task-completed' });
-        } catch {
-          // The mutation hooks already showed the error.
-        }
-      };
+          if (shownTaskId === created.id) onOpenTask(task.id);
+          await taskMut.remove.mutateAsync(created.id);
+        },
+      );
       // Same group as the "Task completed" toast, so this one (with the full undo) replaces it.
       showToast(`Continues on ${format(parseISO(nextDate), 'EEE d MMM')}. Today's part is marked done.`, 'success', {
         group: 'task-completed',
         duration: 6000,
-        action: { label: 'Undo', run: () => void undo() },
+        action: {
+          label: 'Undo',
+          run: () =>
+            void runUndo(entry)
+              .then(() => showToast('Undone: the task is back on its original day.', 'info', { group: 'task-completed' }))
+              .catch(() => {
+                // The mutation hooks already showed the error.
+              }),
+        },
       });
       onOpenTask(copy.id);
     } catch {

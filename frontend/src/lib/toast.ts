@@ -50,6 +50,11 @@ export function dismissToast(id: number) {
   emit();
 }
 
+/** Removes every toast of a group, e.g. a completion toast whose Undo was done another way. */
+export function dismissToastGroup(group: string) {
+  for (const toast of toasts.filter((t) => t.group === group)) dismissToast(toast.id);
+}
+
 export function useToasts(): Toast[] {
   const [state, setState] = useState(toasts);
   useEffect(() => {

@@ -12,7 +12,6 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useQueryClient } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
 import { useCalendarEvents } from '../api/hooks';
 import { planDay } from '../lib/plan';
@@ -50,7 +49,7 @@ import type { Priority } from '../api/types';
 import { ProjectIcon } from './Pickers';
 import { Popover } from './Popover';
 import { useRef, useState, type ReactNode } from 'react';
-import { queryKeys, useSectionMutations, useTaskMutations } from '../api/hooks';
+import { useSectionMutations, useTaskMutations } from '../api/hooks';
 import type { Label, Project, ReorderItem, Section, Task, TaskInput } from '../api/types';
 import { describeDayHeading, formatTime, toDateStr, todayStr } from '../lib/dates';
 import { isOverdue, matchesSearch, sortByOrder, sortForAgenda, viewTitle, type View } from '../lib/views';
@@ -305,7 +304,6 @@ export function TaskList({
   onCreateLabel,
   confirm,
 }: TaskListProps) {
-  const queryClient = useQueryClient();
   const taskMut = useTaskMutations();
   const sectionMut = useSectionMutations();
   const [addingIn, setAddingIn] = useState<string | null>(null);
@@ -372,9 +370,10 @@ export function TaskList({
     setPlanning(true);
     try {
       const { placed, unplaced } = planDay({ date: today, tasks, events: eventsFor(today) });
-      for (const { task, dueTime } of placed) {
-        await taskMut.update.mutateAsync({ id: task.id, input: { ...taskToInput(task), dueDate: today, dueTime } });
-      }
+      await taskMut.updateMany(
+        `planned ${placed.length} task${placed.length === 1 ? '' : 's'} into today`,
+        placed.map(({ task, dueTime }) => ({ task, input: { ...taskToInput(task), dueDate: today, dueTime } })),
+      );
       if (placed.length === 0 && unplaced.length === 0) showToast('Nothing left to plan: every task today already has a time.');
       else if (unplaced.length === 0) showToast(`Planned ${placed.length} task${placed.length === 1 ? '' : 's'} into today's free time.`);
       else showToast(`Planned ${placed.length}; ${unplaced.length} did not fit before 6 pm.`);
@@ -656,8 +655,9 @@ export function TaskList({
 
   const rescheduleOverdue = async () => {
     const overdue = tasks.filter((t) => isOverdue(t, today));
-    await Promise.all(
-      overdue.map((t) => taskMut.update.mutateAsync({ id: t.id, input: { ...taskToInput(t), dueDate: today } })),
+    await taskMut.updateMany(
+      `rescheduled ${overdue.length} overdue task${overdue.length === 1 ? '' : 's'} to today`,
+      overdue.map((t) => ({ task: t, input: { ...taskToInput(t), dueDate: today } })),
     );
   };
 
@@ -757,10 +757,7 @@ export function TaskList({
     }
     const items: ReorderItem[] = [...updates].map(([id, u]) => ({ id, order: u.order, sectionId: u.sectionId ?? '' }));
 
-    // Optimistic: the list stays where the user dropped it while the API catches up.
-    queryClient.setQueryData<Task[]>(queryKeys.tasks, (old) =>
-      old?.map((t) => (updates.has(t.id) ? { ...t, ...updates.get(t.id)! } : t)),
-    );
+    // The reorder hook moves the rows in the cache at once, so the list stays where the user dropped it.
     taskMut.reorder.mutate(items);
   };
 

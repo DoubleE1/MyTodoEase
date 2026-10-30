@@ -192,8 +192,9 @@ export function CompactView({
   };
 
   const rescheduleOverdue = async () => {
-    await Promise.all(
-      overdue.map((t) => taskMut.update.mutateAsync({ id: t.id, input: { ...taskToInput(t), dueDate: today } })),
+    await taskMut.updateMany(
+      `rescheduled ${overdue.length} overdue task${overdue.length === 1 ? '' : 's'} to today`,
+      overdue.map((t) => ({ task: t, input: { ...taskToInput(t), dueDate: today } })),
     );
   };
 

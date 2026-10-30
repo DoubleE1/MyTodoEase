@@ -4,7 +4,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
  * App-wide keyboard shortcuts, rebindable in Settings > Shortcuts and remembered on this device.
  * `mod` means Ctrl on Windows/Linux and Cmd on a Mac. A shortcut can also be switched off (null).
  */
-export type HotkeyAction = 'search' | 'quickAdd' | 'shortcuts' | 'settings' | 'toggleSidebar';
+export type HotkeyAction = 'search' | 'quickAdd' | 'undo' | 'shortcuts' | 'settings' | 'toggleSidebar';
 
 export interface Hotkey {
   /** `KeyboardEvent.key`, lower-cased (letters) or as typed (punctuation). */
@@ -17,6 +17,11 @@ export interface Hotkey {
 export const HOTKEY_ACTIONS: { action: HotkeyAction; label: string; hint: string }[] = [
   { action: 'search', label: 'Search', hint: 'Open search to find tasks, projects, labels and notes, or run an action.' },
   { action: 'quickAdd', label: 'Add task', hint: 'Open quick add from anywhere.' },
+  {
+    action: 'undo',
+    label: 'Undo last action',
+    hint: 'Reverses the last change to a task (one step). In a text field it undoes typing instead.',
+  },
   { action: 'shortcuts', label: 'Keyboard shortcuts', hint: 'Show this list.' },
   { action: 'settings', label: 'Open Settings', hint: 'Works even while you are typing.' },
   { action: 'toggleSidebar', label: 'Collapse sidebar', hint: 'Switch the sidebar between full and icons only.' },
@@ -25,6 +30,7 @@ export const HOTKEY_ACTIONS: { action: HotkeyAction; label: string; hint: string
 export const DEFAULT_HOTKEYS: Record<HotkeyAction, Hotkey | null> = {
   search: { key: 'k', mod: true, alt: false, shift: false },
   quickAdd: { key: 'q', mod: false, alt: false, shift: false },
+  undo: { key: 'z', mod: true, alt: false, shift: false },
   shortcuts: { key: '/', mod: true, alt: false, shift: false },
   settings: { key: ',', mod: true, alt: false, shift: false },
   toggleSidebar: { key: 'm', mod: false, alt: false, shift: false },
@@ -112,11 +118,11 @@ const RESERVED_MOD_KEYS = new Set(['a', 'c', 'v', 'x', 'z', 'y']);
  * Reads a shortcut from a key press in the recorder. Returns an error message for combinations that cannot be
  * used, or null while only modifiers are held.
  */
-export function hotkeyFromEvent(event: KeyboardEvent): Hotkey | { error: string } | null {
+export function hotkeyFromEvent(event: KeyboardEvent, allowReserved = false): Hotkey | { error: string } | null {
   if (MODIFIER_KEYS.has(event.key)) return null;
   const key = event.key.toLowerCase();
   const hotkey: Hotkey = { key, mod: event.ctrlKey || event.metaKey, alt: event.altKey, shift: event.shiftKey };
-  if (hotkey.mod && !hotkey.alt && RESERVED_MOD_KEYS.has(key)) {
+  if (hotkey.mod && !hotkey.alt && RESERVED_MOD_KEYS.has(key) && !allowReserved) {
     return { error: `${formatHotkey(hotkey)} is used for editing text. Pick another.` };
   }
   // Without Ctrl/Alt a shortcut fires on a bare key press, so it has to be a single printable key.
@@ -154,7 +160,10 @@ export function useHotkey(action: HotkeyAction, handler: () => void, enabled = t
     if (!enabled || !hotkey) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.repeat || !matchesHotkey(event, hotkey)) return;
-      if (!hotkey.mod && !hotkey.alt && isTyping(event.target)) return;
+      // Bare keys would type into fields; Undo there must stay the field's own undo.
+      if ((!hotkey.mod && !hotkey.alt) || action === 'undo') {
+        if (isTyping(event.target)) return;
+      }
       // The shortcut recorder in Settings is open: let it take the key.
       if (document.querySelector('[data-recording-hotkey]')) return;
       event.preventDefault();
@@ -162,5 +171,5 @@ export function useHotkey(action: HotkeyAction, handler: () => void, enabled = t
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [hotkey, enabled]);
+  }, [hotkey, enabled, action]);
 }

@@ -39,6 +39,7 @@ import { useWindowMode } from './lib/desktop';
 import { useHotkey } from './lib/hotkeys';
 import { useInboxFilter } from './lib/inboxFilter';
 import { motionReduced } from './lib/motion';
+import { undoLast } from './lib/undo';
 import { useTheme } from './lib/theme';
 import type { View } from './lib/views';
 
@@ -105,6 +106,7 @@ export default function App() {
   useHotkey('quickAdd', () => setDialog({ kind: 'quick-add' }), !dialog && !openTaskId);
   useHotkey('search', () => setDialog({ kind: 'palette' }), !dialog && !openTaskId && !windowMode.compact);
   useHotkey('shortcuts', () => setDialog({ kind: 'shortcuts' }), dialog?.kind !== 'shortcuts');
+  useHotkey('undo', () => void undoLast());
 
   const createLabel = useCallback((name: string) => labelMut.create.mutateAsync({ name }), [labelMut.create]);
 

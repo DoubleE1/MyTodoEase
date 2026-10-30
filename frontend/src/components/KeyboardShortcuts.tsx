@@ -125,7 +125,8 @@ export function ShortcutsPanel({ autoFocus = false }: { autoFocus?: boolean }) {
         setRecording(null);
         return;
       }
-      const result = hotkeyFromEvent(event);
+      // Undo may sit on Ctrl+Z: it never fires in a text field, where the editing shortcut still works.
+      const result = hotkeyFromEvent(event, recording === 'undo');
       if (!result) return;
       if ('error' in result) {
         setMessage({ action: recording, text: result.error });

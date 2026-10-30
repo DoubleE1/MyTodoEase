@@ -13,7 +13,6 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { useQueryClient } from '@tanstack/react-query';
 import {
   addDays,
   addMonths,
@@ -30,7 +29,7 @@ import {
 } from 'date-fns';
 import { ChevronLeft, ChevronRight, Plus, Repeat, Sparkles } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { queryKeys, useCalendarEvents, useTaskMutations } from '../api/hooks';
+import { useCalendarEvents, useTaskMutations } from '../api/hooks';
 import type { ExternalEvent, Project, Task } from '../api/types';
 import { PRIORITY_META } from '../lib/colors';
 import { compareDue, formatTime, toDateStr, todayStr } from '../lib/dates';
@@ -572,7 +571,6 @@ function UnscheduledPanel({
 // ---------- View ----------
 
 export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAddTask }: CalendarViewProps) {
-  const queryClient = useQueryClient();
   const taskMut = useTaskMutations();
   const [mode, setMode] = useState<Mode>('month');
   const [anchor, setAnchor] = useState(() => new Date());
@@ -692,9 +690,8 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
   const shift = (direction: -1 | 1) =>
     setAnchor((a) => (mode === 'month' ? addMonths(a, direction) : addWeeks(a, direction)));
 
+  // The update hook applies the change to the cache at once, so the chip or block lands on its new slot immediately.
   const update = (task: Task, changes: Partial<Task>) => {
-    // Optimistic: the chip or block lands on its new slot immediately.
-    queryClient.setQueryData<Task[]>(queryKeys.tasks, (old) => old?.map((t) => (t.id === task.id ? { ...t, ...changes } : t)));
     taskMut.update.mutate({ id: task.id, input: { ...taskToInput(task), ...changes } });
   };
 
@@ -711,9 +708,6 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
   const setSpan = (task: Task, start: string, end: string) => {
     const startDate = start < end ? start : null;
     if (task.dueDate === end && (task.startDate ?? null) === startDate) return;
-    queryClient.setQueryData<Task[]>(queryKeys.tasks, (old) =>
-      old?.map((t) => (t.id === task.id ? { ...t, dueDate: end, startDate } : t)),
-    );
     // '' tells the API to clear the start (null would mean "leave it as it is").
     taskMut.update.mutate({ id: task.id, input: { ...taskToInput(task), dueDate: end, startDate: startDate ?? '' } });
   };
@@ -828,9 +822,10 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
     setPlanning(true);
     try {
       const { placed, unplaced } = planDay({ date: today, tasks, events: eventsByDate.get(today) ?? [] });
-      for (const { task, dueTime } of placed) {
-        await taskMut.update.mutateAsync({ id: task.id, input: { ...taskToInput(task), dueDate: today, dueTime } });
-      }
+      await taskMut.updateMany(
+        `planned ${placed.length} task${placed.length === 1 ? '' : 's'} into today`,
+        placed.map(({ task, dueTime }) => ({ task, input: { ...taskToInput(task), dueDate: today, dueTime } })),
+      );
       if (placed.length === 0 && unplaced.length === 0) showToast('Nothing left to plan: every task today already has a time.');
       else if (unplaced.length === 0) showToast(`Planned ${placed.length} task${placed.length === 1 ? '' : 's'} into today's free time.`);
       else showToast(`Planned ${placed.length}; ${unplaced.length} did not fit before 6 pm.`);
