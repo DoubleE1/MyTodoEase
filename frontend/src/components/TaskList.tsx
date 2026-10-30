@@ -256,8 +256,12 @@ export function TaskList({
       .filter((s) => s.projectId === projectId)
       .sort((a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt));
 
-  /** One project's page: loose tasks, then its sections, in manual (draggable) order. */
-  const projectGroups = (): Group[] => {
+  /**
+   * One project's page: loose tasks, then its sections, in manual (draggable) order. The Inbox filtered to one
+   * project sorts by due date instead, like its "All projects" listing.
+   */
+  const projectGroups = (byDue = false): Group[] => {
+    const sortTasks = byDue ? sortForAgenda : sortByOrder;
     if (!currentProjectId) return [];
     const inProject = tasks.filter((t) => t.projectId === currentProjectId && !t.parentId);
     const projectSections = sectionsOf(currentProjectId);
@@ -266,10 +270,10 @@ export function TaskList({
       {
         key: NO_SECTION_KEY,
         title: null,
-        tasks: sortByOrder(inProject.filter((t) => !t.sectionId || !sectionIds.has(t.sectionId))),
+        tasks: sortTasks(inProject.filter((t) => !t.sectionId || !sectionIds.has(t.sectionId))),
         defaults: { projectId: currentProjectId },
         nested: true,
-        sortable: true,
+        sortable: !byDue,
         emptyText: projectSections.length === 0 ? 'No tasks here yet.' : undefined,
       },
     ];
@@ -277,11 +281,11 @@ export function TaskList({
       groups.push({
         key: section.id,
         title: section.name,
-        tasks: sortByOrder(inProject.filter((t) => t.sectionId === section.id)),
+        tasks: sortTasks(inProject.filter((t) => t.sectionId === section.id)),
         defaults: { projectId: currentProjectId, sectionId: section.id },
         section,
         nested: true,
-        sortable: true,
+        sortable: !byDue,
       });
     }
     return groups;
@@ -332,7 +336,7 @@ export function TaskList({
   const buildGroups = (): Group[] => {
     switch (view.kind) {
       case 'inbox':
-        return inboxAll ? allProjectGroups() : projectGroups();
+        return inboxAll ? allProjectGroups() : projectGroups(true);
       case 'project':
         return projectGroups();
       case 'today': {
