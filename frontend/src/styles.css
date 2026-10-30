@@ -24,9 +24,10 @@
   --danger: #d1453b;
   --tone-overdue: #d1453b;
   --tone-today: #058527;
-  --tone-tomorrow: #ad6200;
-  --tone-week: #0b7285;
+  /* Only overdue (red) and today (green) stand out; every later date is the same grey. */
   --tone-future: #808080;
+  --tone-tomorrow: var(--tone-future);
+  --tone-week: var(--tone-future);
   --radius: 8px;
   --shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
   --bg-hover-strong: #e8e5e1;
@@ -61,9 +62,9 @@
   --danger: #ff7a6e;
   --tone-overdue: #ff7a6e;
   --tone-today: #5cc472;
-  --tone-tomorrow: #f0b24a;
-  --tone-week: #4cc3d9;
   --tone-future: #9c9c9c;
+  --tone-tomorrow: var(--tone-future);
+  --tone-week: var(--tone-future);
   --banner-error-bg: #4a1f1a;
   --banner-error-text: #ffb4ab;
   --toast-bg: #efefef;
