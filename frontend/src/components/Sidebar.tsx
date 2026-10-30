@@ -3,8 +3,10 @@ import {
   CalendarRange,
   ChartColumn,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Hash,
   Inbox,
   Minimize2,
@@ -96,6 +98,42 @@ function useSidebarMode() {
   }, []);
 
   return { mode, setMode };
+}
+
+/** Lists longer than this show their first items and a "More" row, as in Gmail. */
+const LIST_LIMIT = 5;
+const MORE_KEY_PREFIX = 'todoease.sidebar.more.';
+
+/** Whether a list's "More" is open; remembered per list on this device. */
+function useMore(id: string) {
+  const [expanded, setExpanded] = useState(() => {
+    try {
+      return window.localStorage.getItem(MORE_KEY_PREFIX + id) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const toggle = () => {
+    const next = !expanded;
+    setExpanded(next);
+    try {
+      window.localStorage.setItem(MORE_KEY_PREFIX + id, String(next));
+    } catch {
+      // Not persisted; fine.
+    }
+  };
+  return { expanded, toggle };
+}
+
+/** The "More" / "Less" row under a list. */
+function MoreToggle({ expanded, hidden, onToggle }: { expanded: boolean; hidden?: number; onToggle: () => void }) {
+  return (
+    <button type="button" className="nav-item sidebar-more" aria-expanded={expanded} onClick={onToggle}>
+      <span className="nav-icon">{expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
+      <span className="nav-label">{expanded ? 'Less' : 'More'}</span>
+      {!expanded && hidden ? <span className="nav-count">{hidden}</span> : null}
+    </button>
+  );
 }
 
 function readCollapsed(id: string): boolean {
@@ -239,6 +277,13 @@ export function Sidebar({
   const { mode, setMode } = useSidebarMode();
   const rail = mode === 'rail';
   const searchRef = useRef<HTMLInputElement>(null);
+  const navMore = useMore('nav');
+  const projectsMore = useMore('projects');
+  const labelsMore = useMore('labels');
+
+  /** The items a list shows: all of them when open (or in the rail), else the first few plus the open one. */
+  const shownOf = <T,>(items: T[], expanded: boolean, viewOf: (item: T) => View) =>
+    rail || expanded ? items : items.filter((item, i) => i < LIST_LIMIT || isActive(viewOf(item)));
 
   const projectActions = (project: Project) => (
     <>
@@ -407,13 +452,25 @@ export function Sidebar({
               active={isActive({ kind: 'calendar' })}
               onClick={() => onSelectView({ kind: 'calendar' })}
             />
-            <NavItem
-              icon={<CheckCircle2 size={18} />}
-              label="Completed"
-              iconOnly={rail}
-              active={isActive({ kind: 'completed' })}
-              onClick={() => onSelectView({ kind: 'completed' })}
-            />
+            {/* Less-used views sit behind "More", as in Gmail (always shown when open, and in the icon rail). */}
+            {(rail || navMore.expanded || isActive({ kind: 'completed' })) && (
+              <NavItem
+                icon={<CheckCircle2 size={18} />}
+                label="Completed"
+                iconOnly={rail}
+                active={isActive({ kind: 'completed' })}
+                onClick={() => onSelectView({ kind: 'completed' })}
+              />
+            )}
+            {!rail && (navMore.expanded || isActive({ kind: 'insights' })) && (
+              <NavItem
+                icon={<ChartColumn size={18} />}
+                label="Insights"
+                active={isActive({ kind: 'insights' })}
+                onClick={() => onSelectView({ kind: 'insights' })}
+              />
+            )}
+            {!rail && <MoreToggle expanded={navMore.expanded} onToggle={navMore.toggle} />}
           </nav>
 
           {favorites.length > 0 && (
@@ -434,7 +491,14 @@ export function Sidebar({
             }
           >
             {userProjects.length === 0 && <p className="sidebar-empty">No projects yet.</p>}
-            {userProjects.map(projectItem)}
+            {shownOf(userProjects, projectsMore.expanded, (p) => ({ kind: 'project', projectId: p.id })).map(projectItem)}
+            {!rail && userProjects.length > LIST_LIMIT && (
+              <MoreToggle
+                expanded={projectsMore.expanded}
+                hidden={userProjects.length - shownOf(userProjects, false, (p) => ({ kind: 'project', projectId: p.id })).length}
+                onToggle={projectsMore.toggle}
+              />
+            )}
           </CollapsibleSection>
 
           <CollapsibleSection
@@ -449,7 +513,7 @@ export function Sidebar({
             }
           >
             {labels.length === 0 && <p className="sidebar-empty">No labels yet.</p>}
-            {labels.map((label) => (
+            {shownOf(labels, labelsMore.expanded, (l) => ({ kind: 'label', labelId: l.id })).map((label) => (
               <NavItem
                 key={label.id}
                 icon={<Tag size={15} color={colorHex(label.color)} />}
@@ -488,6 +552,13 @@ export function Sidebar({
                 }
               />
             ))}
+            {!rail && labels.length > LIST_LIMIT && (
+              <MoreToggle
+                expanded={labelsMore.expanded}
+                hidden={labels.length - shownOf(labels, false, (l) => ({ kind: 'label', labelId: l.id })).length}
+                onToggle={labelsMore.toggle}
+              />
+            )}
           </CollapsibleSection>
         </div>
 
