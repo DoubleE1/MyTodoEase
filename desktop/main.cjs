@@ -221,6 +221,10 @@ function createWindow() {
   });
   win.on('move', onDockedWindowChanged);
   win.on('resize', onDockedWindowChanged);
+  // Mini mode is a narrow column; asking for the whole screen means the full app, maximized.
+  win.on('maximize', () => {
+    if (settings.compact && !settings.docked) applyCompact(false, { maximize: true });
+  });
 
   win.on('close', () => {
     const wasDocked = settings.docked;
@@ -404,7 +408,8 @@ function rememberBounds() {
   else settings.normalBounds = win.getBounds();
 }
 
-function applyCompact(flag) {
+/** `maximize`: end maximized in the new mode (used when the mini window's maximize button asks for the full app). */
+function applyCompact(flag, { maximize = false } = {}) {
   if (!win || flag === settings.compact) return settings.compact;
   // Leaving mini mode releases the reserved strip (never remembered as a size) but keeps the wish to be
   // docked, so coming back to mini mode docks again until the user undocks explicitly.
@@ -423,7 +428,11 @@ function applyCompact(flag) {
 
   const remembered = onScreen(flag ? settings.compactBounds : settings.normalBounds);
   const target = remembered ?? (flag ? defaultCompactBounds() : centeredNormalBounds());
-  placeWindow(target, wasDocked ? restoreCaptionButtons : undefined);
+  // Maximize only after placeWindow has re-applied the bounds, or that second setBounds would undo it.
+  placeWindow(target, () => {
+    if (wasDocked) restoreCaptionButtons();
+    if (maximize) win.maximize();
+  });
   console.log('[mode]', flag ? 'mini' : 'full', 'target', target);
   saveSettings();
   broadcastState();
