@@ -146,9 +146,49 @@ export function useTaskMutations() {
       if (context?.previous) qc.setQueryData(queryKeys.tasks, context.previous);
       onError(error);
     },
-    onSuccess: (task) => changed(task.id),
+    onSuccess: (task, id, context) => {
+      changed(task.id);
+      const before = context?.previous?.find((t) => t.id === id);
+      if (!before) return;
+      // The open subtasks that were closed along with it, so Undo can bring them back too.
+      const closedChildren = (context?.previous ?? []).filter((t) => t.parentId === id && !t.isCompleted);
+      showToast(before.recurrence === 'none' ? 'Task completed' : 'Done for now; moved to the next date', 'success', {
+        group: 'task-completed',
+        duration: 5000,
+        action: { label: 'Undo', run: () => void undoComplete(before, closedChildren) },
+      });
+    },
     onSettled: invalidateTasks,
   });
+
+  /** Undo a completion: reopen the task (the API also drops its completion record) and, for a repeating
+   * task, put its due date back where it was. */
+  const undoComplete = async (before: Task, closedChildren: Task[]) => {
+    try {
+      await api.tasks.reopen(before.id);
+      await Promise.all(closedChildren.map((child) => api.tasks.reopen(child.id)));
+      if (before.recurrence !== 'none') {
+        await api.tasks.update(before.id, {
+          content: before.content,
+          description: before.description,
+          projectId: before.projectId,
+          sectionId: before.sectionId,
+          parentId: before.parentId,
+          labelIds: before.labelIds,
+          priority: before.priority,
+          dueDate: before.dueDate,
+          dueTime: before.dueTime,
+          durationMinutes: before.durationMinutes,
+          recurrence: before.recurrence,
+          order: before.order,
+        });
+      }
+      changed(before.id, ...closedChildren.map((c) => c.id));
+    } catch (error) {
+      onError(error);
+      invalidateTasks();
+    }
+  };
 
   const reopen = useMutation({
     mutationFn: (id: string) => api.tasks.reopen(id),
