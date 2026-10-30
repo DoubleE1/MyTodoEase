@@ -1,7 +1,7 @@
 {
   "name": "mytodoease",
   "private": true,
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "TodoEase - a planner that keeps tasks and calendar on one screen: ASP.NET Core + embedded LiteDB backend, React front end, Electron desktop shell, Firebase web app.",
   "workspaces": [
     "frontend",
