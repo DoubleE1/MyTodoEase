@@ -4190,6 +4190,26 @@ p.detail-description {
   padding: 8px;
 }
 
+/* In the "…" menu the colours sit under a small heading, above the actions. */
+.note-menu .note-colors {
+  padding: 2px 9px 8px;
+}
+
+.note-menu-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 9px 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.note-menu-sep {
+  height: 1px;
+  margin: 2px 4px 4px;
+  background: var(--border);
+}
+
 .note-color-swatch {
   width: 22px;
   height: 22px;
@@ -5581,12 +5601,14 @@ p.detail-description {
     rotate 240ms var(--ease-spring);
 }
 
+/* A held note lifts a little, flat (no tilt). It gets its own compositor layer, and the glass blur pauses:
+   re-blurring what is behind the card on every frame is what made dragging stutter. */
 .note-card.is-dragging {
-  scale: 1.02;
-  rotate: 1.2deg;
-  transition:
-    scale var(--dur-fast) var(--ease-out),
-    rotate var(--dur-fast) var(--ease-out);
+  scale: 1.015;
+  will-change: transform;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  transition: scale var(--dur-fast) var(--ease-out);
 }
 
 @keyframes lift {
@@ -5630,7 +5652,7 @@ p.detail-description {
   scroll-behavior: auto !important;
 }
 
-/* ---- Sticky notes: resize handle and click feedback ---- */
+/* ---- Sticky notes: resizing and click feedback ---- */
 
 /* A note with a saved size: the text fills the card and scrolls inside it. */
 .note-card.is-sized {
@@ -5647,38 +5669,79 @@ p.detail-description {
   user-select: none;
 }
 
-.note-card > .note-resize {
+/* Resize strips along the border, like a window frame: half inside, half outside the card. */
+.note-card > .note-edge {
   position: absolute;
-  right: 3px;
-  bottom: 3px;
-  z-index: 2;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  border-radius: 0 0 11px 0;
-  background:
-    linear-gradient(135deg, transparent 52%, var(--note-muted) 52%, var(--note-muted) 58%, transparent 58%),
-    linear-gradient(135deg, transparent 70%, var(--note-muted) 70%, var(--note-muted) 76%, transparent 76%);
-  cursor: nwse-resize;
-  opacity: 0;
+  z-index: 3;
   touch-action: none;
-  transition: opacity var(--dur-fast) var(--ease-out);
 }
 
-.note-card:hover > .note-resize,
-.note-card.is-resizing > .note-resize,
-.note-card > .note-resize:focus-visible {
-  opacity: 1;
+.note-card > .note-edge-n,
+.note-card > .note-edge-s {
+  left: 10px;
+  right: 10px;
+  height: 10px;
+  cursor: ns-resize;
 }
 
-.note-card > .note-resize:focus-visible {
-  outline: 2px solid var(--note-c, #8b72ff);
-  outline-offset: 1px;
+.note-card > .note-edge-n {
+  top: -6px;
+}
+
+.note-card > .note-edge-s {
+  bottom: -6px;
+}
+
+.note-card > .note-edge-e,
+.note-card > .note-edge-w {
+  top: 10px;
+  bottom: 10px;
+  width: 10px;
+  cursor: ew-resize;
+}
+
+.note-card > .note-edge-e {
+  right: -6px;
+}
+
+.note-card > .note-edge-w {
+  left: -6px;
+}
+
+.note-card > .note-edge-ne,
+.note-card > .note-edge-nw,
+.note-card > .note-edge-se,
+.note-card > .note-edge-sw {
+  width: 16px;
+  height: 16px;
+}
+
+.note-card > .note-edge-nw {
+  top: -6px;
+  left: -6px;
+  cursor: nwse-resize;
+}
+
+.note-card > .note-edge-se {
+  bottom: -6px;
+  right: -6px;
+  cursor: nwse-resize;
+}
+
+.note-card > .note-edge-ne {
+  top: -6px;
+  right: -6px;
+  cursor: nesw-resize;
+}
+
+.note-card > .note-edge-sw {
+  bottom: -6px;
+  left: -6px;
+  cursor: nesw-resize;
 }
 
 /* Pressing the card (not its text) gives a little; the press springs back on release. */
-.note-card.is-movable:active:not(.is-dragging):not(.is-resizing):not(:has(.note-text:active, .note-resize:active)) {
+.note-card.is-movable:active:not(.is-dragging):not(.is-resizing):not(:has(.note-text:active, .note-edge:active)) {
   scale: 0.985;
   transition: scale 70ms var(--ease-out);
 }

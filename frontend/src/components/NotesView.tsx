@@ -13,6 +13,9 @@ const MIN_W = 220;
 const MAX_W = 1200;
 const MIN_H = 160;
 const MAX_H = 1600;
+/** Which border is being dragged: a side, or a corner (two sides). */
+type Edge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
+const EDGES: Edge[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), Math.max(lo, hi));
 /** Height assumed for a note that has not been measured yet (free-slot search). */
 const NOTE_HEIGHT_GUESS = 230;
@@ -93,8 +96,8 @@ export function NotesView({
   const [boardWidth, setBoardWidth] = useState(0);
   const heights = useRef(new Map<string, number>());
   const [, setMeasured] = useState(0);
-  const [drag, setDrag] = useState<{ id: string; dx: number; dy: number } | null>(null);
-  const [resize, setResize] = useState<{ id: string; w: number; h: number } | null>(null);
+  const [drag, setDrag] = useState<{ id: string } | null>(null);
+  const [resize, setResize] = useState<{ id: string; x: number; y: number; w: number; h: number } | null>(null);
 
   const all = notesQuery.data ?? [];
   const active = useMemo(() => all.filter((n) => !n.isArchived), [all]);
@@ -163,16 +166,22 @@ export function NotesView({
     if (note.order !== topOrder) save(note, { order: topOrder + 1 });
   };
 
-  /** Resize from the bottom-right handle: live preview while dragging, saved on release. */
-  const startResize = (note: Note, event: ReactPointerEvent<HTMLElement>) => {
+  /**
+   * Resize by dragging any edge or corner, as with a window: the left and top edges move the note too.
+   * Live preview while dragging, saved on release.
+   */
+  const startResize = (note: Note, edge: Edge, event: ReactPointerEvent<HTMLElement>) => {
     if (stacked || event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
     activate(note);
     const card = (event.currentTarget as HTMLElement).closest('.note-card') as HTMLElement | null;
-    const startW = widthOf(note);
-    const startH = card?.offsetHeight ?? note.h ?? NOTE_HEIGHT_GUESS;
-    const maxW = Math.min(MAX_W, boardWidth - shownX(note));
+    const start = {
+      x: shownX(note),
+      y: note.y ?? 0,
+      w: widthOf(note),
+      h: card?.offsetHeight ?? note.h ?? NOTE_HEIGHT_GUESS,
+    };
     const startX = event.clientX;
     const startY = event.clientY;
     const target = event.currentTarget;
@@ -181,18 +190,33 @@ export function NotesView({
     } catch {
       // Pointer already released; listeners below still finish the resize.
     }
-    const sizeAt = (e: PointerEvent) => ({
-      w: Math.round(clamp(startW + e.clientX - startX, MIN_W, maxW)),
-      h: Math.round(clamp(startH + e.clientY - startY, MIN_H, MAX_H)),
-    });
-    const move = (e: PointerEvent) => setResize({ id: note.id, ...sizeAt(e) });
+    const rectAt = (e: PointerEvent) => {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      let { x, y, w, h } = start;
+      if (edge.includes('e')) w = clamp(start.w + dx, MIN_W, Math.min(MAX_W, boardWidth - start.x));
+      if (edge.includes('w')) {
+        // The right edge stays put; the left edge cannot leave the board.
+        w = clamp(start.w - dx, MIN_W, Math.min(MAX_W, start.x + start.w));
+        x = start.x + start.w - w;
+      }
+      if (edge.includes('s')) h = clamp(start.h + dy, MIN_H, MAX_H);
+      if (edge.includes('n')) {
+        h = clamp(start.h - dy, MIN_H, Math.min(MAX_H, start.y + start.h));
+        y = start.y + start.h - h;
+      }
+      return { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+    };
+    const move = (e: PointerEvent) => setResize({ id: note.id, ...rectAt(e) });
     const up = (e: PointerEvent) => {
       target.removeEventListener('pointermove', move);
       target.removeEventListener('pointerup', up);
       target.removeEventListener('pointercancel', up);
-      const size = sizeAt(e);
+      const rect = rectAt(e);
       setResize(null);
-      if (size.w !== startW || size.h !== startH) save(note, { ...size, ...front(note) });
+      if (rect.w === start.w && rect.h === start.h) return;
+      const moved = rect.x !== start.x || rect.y !== start.y ? { x: rect.x, y: rect.y } : {};
+      save(note, { w: rect.w, h: rect.h, ...moved, ...front(note) });
     };
     target.addEventListener('pointermove', move);
     target.addEventListener('pointerup', up);
@@ -220,23 +244,41 @@ export function NotesView({
     } catch {
       // The pointer is already gone (e.g. released during a re-render); the move listeners still work.
     }
+    // The card follows the pointer by writing its transform directly, once per frame: re-rendering the
+    // board on every pointer move is what made dragging lag.
     let moved = false;
+    let frame = 0;
+    let offset = { dx: 0, dy: 0 };
+    const paint = () => {
+      frame = 0;
+      target.style.transform = `translate(${offset.dx}px, ${offset.dy}px)`;
+    };
     const move = (e: PointerEvent) => {
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
       if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+      if (!moved) setDrag({ id: note.id });
       moved = true;
-      setDrag({ id: note.id, dx, dy });
+      offset = { dx, dy };
+      if (!frame) frame = requestAnimationFrame(paint);
     };
     const up = (e: PointerEvent) => {
       target.removeEventListener('pointermove', move);
       target.removeEventListener('pointerup', up);
       target.removeEventListener('pointercancel', up);
+      cancelAnimationFrame(frame);
       setDrag(null);
       if (!moved) return;
-      const x = Math.min(Math.max(0, shownX(note) + e.clientX - startX), Math.max(0, boardWidth - widthOf(note)));
-      const y = Math.max(0, (note.y ?? 0) + e.clientY - startY);
-      save(note, { x: Math.round(x), y: Math.round(y), order: note.order === topOrder ? note.order : topOrder + 1 });
+      const x = Math.round(
+        Math.min(Math.max(0, shownX(note) + e.clientX - startX), Math.max(0, boardWidth - widthOf(note))),
+      );
+      const y = Math.round(Math.max(0, (note.y ?? 0) + e.clientY - startY));
+      // Put the card at its new place in the same frame the offset goes, so it never jumps back while the
+      // save is on its way; the next render writes the same values.
+      target.style.left = `${x}px`;
+      target.style.top = `${y}px`;
+      target.style.transform = '';
+      save(note, { x, y, order: note.order === topOrder ? note.order : topOrder + 1 });
     };
     target.addEventListener('pointermove', move);
     target.addEventListener('pointerup', up);
@@ -273,8 +315,8 @@ export function NotesView({
     ? undefined
     : Math.max(
         480,
-        ...active.map((n) => (n.y ?? 0) + (heights.current.get(n.id) ?? NOTE_HEIGHT_GUESS) + 160),
-        drag ? ((active.find((n) => n.id === drag.id)?.y ?? 0) + drag.dy + NOTE_HEIGHT_GUESS + 160) : 0,
+        // While a note is dragged there is extra room below, so it can be pulled further down.
+        ...active.map((n) => (n.y ?? 0) + (heights.current.get(n.id) ?? NOTE_HEIGHT_GUESS) + (drag ? 560 : 160)),
       );
   const zOrder = new Map([...active].sort((a, b) => a.order - b.order).map((n, i) => [n.id, i + 1]));
   const stackedOrder = [...active].sort((a, b) => (a.y ?? 0) - (b.y ?? 0) || (a.x ?? 0) - (b.x ?? 0));
@@ -327,17 +369,16 @@ export function NotesView({
           {(stacked ? stackedOrder : active).map((note) => {
             const dragging = drag?.id === note.id;
             const resizing = resize?.id === note.id ? resize : null;
-            const x = shownX(note);
+            const x = resizing ? resizing.x : shownX(note);
             const height = resizing ? resizing.h : note.h ?? undefined;
             const style = stacked
               ? undefined
               : {
                   left: x,
-                  top: note.y ?? 0,
+                  top: resizing ? resizing.y : note.y ?? 0,
                   width: resizing ? resizing.w : widthOf(note),
                   height,
                   zIndex: dragging ? 1000 : zOrder.get(note.id),
-                  transform: dragging ? `translate(${drag.dx}px, ${drag.dy}px)` : undefined,
                 };
             return (
               <NoteCard
@@ -349,7 +390,7 @@ export function NotesView({
                 sized={!stacked && height !== undefined}
                 resizing={resizing !== null}
                 onActivate={() => activate(note)}
-                onResizeStart={(e) => startResize(note, e)}
+                onResizeStart={(edge, e) => startResize(note, edge, e)}
                 onResizeBy={(card, dw, dh) => resizeBy(note, card, dw, dh)}
                 autoFocus={note.id === focusId}
                 onFocused={() => setFocusId(null)}
@@ -454,7 +495,7 @@ function NoteCard({
   onFocused: () => void;
   onActivate: () => void;
   onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
-  onResizeStart: (event: ReactPointerEvent<HTMLElement>) => void;
+  onResizeStart: (edge: Edge, event: ReactPointerEvent<HTMLElement>) => void;
   onResizeBy: (card: HTMLElement | null, dw: number, dh: number) => void;
   onNudge: (dx: number, dy: number) => void;
   onMeasure: (id: string, height: number) => void;
@@ -531,8 +572,8 @@ function NoteCard({
           <button
             type="button"
             className="note-grip"
-            aria-label="Move note (drag, or arrow keys)"
-            title="Drag to move, or use the arrow keys"
+            aria-label="Move note (drag, or arrow keys); Ctrl+arrow keys resize it"
+            title="Drag to move, or use the arrow keys. Ctrl+arrow keys resize."
             onKeyDown={(e) => {
               const step = e.shiftKey ? KEY_STEP * 4 : KEY_STEP;
               const moves: Record<string, [number, number]> = {
@@ -544,42 +585,14 @@ function NoteCard({
               const delta = moves[e.key];
               if (!delta) return;
               e.preventDefault();
-              onNudge(delta[0], delta[1]);
+              if (e.ctrlKey || e.metaKey) onResizeBy(cardRef.current, delta[0], delta[1]);
+              else onNudge(delta[0], delta[1]);
             }}
           >
             <Grip size={14} />
           </button>
         )}
         <span className="spacer" />
-        <Popover
-          align="right"
-          trigger={({ onClick }) => (
-            <button type="button" className="note-btn" title="Colour" aria-label="Note colour" onClick={onClick}>
-              <Palette size={15} />
-            </button>
-          )}
-        >
-          {(close) => (
-            <div className="note-colors" role="radiogroup" aria-label="Note colour">
-              {NOTE_COLORS.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  role="radio"
-                  aria-checked={note.color === color}
-                  aria-label={COLOR_LABELS[color]}
-                  title={COLOR_LABELS[color]}
-                  className={`note-color-swatch ${note.color === color ? 'is-selected' : ''}`}
-                  data-color={color}
-                  onClick={() => {
-                    onSave({ color });
-                    close();
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </Popover>
         <Popover
           align="right"
           trigger={({ onClick, open }) => (
@@ -598,6 +611,29 @@ function NoteCard({
         >
           {(close) => (
             <div className="note-menu" role="menu" aria-label="Note actions">
+              <div className="note-menu-label">
+                <Palette size={14} />
+                <span>Colour</span>
+              </div>
+              <div className="note-colors" role="radiogroup" aria-label="Note colour">
+                {NOTE_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    role="radio"
+                    aria-checked={note.color === color}
+                    aria-label={COLOR_LABELS[color]}
+                    title={COLOR_LABELS[color]}
+                    className={`note-color-swatch ${note.color === color ? 'is-selected' : ''}`}
+                    data-color={color}
+                    onClick={() => {
+                      onSave({ color });
+                      close();
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="note-menu-sep" role="separator" />
               <button
                 type="button"
                 role="menuitem"
@@ -670,28 +706,16 @@ function NoteCard({
           <span>Turn into tasks</span>
         </button>
       </footer>
-      {movable && (
-        <button
-          type="button"
-          className="note-resize"
-          aria-label="Resize note (drag, or arrow keys)"
-          title="Drag to resize, or use the arrow keys"
-          onPointerDown={onResizeStart}
-          onKeyDown={(e) => {
-            const step = e.shiftKey ? KEY_STEP * 4 : KEY_STEP;
-            const sizes: Record<string, [number, number]> = {
-              ArrowLeft: [-step, 0],
-              ArrowRight: [step, 0],
-              ArrowUp: [0, -step],
-              ArrowDown: [0, step],
-            };
-            const delta = sizes[e.key];
-            if (!delta) return;
-            e.preventDefault();
-            onResizeBy(cardRef.current, delta[0], delta[1]);
-          }}
-        />
-      )}
+      {/* Invisible strips along the border: drag any edge or corner to resize, as with a window. */}
+      {movable &&
+        EDGES.map((edge) => (
+          <span
+            key={edge}
+            className={`note-edge note-edge-${edge}`}
+            aria-hidden="true"
+            onPointerDown={(e) => onResizeStart(edge, e)}
+          />
+        ))}
     </article>
   );
 }
