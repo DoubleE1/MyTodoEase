@@ -133,7 +133,7 @@ export function PriorityPicker({ value, onChange }: { value: Priority; onChange:
   return (
     <Popover
       trigger={({ onClick, open }) => (
-        <button type="button" className={`chip ${open ? 'is-open' : ''}`} onClick={onClick} title={meta.label}>
+        <button type="button" className={`chip ${open ? 'is-open' : ''}`} onClick={onClick} data-tooltip={meta.label}>
           {flag(value)}
           <span>{value < 4 ? `P${value}` : 'Priority'}</span>
         </button>

@@ -40,7 +40,7 @@ export function TitleBar({
           type="button"
           className={`titlebar-btn ${docked ? 'is-active' : ''}`}
           onClick={onToggleDock}
-          title={
+          data-tooltip={
             docked
               ? 'Undock from the right edge'
               : 'Dock to the right edge: other windows stop at it when maximized'
@@ -55,7 +55,7 @@ export function TitleBar({
         type="button"
         className={`titlebar-btn ${alwaysOnTop ? 'is-active' : ''}`}
         onClick={onTogglePin}
-        title={alwaysOnTop ? 'Unpin from top' : 'Keep this window on top of others'}
+        data-tooltip={alwaysOnTop ? 'Unpin from top' : 'Keep this window on top of others'}
         aria-label={alwaysOnTop ? 'Unpin from top' : 'Pin on top'}
         aria-pressed={alwaysOnTop}
       >
@@ -65,7 +65,7 @@ export function TitleBar({
         type="button"
         className={`titlebar-btn ${compact ? 'is-active' : ''}`}
         onClick={onToggleCompact}
-        title={compact ? 'Back to full window' : 'Mini mode: a small window with only today’s tasks'}
+        data-tooltip={compact ? 'Back to full window' : 'Mini mode: a small window with only today’s tasks'}
         aria-label={compact ? 'Back to full window' : 'Switch to mini mode'}
         aria-pressed={compact}
       >

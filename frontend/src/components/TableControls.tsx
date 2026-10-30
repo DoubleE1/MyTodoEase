@@ -386,7 +386,7 @@ export function TableControls({ editor }: { editor: Editor }) {
           type="button"
           className={`table-grip table-grip-col ${menu?.axis === 'column' ? 'is-open' : ''}`}
           style={{ left: place.column.left + place.column.width / 2 - 14, top: place.column.top - 9 }}
-          title="Column options"
+          data-tooltip="Column options"
           aria-label={`Column ${current.col + 1} options`}
           aria-haspopup="menu"
           aria-expanded={menu?.axis === 'column'}
@@ -401,7 +401,7 @@ export function TableControls({ editor }: { editor: Editor }) {
           type="button"
           className={`table-grip table-grip-row ${menu?.axis === 'row' ? 'is-open' : ''}`}
           style={{ left: place.row.left - 9, top: place.row.top + place.row.height / 2 - 14 }}
-          title="Row options"
+          data-tooltip="Row options"
           aria-label={`Row ${current.row + 1} options`}
           aria-haspopup="menu"
           aria-expanded={menu?.axis === 'row'}

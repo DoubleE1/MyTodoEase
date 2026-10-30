@@ -85,7 +85,7 @@ export function Dashboard({ tasks, completions, active, onSelectView }: Dashboar
       aria-label={interactive ? 'Overview. Open insights' : 'Overview'}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
-      title={interactive ? 'Open insights' : undefined}
+      data-tooltip={interactive ? 'Open insights' : undefined}
       onClick={interactive ? openInsights : undefined}
       onKeyDown={
         interactive
@@ -140,7 +140,7 @@ export function Dashboard({ tasks, completions, active, onSelectView }: Dashboar
       <div className="dashboard-week" role="img" aria-label={`${stats.weekTotal} tasks completed in the last 7 days`}>
         <div className="week-bars">
           {stats.week.map((d) => (
-            <div key={d.date} className="week-bar-slot" title={`${d.label}: ${d.count} done`}>
+            <div key={d.date} className="week-bar-slot" data-tooltip={`${d.label}: ${d.count} done`}>
               <div
                 className={`week-bar ${d.date === todayStr() ? 'is-today' : ''} ${d.count === 0 ? 'is-empty' : ''}`}
                 style={{ height: `${Math.max(12, (d.count / maxBar) * 100)}%` }}
@@ -156,7 +156,7 @@ export function Dashboard({ tasks, completions, active, onSelectView }: Dashboar
       </div>
 
       <div className="dashboard-chips">
-        <span className={`stat-chip ${stats.streak > 0 ? 'is-hot' : ''}`} title="Days in a row with at least one task completed">
+        <span className={`stat-chip ${stats.streak > 0 ? 'is-hot' : ''}`} data-tooltip="Days in a row with at least one task completed">
           <Flame size={13} />
           {stats.streak > 0 ? `${stats.streak}-day streak` : 'No streak yet'}
         </span>
@@ -169,7 +169,7 @@ export function Dashboard({ tasks, completions, active, onSelectView }: Dashboar
                 e.stopPropagation();
                 onSelectView({ kind: 'today' });
               }}
-              title="Show overdue tasks"
+              data-tooltip="Show overdue tasks"
             >
               <AlertCircle size={13} />
               {stats.overdue} overdue

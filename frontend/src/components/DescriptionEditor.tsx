@@ -443,7 +443,7 @@ export default function DescriptionEditor({ value, onChange, onSubmit, onCancel,
         type="button"
         className={`desc-mode-btn ${rich ? '' : 'is-pressed'}`}
         aria-pressed={!rich}
-        title={rich ? 'Switch to Markdown (type the symbols yourself)' : 'Switch to rich text'}
+        data-tooltip={rich ? 'Switch to Markdown (type the symbols yourself)' : 'Switch to rich text'}
         onMouseDown={(e) => e.preventDefault()}
         onClick={switchMode}
       >
@@ -498,7 +498,7 @@ function ToolButton({ label, icon: Icon, pressed, onClick }: { label: string; ic
     <button
       type="button"
       className={`desc-tool ${pressed ? 'is-pressed' : ''}`}
-      title={label}
+      data-tooltip={label}
       aria-label={label}
       aria-pressed={pressed}
       // Keep the caret and selection in the text while clicking the toolbar.
@@ -539,7 +539,7 @@ function Menu({
         <button
           type="button"
           className={`desc-tool desc-tool-menu ${pressed ? 'is-pressed' : ''}`}
-          title={label}
+          data-tooltip={label}
           aria-label={label}
           aria-haspopup="menu"
           aria-expanded={open}

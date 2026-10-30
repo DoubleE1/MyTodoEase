@@ -6008,7 +6008,9 @@ p.detail-description {
   font-size: 12px;
   font-weight: 500;
   line-height: 1.35;
-  white-space: nowrap;
+  /* Short labels stay on one line; long ones (event details, file paths) wrap at the max width. */
+  width: max-content;
+  overflow-wrap: anywhere;
   pointer-events: none;
   translate: var(--tip-nudge, 0px) 0;
   animation: tooltip-in 140ms var(--ease-out);

@@ -122,7 +122,7 @@ export function TaskDetail({
           <button
             type="button"
             className="btn detail-continue"
-            title="Mark today's part done and schedule the same task for the next day"
+            data-tooltip="Mark today's part done and schedule the same task for the next day"
             onClick={() => void continueTomorrow()}
             disabled={continuing}
           >
@@ -133,7 +133,7 @@ export function TaskDetail({
         <button
           type="button"
           className="icon-btn"
-          title="Delete task"
+          data-tooltip="Delete task"
           aria-label="Delete task"
           onClick={() => onDeleteTask(task)}
         >

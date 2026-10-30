@@ -176,7 +176,7 @@ export function SettingsDialog({
                   role="radio"
                   aria-checked={accent === p.hex}
                   aria-label={p.label}
-                  title={p.label}
+                  data-tooltip={p.label}
                   className={`color-swatch ${accent === p.hex ? 'is-selected' : ''}`}
                   style={{ background: p.hex }}
                   onClick={() => onSetAccent(p.hex)}
@@ -186,7 +186,7 @@ export function SettingsDialog({
               ))}
               <label
                 className={`color-swatch color-swatch-custom ${isPreset ? '' : 'is-selected'}`}
-                title="Custom color"
+                data-tooltip="Custom color"
                 style={isPreset ? undefined : { background: accent }}
               >
                 <Pipette size={14} />
@@ -227,7 +227,7 @@ export function SettingsDialog({
                   'importing a backup replaces everything currently here. To have them follow you across devices, sign in under Account.'}
           </p>
           {health.data?.storage && (
-            <p className="settings-path" title={health.data.storage}>
+            <p className="settings-path" data-tooltip={health.data.storage}>
               {health.data.storage}
             </p>
           )}

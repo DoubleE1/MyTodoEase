@@ -81,7 +81,7 @@ function ColorGrid({ value, onChange }: { value: string; onChange: (name: string
           role="radio"
           aria-checked={c.name === value}
           aria-label={c.label}
-          title={c.label}
+          data-tooltip={c.label}
           className={`color-swatch ${c.name === value ? 'is-selected' : ''}`}
           style={{ background: c.hex }}
           onClick={() => onChange(c.name)}

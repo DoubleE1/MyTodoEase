@@ -91,7 +91,7 @@ export function TaskItem({
           }}
           onClick={toggle}
           aria-label={completed ? 'Reopen task' : 'Complete task'}
-          title={completed ? 'Reopen' : 'Complete'}
+          data-tooltip={completed ? 'Reopen' : 'Complete'}
         >
           <Check size={12} strokeWidth={3} className="task-check-icon" />
           {completing && celebrate && (
@@ -148,10 +148,10 @@ export function TaskItem({
         </div>
 
         <div className="task-actions">
-          <button type="button" className="icon-btn" title="Edit" aria-label="Edit task" onClick={onOpen}>
+          <button type="button" className="icon-btn" data-tooltip="Edit" aria-label="Edit task" onClick={onOpen}>
             <Pencil size={15} />
           </button>
-          <button type="button" className="icon-btn" title="Delete" aria-label="Delete task" onClick={onDelete}>
+          <button type="button" className="icon-btn" data-tooltip="Delete" aria-label="Delete task" onClick={onDelete}>
             <Trash2 size={15} />
           </button>
         </div>

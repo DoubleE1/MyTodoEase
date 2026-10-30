@@ -145,7 +145,7 @@ export function NoteToTasksDialog({
                   value={row.title}
                   placeholder="Task name"
                   aria-label="Task name"
-                  title={row.source ? `From: ${row.source}` : undefined}
+                  data-tooltip={row.source ? `From: ${row.source}` : undefined}
                   onChange={(e) => patch(row.key, { title: e.target.value, selected: e.target.value.trim() ? row.selected || !row.title : false })}
                 />
                 {row.description && <div className="note-task-desc muted small">{row.description.replace(/\n/g, ' · ')}</div>}
@@ -173,7 +173,7 @@ export function NoteToTasksDialog({
                 type="button"
                 className="icon-btn note-task-remove"
                 aria-label="Remove this suggestion"
-                title="Remove"
+                data-tooltip="Remove"
                 onClick={() => setRows((all) => all.filter((r) => r.key !== row.key))}
               >
                 <Trash2 size={15} />

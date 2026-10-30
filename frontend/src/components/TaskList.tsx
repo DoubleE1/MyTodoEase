@@ -81,7 +81,7 @@ function SortableTask({ task, ...rest }: Omit<TaskItemProps, 'handle' | 'innerRe
           type="button"
           ref={setActivatorNodeRef}
           className="drag-handle"
-          title="Drag to reorder"
+          data-tooltip="Drag to reorder"
           aria-label={`Drag to reorder ${task.content}`}
           {...attributes}
           {...listeners}
@@ -487,7 +487,7 @@ export function TaskList({
               className="btn cal-plan-btn"
               onClick={() => void planToday()}
               disabled={planning}
-              title="Give today's untimed and overdue tasks a time slot in the gaps between your meetings"
+              data-tooltip="Give today's untimed and overdue tasks a time slot in the gaps between your meetings"
             >
               <Sparkles size={14} />
               <span>{planning ? 'Planning…' : 'Plan my day'}</span>
@@ -557,7 +557,7 @@ export function TaskList({
                   <button
                     type="button"
                     className="icon-btn hover-only"
-                    title="Rename section"
+                    data-tooltip="Rename section"
                     aria-label="Rename section"
                     onClick={() => group.section && setRenaming({ id: group.section.id, name: group.section.name })}
                   >
@@ -566,7 +566,7 @@ export function TaskList({
                   <button
                     type="button"
                     className="icon-btn hover-only"
-                    title="Delete section"
+                    data-tooltip="Delete section"
                     aria-label="Delete section"
                     onClick={() => group.section && void deleteSection(group.section)}
                   >
@@ -601,7 +601,7 @@ export function TaskList({
                   <button
                     type="button"
                     className="event-row"
-                    title={`${event.title} · ${event.calendarName}${event.location ? ` · ${event.location}` : ''}`}
+                    data-tooltip={`${event.title} · ${event.calendarName}${event.location ? ` · ${event.location}` : ''}`}
                     onClick={() => {
                       if (!event.htmlLink) return;
                       if (window.mytodoease?.openExternal) void window.mytodoease.openExternal(event.htmlLink);

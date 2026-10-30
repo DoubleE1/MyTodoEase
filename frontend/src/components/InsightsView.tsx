@@ -165,7 +165,7 @@ export function InsightsView({ projects, embedded = false }: InsightsViewProps) 
                         key={cell.date}
                         className={`heat-cell level-${completionLevel(cell.count)} ${cell.date === todayStr() ? 'is-today' : ''}`}
                         style={{ gridColumn: cell.column + 1, gridRow: cell.row + 1 }}
-                        title={`${plural(cell.count, 'task')} on ${format(parseDateStr(cell.date)!, 'EEE d MMM yyyy')}`}
+                        data-tooltip={`${plural(cell.count, 'task')} on ${format(parseDateStr(cell.date)!, 'EEE d MMM yyyy')}`}
                         role="img"
                         aria-label={`${plural(cell.count, 'task')} on ${format(parseDateStr(cell.date)!, 'EEEE d MMMM yyyy')}`}
                       />
@@ -230,7 +230,7 @@ export function InsightsView({ projects, embedded = false }: InsightsViewProps) 
           <h2>By weekday</h2>
           <div className="weekday-bars">
             {stats.byWeekday.map((count, i) => (
-              <div key={WEEKDAY_LABELS[i]} className="weekday-slot" title={`${WEEKDAY_LABELS[i]}: ${plural(count, 'task')}`}>
+              <div key={WEEKDAY_LABELS[i]} className="weekday-slot" data-tooltip={`${WEEKDAY_LABELS[i]}: ${plural(count, 'task')}`}>
                 <span className="weekday-count">{count || ''}</span>
                 <div
                   className={`weekday-bar ${count === 0 ? 'is-empty' : ''} ${count === stats.maxWeekday && count > 0 ? 'is-best' : ''}`}

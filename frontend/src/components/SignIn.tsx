@@ -89,7 +89,7 @@ export function SignInScreen() {
                 <span>Download for macOS</span>
               </a>
             ) : (
-              <span className="btn landing-cta is-disabled" aria-disabled="true" title="The macOS build is not available yet">
+              <span className="btn landing-cta is-disabled" aria-disabled="true" data-tooltip="The macOS build is not available yet">
                 <Apple size={16} />
                 <span>macOS coming soon</span>
               </span>

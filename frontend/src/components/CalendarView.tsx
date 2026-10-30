@@ -107,7 +107,7 @@ function TaskChip({
       type="button"
       ref={draggable ? setNodeRef : undefined}
       className={`cal-chip ${isDragging ? 'is-dragging' : ''} ${overlay ? 'is-overlay' : ''} ${projected ? 'is-projected' : ''} ${done ? 'is-done' : ''}`}
-      title={
+      data-tooltip={
         projected
           ? `${task.content} (repeats here after the current one is completed)`
           : done
@@ -134,7 +134,7 @@ function EventChip({ event }: { event: ExternalEvent }) {
     <button
       type="button"
       className="cal-chip is-event"
-      title={`${event.title} · ${event.calendarName}${event.location ? ` · ${event.location}` : ''}`}
+      data-tooltip={`${event.title} · ${event.calendarName}${event.location ? ` · ${event.location}` : ''}`}
       onClick={() => openExternal(event.htmlLink)}
     >
       <span className="cal-chip-dot cal-event-dot" style={{ background: event.color ?? 'var(--text-muted)', borderColor: event.color ?? 'var(--text-muted)' }} />
@@ -185,7 +185,7 @@ function DayCell({
         <button
           type="button"
           className="icon-btn cal-add"
-          title={`Add task on ${format(day, 'd MMM')}`}
+          data-tooltip={`Add task on ${format(day, 'd MMM')}`}
           aria-label={`Add task on ${format(day, 'd MMMM')}`}
           onClick={() => onAddTask(dateStr)}
         >
@@ -275,7 +275,7 @@ function TimeBlock({
       ref={interactive ? setNodeRef : undefined}
       className={`tl-block ${isDragging ? 'is-dragging' : ''} ${overlay ? 'is-overlay' : ''} ${done ? 'is-done' : ''}`}
       style={style}
-      title={done ? `${task.content} (completed)` : task.content}
+      data-tooltip={done ? `${task.content} (completed)` : task.content}
       role="button"
       tabIndex={0}
       onClick={onOpen}
@@ -302,7 +302,7 @@ function EventBlock({ event, top, height, lane, lanes }: { event: ExternalEvent;
       type="button"
       className="tl-block is-event"
       style={{ top, height: Math.max(22, height), left: `calc(${lane * widthPct}% + 2px)`, width: `calc(${widthPct}% - 4px)`, ['--event-color' as string]: event.color ?? undefined }}
-      title={`${event.title} · ${event.calendarName}${event.location ? ` · ${event.location}` : ''}`}
+      data-tooltip={`${event.title} · ${event.calendarName}${event.location ? ` · ${event.location}` : ''}`}
       onClick={() => openExternal(event.htmlLink)}
     >
       <span className="tl-block-title">{event.title}</span>
@@ -728,7 +728,7 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
                 className="btn cal-plan-btn"
                 onClick={() => void planToday()}
                 disabled={planning}
-                title="Give today's untimed and overdue tasks a time slot in the gaps between your meetings"
+                data-tooltip="Give today's untimed and overdue tasks a time slot in the gaps between your meetings"
               >
                 <Sparkles size={14} />
                 <span>{planning ? 'Planning…' : 'Plan my day'}</span>

@@ -86,7 +86,7 @@ export function McpSection() {
       ) : (
         <>
           {setup.data && (
-            <p className="settings-path mcp-launcher" title={launcher}>
+            <p className="settings-path mcp-launcher" data-tooltip={launcher}>
               <Bot size={12} />
               <span>{launcher}</span>
             </p>
@@ -99,7 +99,7 @@ export function McpSection() {
                   key={snippet.id}
                   type="button"
                   className={`btn ${snippet.id === 'prompt' ? 'btn-primary' : ''}`}
-                  title={snippet.hint}
+                  data-tooltip={snippet.hint}
                   disabled={!ready}
                   onClick={() => void copy(snippet)}
                 >

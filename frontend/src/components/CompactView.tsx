@@ -319,7 +319,7 @@ export function CompactView({
           className={`chip ${open ? 'is-open' : ''}`}
           onClick={onClick}
           aria-label="Choose what the lower pane shows"
-          title="Choose what this pane shows"
+          data-tooltip="Choose what this pane shows"
         >
           {currentOption?.icon}
           <span>{currentOption?.label ?? 'Choose'}</span>
@@ -378,7 +378,7 @@ export function CompactView({
             <button
               type="button"
               className="icon-btn"
-              title="Back to full window"
+              data-tooltip="Back to full window"
               aria-label="Back to full window"
               onClick={onExpand}
             >
@@ -431,7 +431,7 @@ export function CompactView({
             aria-valuemax={Math.round(MAX_RATIO * 100)}
             aria-valuenow={Math.round(ratio * 100)}
             tabIndex={0}
-            title="Drag to resize (or use the arrow keys)"
+            data-tooltip="Drag to resize (or use the arrow keys)"
             onPointerDown={onDividerPointerDown}
             onKeyDown={onDividerKeyDown}
           >
@@ -485,7 +485,7 @@ export function CompactView({
             <button
               type="button"
               className="icon-btn pane-expand"
-              title={`Show ${lower.title}`}
+              data-tooltip={`Show ${lower.title}`}
               aria-label={`Show ${lower.title} pane`}
               onClick={() => setLowerCollapsed(false)}
             >

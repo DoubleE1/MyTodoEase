@@ -33,7 +33,7 @@ export function UpdateBanner() {
         className="icon-btn"
         onClick={() => setDismissed(state.version ?? '')}
         aria-label="Not now"
-        title="Not now"
+        data-tooltip="Not now"
       >
         <X size={14} />
       </button>

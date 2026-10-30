@@ -416,7 +416,7 @@ export function NotesView({
                 <div className="note-text-static">{note.text || <span className="muted">(empty)</span>}</div>
                 <footer className="note-footer">
                   {note.taskIds.length > 0 && (
-                    <button type="button" className="note-task-link" onClick={() => onOpenTask(note.taskIds[0])} title="Open the first task made from this note">
+                    <button type="button" className="note-task-link" onClick={() => onOpenTask(note.taskIds[0])} data-tooltip="Open the first task made from this note">
                       <ListTodo size={13} />
                       <span>
                         {note.taskIds.length} task{note.taskIds.length === 1 ? '' : 's'}
@@ -427,13 +427,13 @@ export function NotesView({
                   <button
                     type="button"
                     className="note-btn"
-                    title="Put back on the board"
+                    data-tooltip="Put back on the board"
                     aria-label="Restore note"
                     onClick={() => save(note, { isArchived: false, order: topOrder + 1 })}
                   >
                     <ArchiveRestore size={15} />
                   </button>
-                  <button type="button" className="note-btn" title="Delete note" aria-label="Delete note" onClick={() => void remove(note)}>
+                  <button type="button" className="note-btn" data-tooltip="Delete note" aria-label="Delete note" onClick={() => void remove(note)}>
                     <Trash2 size={15} />
                   </button>
                 </footer>
@@ -567,13 +567,13 @@ function NoteCard({
       }}
     >
       {/* Header bar: drag the note by it (like the top bar of Windows Sticky Notes); it holds the note's buttons. */}
-      <header className="note-head" title={movable ? 'Drag to move' : undefined}>
+      <header className="note-head" data-tooltip={movable ? 'Drag to move' : undefined}>
         {movable && (
           <button
             type="button"
             className="note-grip"
             aria-label="Move note (drag, or arrow keys); Ctrl+arrow keys resize it"
-            title="Drag to move, or use the arrow keys. Ctrl+arrow keys resize."
+            data-tooltip="Drag to move, or use the arrow keys. Ctrl+arrow keys resize."
             onKeyDown={(e) => {
               const step = e.shiftKey ? KEY_STEP * 4 : KEY_STEP;
               const moves: Record<string, [number, number]> = {
@@ -599,7 +599,7 @@ function NoteCard({
             <button
               type="button"
               className={`note-btn ${open ? 'is-open' : ''}`}
-              title="More"
+              data-tooltip="More"
               aria-label="More note actions"
               aria-haspopup="menu"
               aria-expanded={open}
@@ -623,7 +623,7 @@ function NoteCard({
                     role="radio"
                     aria-checked={note.color === color}
                     aria-label={COLOR_LABELS[color]}
-                    title={COLOR_LABELS[color]}
+                    data-tooltip={COLOR_LABELS[color]}
                     className={`note-color-swatch ${note.color === color ? 'is-selected' : ''}`}
                     data-color={color}
                     onClick={() => {
@@ -682,7 +682,7 @@ function NoteCard({
         }}
       />
       <footer className="note-footer">
-        <span className="note-meta" title={note.updatedAt ? `Edited ${new Date(note.updatedAt).toLocaleString()}` : undefined}>
+        <span className="note-meta" data-tooltip={note.updatedAt ? `Edited ${new Date(note.updatedAt).toLocaleString()}` : undefined}>
           {note.taskIds.length > 0 ? (
             <>
               <ListTodo size={13} /> {note.taskIds.length} task{note.taskIds.length === 1 ? '' : 's'} made
@@ -694,7 +694,7 @@ function NoteCard({
         <button
           type="button"
           className="note-convert"
-          title="Suggest tasks from this note; you review them before anything is created"
+          data-tooltip="Suggest tasks from this note; you review them before anything is created"
           disabled={!text.trim()}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
