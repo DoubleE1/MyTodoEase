@@ -268,12 +268,27 @@ export function SettingsDialog({
 function ReduceMotionToggle() {
   const [reduce, setReduce] = useReduceMotionSetting();
   return (
-    <label className="settings-toggle settings-motion">
-      <input type="checkbox" checked={reduce} onChange={(e) => setReduce(e.target.checked)} />
-      <span>
-        <strong>Reduce motion</strong>
-        <span className="muted small">Turns off animations such as list movement, pop-ups and the completion effect.</span>
-      </span>
-    </label>
+    <div className="settings-field">
+      <span className="settings-field-label">Motion</span>
+      <div className="settings-switch-row">
+        <span className="settings-switch-text" id="reduce-motion-label">
+          <span>Reduce motion</span>
+          <span className="muted small" id="reduce-motion-hint">
+            Turns off animations such as list movement, pop-ups and the completion effect.
+          </span>
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={reduce}
+          aria-labelledby="reduce-motion-label"
+          aria-describedby="reduce-motion-hint"
+          className={`switch ${reduce ? 'is-on' : ''}`}
+          onClick={() => setReduce(!reduce)}
+        >
+          <span className="switch-thumb" />
+        </button>
+      </div>
+    </div>
   );
 }

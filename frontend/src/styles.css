@@ -6417,3 +6417,61 @@ p.detail-description {
 .sidebar.is-rail .sidebar-footer .profile-btn {
   width: 40px;
 }
+
+/* Settings: a row with a label and description on the left and an on/off switch on the right. */
+.settings-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  max-width: 520px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.settings-switch-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: var(--border-strong, color-mix(in srgb, var(--text) 25%, transparent));
+  cursor: pointer;
+  transition: background-color var(--dur-base) var(--ease-out);
+}
+
+.switch.is-on {
+  background: var(--accent);
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: translate var(--dur-base) var(--ease-spring);
+}
+
+.switch.is-on .switch-thumb {
+  translate: 16px 0;
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
