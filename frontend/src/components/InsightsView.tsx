@@ -11,6 +11,7 @@ import {
 import { Award, CalendarCheck, Flame, LayoutGrid, Sparkles, TreePine, TrendingUp } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useCompletions } from '../api/hooks';
+import { HourHeatmap } from './HourHeatmap';
 import type { CompletionItem, Project } from '../api/types';
 import { colorHex } from '../lib/colors';
 import { parseDateStr, toDateStr, todayStr } from '../lib/dates';
@@ -274,6 +275,8 @@ export function InsightsView({ projects, embedded = false }: InsightsViewProps) 
           )}
         </section>
       </div>
+
+      <HourHeatmap items={items} />
     </div>
   );
 }
