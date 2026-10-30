@@ -140,9 +140,12 @@ function saveSettings() {
   }
 }
 
-/** Default placement for the mini window: top-right corner of the primary work area. */
+/**
+ * Default placement for the mini window: top-right corner of the work area of the screen the window is on
+ * (the primary screen before there is a window), so undocking on a second screen stays on that screen.
+ */
 function defaultCompactBounds() {
-  const area = screen.getPrimaryDisplay().workArea;
+  const area = (win ? screen.getDisplayMatching(win.getBounds()) : screen.getPrimaryDisplay()).workArea;
   return {
     ...COMPACT_DEFAULT,
     x: area.x + area.width - COMPACT_DEFAULT.width - 16,
@@ -299,7 +302,9 @@ async function applyAppBar() {
   dockApplying = true;
   try {
     const bounds = win.getBounds();
-    const scale = screen.getDisplayMatching(bounds).scaleFactor || 1;
+    // The helper docks on the screen nearest the window's centre; use that screen's scaling for the width.
+    const centre = { x: Math.round(bounds.x + bounds.width / 2), y: Math.round(bounds.y + bounds.height / 2) };
+    const scale = screen.getDisplayNearestPoint(centre).scaleFactor || 1;
     const width = dockedBounds ? dockedBounds.width : bounds.width;
     const result = await runAppBar(['set', windowHandle(), String(Math.round(width * scale))]);
     console.log('[dock] helper set ->', result.ok ? result.stdout : result.error);
@@ -314,12 +319,13 @@ async function applyAppBar() {
       console.error('Docking failed: unexpected helper output', result.stdout);
       return false;
     }
-    const origin = screen.screenToDipPoint({ x: l, y: t });
+    // Convert with the scaling of the screen the strip is on (it can differ from the main screen's).
+    const dip = screen.screenToDipRect(null, { x: l, y: t, width: w, height: h });
     const strip = {
-      x: Math.round(origin.x),
-      y: Math.round(origin.y),
-      width: Math.round(w / scale),
-      height: Math.round(h / scale),
+      x: Math.round(dip.x),
+      y: Math.round(dip.y),
+      width: Math.round(dip.width),
+      height: Math.round(dip.height),
     };
     // Put the *visible* area exactly on the strip. Windows adds invisible resize borders around the
     // frame; positioning the frame instead would leave a thin gap next to the neighbouring window.
@@ -503,6 +509,19 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+
+  // A screen plugged in, unplugged, rescaled or resized while docked: fit the strip to its screen again.
+  // Windows moves the window off a screen that goes away, so this also re-docks it on the screen it lands on.
+  const refitDock = () => {
+    if (!settings.docked) return;
+    clearTimeout(dockReassertTimer);
+    dockReassertTimer = setTimeout(() => {
+      if (settings.docked) void applyAppBar();
+    }, 500);
+  };
+  screen.on('display-added', refitDock);
+  screen.on('display-removed', refitDock);
+  screen.on('display-metrics-changed', refitDock);
 });
 
 app.on('window-all-closed', () => {

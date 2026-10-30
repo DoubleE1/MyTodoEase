@@ -5,6 +5,11 @@ using System.Runtime.InteropServices;
 //   MyTodoEase.AppBar remove <hwnd>          release the strip
 // hwnd is the native window handle as a decimal number; width is in physical pixels.
 
+// Work in real pixels on every monitor. Without this the process is DPI-unaware and Windows scales the
+// coordinates of any monitor whose scaling differs from the main one, so on an extended screen the strip
+// was reserved and the window placed at the wrong size and position.
+Native.SetProcessDpiAwarenessContext(Native.DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
 if (args.Length < 2 || !long.TryParse(args[1], out var handle))
 {
     Console.Error.WriteLine("usage: set <hwnd> <widthPx> | remove <hwnd>");
@@ -87,6 +92,7 @@ static class AppBar
 static class Native
 {
     public const uint MONITOR_DEFAULTTONEAREST = 2;
+    public static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new(-4);
 
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT { public int left, top, right, bottom; }
@@ -115,5 +121,6 @@ static class Native
     [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
     [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+    [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr value);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 }
