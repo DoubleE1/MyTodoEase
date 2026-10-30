@@ -20,10 +20,12 @@ import type { ExternalEvent } from '../api/types';
 import {
   CalendarDays,
   Check,
+  Columns3,
   ChevronDown,
   Flag,
   GripVertical,
   Layers,
+  List,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -36,6 +38,7 @@ import {
 import { inboxTasks, setInboxFilter, useInboxFilter, type InboxFilter } from '../lib/inboxFilter';
 import {
   DEFAULT_VIEW_OPTIONS,
+  isDefaultOptions,
   setViewOptions,
   sortTasks,
   useViewOptions,
@@ -47,6 +50,7 @@ import {
 import { colorHex, PRIORITY_META } from '../lib/colors';
 import type { Priority } from '../api/types';
 import { ProjectIcon } from './Pickers';
+import { BoardView, type BoardColumn } from './BoardView';
 import { Popover } from './Popover';
 import { useRef, useState, type ReactNode } from 'react';
 import { useSectionMutations, useTaskMutations } from '../api/hooks';
@@ -212,7 +216,8 @@ function ViewOptionsMenu({
   // A choice that matches the page's default is the same thing; drop the duplicate row.
   const dedupe = <T extends string>(choices: [T, string][]) =>
     choices.filter(([value, label], i) => i === 0 || value === 'default' || label !== choices[0][1]);
-  const customized = options.groupBy !== 'default' || options.sortBy !== 'default';
+  const customized = !isDefaultOptions(options);
+  const layout = options.layout ?? 'list';
   const row = <T extends string>(
     selected: T,
     value: T,
@@ -242,7 +247,7 @@ function ViewOptionsMenu({
           aria-haspopup="menu"
           aria-expanded={open}
           aria-label={customized ? 'View options (customized)' : 'View options'}
-          data-tooltip="Group and sort"
+          data-tooltip="Layout, group and sort"
         >
           <SlidersHorizontal size={16} />
         </button>
@@ -250,6 +255,28 @@ function ViewOptionsMenu({
     >
       {(close) => (
         <div className="picker view-options" role="menu" aria-label="View options">
+          <div className="picker-heading" role="presentation">Layout</div>
+          <div className="segmented view-layout" role="radiogroup" aria-label="Layout">
+            {(
+              [
+                ['list', 'List', <List key="l" size={14} />],
+                ['board', 'Board', <Columns3 key="b" size={14} />],
+              ] as const
+            ).map(([value, label, icon]) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={layout === value}
+                className={`segmented-option ${layout === value ? 'is-selected' : ''}`}
+                onClick={() => onChange({ ...options, layout: value })}
+              >
+                {icon}
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="menu-sep" role="separator" />
           <div className="picker-heading" role="presentation">Group by</div>
           <div role="group" aria-label="Group by">
             {dedupe(groupChoices).map(([value, label]) =>
@@ -638,7 +665,9 @@ export function TaskList({
         break;
       }
     }
-    const nonEmpty = groups.filter((g) => g.tasks.length > 0);
+    // On a board every priority and project keeps its column, even when empty, so cards can be moved into it.
+    const keepEmpty = (viewOptions.layout ?? 'list') === 'board' && (groupBy === 'priority' || groupBy === 'project');
+    const nonEmpty = groups.filter((g) => g.tasks.length > 0 || keepEmpty);
     return nonEmpty.length > 0
       ? nonEmpty
       : [{ key: 'all', title: null, tasks: [], defaults: baseDefaults, nested, emptyText }];
@@ -823,6 +852,80 @@ export function TaskList({
   const subtitle = view.kind === 'today' ? format(new Date(), 'EEEE d MMMM') : null;
   const totalShown = groups.reduce((n, g) => n + g.tasks.length, 0);
 
+  const renderAdd = (group: Group) =>
+    group.defaults ? (
+      addingIn === group.key ? (
+        <TaskEditor
+          mode="create"
+          defaults={group.defaults}
+          {...editorProps}
+          keepOpenAfterSubmit
+          onSubmit={(input) => taskMut.create.mutateAsync(input)}
+          onCancel={() => setAddingIn(null)}
+        />
+      ) : (
+        <button type="button" className="add-task-btn" onClick={() => setAddingIn(group.key)}>
+          <Plus size={16} />
+          <span>Add task</span>
+        </button>
+      )
+    ) : null;
+
+  // ----- Board layout: one column per group -----
+
+  const isBoard = (viewOptions.layout ?? 'list') === 'board';
+
+  /** What dropping a card in this column sets; null when the column cannot take cards (Overdue, Later, labels). */
+  const dropChange = (group: Group): Partial<TaskInput> | null => {
+    if (group.isOverdue) return null;
+    if (group.section) return { projectId: group.section.projectId, sectionId: group.section.id };
+    const key = group.key;
+    if (key === NO_SECTION_KEY) return { sectionId: null };
+    let m: RegExpExecArray | null;
+    if ((m = /^(?:by-)?project:(.+)$/.exec(key))) return { projectId: m[1], sectionId: null };
+    if ((m = /^by-priority:([1-4])$/.exec(key))) return { priority: Number(m[1]) as Priority };
+    if (key === 'by-date:none') return { dueDate: null, startDate: '' };
+    if ((m = /^by-date:(\d{4}-\d{2}-\d{2})$/.exec(key))) return { dueDate: m[1] };
+    if (/^\d{4}-\d{2}-\d{2}$/.test(key)) return { dueDate: key };
+    if (key === 'today') return { dueDate: today };
+    return null;
+  };
+
+  const columnTitle = (group: Group) =>
+    group.title ?? (view.kind === 'today' ? 'Today' : view.kind === 'project' || view.kind === 'inbox' ? 'No section' : title);
+
+  const boardColumns: BoardColumn[] = isBoard
+    ? groups.map((group) => ({
+        key: group.key,
+        title: columnTitle(group),
+        icon: group.icon,
+        tasks: group.tasks,
+        accepts: dropChange(group) !== null,
+        emptyText: group.emptyText,
+      }))
+    : [];
+
+  /** Drop or "Move to…": set the column's field; sub-tasks follow their parent to another project or section. */
+  const moveToColumn = (task: Task, column: BoardColumn) => {
+    const group = groups.find((g) => g.key === column.key);
+    const change = group ? dropChange(group) : null;
+    if (!change) return;
+    const changes = [{ task, input: { ...taskToInput(task), ...change } }];
+    if ('projectId' in change || 'sectionId' in change) {
+      for (const child of childrenOf(task.id)) {
+        changes.push({
+          task: child,
+          input: {
+            ...taskToInput(child),
+            projectId: change.projectId ?? child.projectId,
+            sectionId: change.sectionId === undefined ? child.sectionId : change.sectionId,
+          },
+        });
+      }
+    }
+    void taskMut.updateMany(`moved “${task.content}” to ${column.title}`, changes);
+  };
+
   const renderGroupTasks = (group: Group) => {
     if (!isProjectView || !group.sortable) {
       return <AnimatedList className="task-list">{group.tasks.map((task) => renderTask(task, group.nested, false))}</AnimatedList>;
@@ -838,7 +941,7 @@ export function TaskList({
   };
 
   const content = (
-    <div className="view">
+    <div className={`view ${isBoard ? 'is-board' : ''}`}>
       <header className="view-header">
         <div className="view-header-row">
           <h1>{title}</h1>
@@ -867,7 +970,17 @@ export function TaskList({
         {view.kind === 'search' && <p className="muted">{totalShown} result{totalShown === 1 ? '' : 's'}</p>}
       </header>
 
-      {groups.map((group) => (
+      {isBoard ? (
+        <BoardView
+          columns={boardColumns}
+          renderCard={(task) => renderTask(task, false, false)}
+          renderAdd={(column) => {
+            const group = groups.find((g) => g.key === column.key);
+            return group ? renderAdd(group) : null;
+          }}
+          onMove={moveToColumn}
+        />
+      ) : groups.map((group) => (
         <section key={group.key} className="task-group">
           {group.isOverdue ? (
             <div className="group-header">
@@ -996,22 +1109,7 @@ export function TaskList({
             <p className="empty">{group.emptyText}</p>
           )}
 
-          {group.defaults &&
-            (addingIn === group.key ? (
-              <TaskEditor
-                mode="create"
-                defaults={group.defaults}
-                {...editorProps}
-                keepOpenAfterSubmit
-                onSubmit={(input) => taskMut.create.mutateAsync(input)}
-                onCancel={() => setAddingIn(null)}
-              />
-            ) : (
-              <button type="button" className="add-task-btn" onClick={() => setAddingIn(group.key)}>
-                <Plus size={16} />
-                <span>Add task</span>
-              </button>
-            ))}
+          {renderAdd(group)}
             </>
           )}
         </section>
@@ -1058,7 +1156,8 @@ export function TaskList({
     </div>
   );
 
-  if (!isProjectView) return content;
+  // The board runs its own drag and drop; the list's sortable context is for the list layout only.
+  if (!isProjectView || isBoard) return content;
 
   return (
     <DndContext

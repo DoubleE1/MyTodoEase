@@ -7427,3 +7427,124 @@ body.is-resizing-span * {
   margin-top: 8px;
   min-height: 1.4em;
 }
+
+/* ---- Board layout (View options > Layout > Board) ---- */
+
+.view-layout {
+  margin: 2px 6px 6px;
+}
+
+/* Columns side by side; the board scrolls sideways when they do not fit. */
+.board {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scroll-snap-type: x proximity;
+}
+
+.board-column {
+  flex: 0 0 272px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-sidebar);
+  scroll-snap-align: start;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.board-column.is-over {
+  border-color: var(--accent);
+  background: var(--bg-active);
+}
+
+/* While dragging, columns that cannot take the card fade back. */
+.board-column.is-locked {
+  opacity: 0.55;
+}
+
+.board-column-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+}
+
+.board-column-head h2 {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 40px;
+}
+
+.board-card {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+  cursor: grab;
+  touch-action: none;
+}
+
+.board-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.board-card .task-item {
+  border-bottom: 0;
+  padding-right: 30px;
+}
+
+.board-card.is-dragging {
+  opacity: 0.3;
+}
+
+.board-card.is-overlay {
+  width: 252px;
+  box-shadow: var(--shadow);
+  cursor: grabbing;
+}
+
+.board-move {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  opacity: 0;
+}
+
+.board-card:hover .board-move,
+.board-card:focus-within .board-move,
+.board-move.is-open {
+  opacity: 1;
+}
+
+.board-empty {
+  padding: 10px 4px;
+}
+
+.board-column .add-task-btn {
+  padding-left: 4px;
+}
+
+/* A board page uses the full width of the window for its columns. */
+.view.is-board {
+  max-width: none;
+}
+
+/* A card holds one task row (a list item outside a list): no bullet. */
+.board-card > li {
+  list-style: none;
+}

@@ -11,12 +11,19 @@ import { sortForAgenda, type View } from './views';
 export type GroupBy = 'default' | 'none' | 'project' | 'date' | 'priority' | 'label';
 export type SortBy = 'default' | 'date' | 'priority' | 'name' | 'added';
 
+export type Layout = 'list' | 'board';
+
 export interface ViewOptions {
   groupBy: GroupBy;
   sortBy: SortBy;
+  /** Rows (list) or one column per group (board). Older saved options have no layout: list. */
+  layout?: Layout;
 }
 
-export const DEFAULT_VIEW_OPTIONS: ViewOptions = { groupBy: 'default', sortBy: 'default' };
+export const DEFAULT_VIEW_OPTIONS: ViewOptions = { groupBy: 'default', sortBy: 'default', layout: 'list' };
+
+/** True when a page is shown exactly as it is by default (nothing worth remembering). */
+export const isDefaultOptions = (o: ViewOptions) => o.groupBy === 'default' && o.sortBy === 'default' && (o.layout ?? 'list') === 'list';
 
 const STORAGE_KEY = 'todoease.viewOptions';
 const listeners = new Set<() => void>();
@@ -41,7 +48,7 @@ export function viewOptionsKey(view: View): string {
 
 export function setViewOptions(key: string, options: ViewOptions) {
   const next = { ...current };
-  if (options.groupBy === 'default' && options.sortBy === 'default') delete next[key];
+  if (isDefaultOptions(options)) delete next[key];
   else next[key] = options;
   current = next;
   try {
