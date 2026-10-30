@@ -3967,10 +3967,10 @@ p.detail-description {
   background: color-mix(in srgb, var(--bg-canvas) 62%, #000);
 }
 
-/* Zoom controls, bottom left of the canvas. */
+/* Zoom controls, bottom right of the canvas. */
 .notes-zoombar {
   position: absolute;
-  left: 16px;
+  right: 16px;
   bottom: 16px;
   z-index: 5;
   display: flex;
@@ -3984,6 +3984,11 @@ p.detail-description {
   backdrop-filter: blur(14px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
   cursor: default;
+}
+
+/* Toasts (also bottom right) sit above the zoom controls on the Notes page. */
+.app:has(.notes-zoombar) .toasts {
+  bottom: 72px;
 }
 
 .notes-zoom-level {
