@@ -18,6 +18,7 @@ import {
 import type { Label, Project, Task } from './api/types';
 import { CommandPalette } from './components/CommandPalette';
 import { CompactView } from './components/CompactView';
+import { KeyboardShortcutsDialog } from './components/KeyboardShortcuts';
 import { ConfirmDialog, LabelDialog, Modal, ProjectDialog, type ConfirmOptions } from './components/Dialogs';
 import { Sidebar } from './components/Sidebar';
 import { TaskDetail } from './components/TaskDetail';
@@ -46,6 +47,7 @@ type Dialog =
   | { kind: 'quick-add'; dueDate?: string; dueTime?: string; content?: string }
   | { kind: 'settings' }
   | { kind: 'palette' }
+  | { kind: 'shortcuts' }
   | null;
 
 /** Promise-based confirm so callers can `await confirm(...)` and the UI stays a plain modal. */
@@ -101,6 +103,7 @@ export default function App() {
   useHotkey('settings', () => setDialog({ kind: 'settings' }));
   useHotkey('quickAdd', () => setDialog({ kind: 'quick-add' }), !dialog && !openTaskId);
   useHotkey('search', () => setDialog({ kind: 'palette' }), !dialog && !openTaskId && !windowMode.compact);
+  useHotkey('shortcuts', () => setDialog({ kind: 'shortcuts' }), dialog?.kind !== 'shortcuts');
 
   const createLabel = useCallback((name: string) => labelMut.create.mutateAsync({ name }), [labelMut.create]);
 
@@ -330,6 +333,7 @@ export default function App() {
           onAddProject={() => setDialog({ kind: 'project' })}
           onAddLabel={() => setDialog({ kind: 'label' })}
           onOpenSettings={() => setDialog({ kind: 'settings' })}
+          onOpenShortcuts={() => setDialog({ kind: 'shortcuts' })}
           onToggleTheme={() =>
             theme.setPreference(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark')
           }
@@ -337,6 +341,8 @@ export default function App() {
           onCompact={windowMode.isDesktop ? () => void windowMode.setCompact(true) : undefined}
         />
       )}
+
+      {dialog?.kind === 'shortcuts' && <KeyboardShortcutsDialog onClose={closeDialog} />}
 
       {dialog?.kind === 'settings' && (
         <Suspense fallback={null}>

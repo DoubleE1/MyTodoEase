@@ -5,6 +5,7 @@ import {
   CircleCheck,
   FolderPlus,
   Inbox,
+  Keyboard,
   Minimize2,
   Plus,
   Search,
@@ -118,6 +119,7 @@ export interface CommandPaletteProps {
   onAddProject: () => void;
   onAddLabel: () => void;
   onOpenSettings: () => void;
+  onOpenShortcuts: () => void;
   onToggleTheme: () => void;
   /** Full-text task search on the main page (the old sidebar search box). */
   onShowAllResults: (query: string) => void;
@@ -136,6 +138,7 @@ export function CommandPalette({
   onAddProject,
   onAddLabel,
   onOpenSettings,
+  onOpenShortcuts,
   onToggleTheme,
   onShowAllResults,
   onCompact,
@@ -253,6 +256,7 @@ export function CommandPalette({
       ...(onCompact
         ? [{ key: 'action:mini', type: 'action' as const, icon: <Minimize2 size={16} />, title: 'Switch to mini mode', run: () => close(onCompact) }]
         : []),
+      { key: 'action:shortcuts', type: 'action', icon: <Keyboard size={16} />, title: 'Keyboard shortcuts', hotkey: 'shortcuts', run: () => close(onOpenShortcuts) },
       { key: 'action:settings', type: 'action', icon: <Settings size={16} />, title: 'Open Settings', hotkey: 'settings', run: () => close(onOpenSettings) },
     ];
 

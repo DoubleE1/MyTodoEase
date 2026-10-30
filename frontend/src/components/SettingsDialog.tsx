@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bot, CalendarDays, Check, Database, Download, Info, Keyboard, Monitor, Moon, Palette, Pipette, Sun, Upload, UserRound } from 'lucide-react';
+import { Bot, CalendarDays, Check, Database, Download, Info, Keyboard, Monitor, Moon, Palette, Pipette, Search, Sun, Upload, UserRound } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { IS_WEB_APP } from '../api/backend';
 import { api, ApiError } from '../api/client';
@@ -13,7 +13,7 @@ import { Modal } from './Dialogs';
 import { CalendarSyncSection } from './CalendarSyncSection';
 import { CloudAccountSection } from './CloudAccountSection';
 import { McpSection } from './McpSection';
-import { ShortcutsSection } from './ShortcutsSection';
+import { ShortcutsPanel } from './KeyboardShortcuts';
 import { useCloudUser } from './SessionGate';
 import { AboutSection } from './AboutSection';
 
@@ -25,14 +25,45 @@ const THEMES: { value: ThemePreference; label: string; icon: ReactNode }[] = [
 
 type SettingsTab = 'appearance' | 'shortcuts' | 'account' | 'calendar' | 'ai' | 'data' | 'about';
 
-const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
-  { id: 'appearance', label: 'Appearance', icon: <Palette size={16} /> },
-  { id: 'shortcuts', label: 'Shortcuts', icon: <Keyboard size={16} /> },
-  { id: 'account', label: 'Account', icon: <UserRound size={16} /> },
-  { id: 'calendar', label: 'Google Calendar', icon: <CalendarDays size={16} /> },
-  { id: 'ai', label: 'AI assistants', icon: <Bot size={16} /> },
-  { id: 'data', label: 'Data', icon: <Database size={16} /> },
-  { id: 'about', label: 'About', icon: <Info size={16} /> },
+/** The nav, grouped like a desktop app's preferences. `keywords` feed the search box at the top of the nav. */
+const TAB_GROUPS: { title: string; tabs: { id: SettingsTab; label: string; icon: ReactNode; keywords: string }[] }[] = [
+  {
+    title: 'Preferences',
+    tabs: [
+      {
+        id: 'appearance',
+        label: 'Appearance',
+        icon: <Palette size={16} />,
+        keywords: 'theme light dark system accent color colour motion animation reduce sidebar insights card',
+      },
+      {
+        id: 'shortcuts',
+        label: 'Shortcuts',
+        icon: <Keyboard size={16} />,
+        keywords: 'keyboard hotkey keybind shortcut search quick add settings collapse sidebar',
+      },
+    ],
+  },
+  {
+    title: 'Account & sync',
+    tabs: [
+      { id: 'account', label: 'Account', icon: <UserRound size={16} />, keywords: 'sign in google cloud sync log out email' },
+      {
+        id: 'calendar',
+        label: 'Google Calendar',
+        icon: <CalendarDays size={16} />,
+        keywords: 'calendar events google sync meetings',
+      },
+      { id: 'ai', label: 'AI assistants', icon: <Bot size={16} />, keywords: 'mcp claude ai assistant chatgpt cursor' },
+    ],
+  },
+  {
+    title: 'App',
+    tabs: [
+      { id: 'data', label: 'Data', icon: <Database size={16} />, keywords: 'backup export import restore storage file' },
+      { id: 'about', label: 'About', icon: <Info size={16} />, keywords: 'version update release about' },
+    ],
+  },
 ];
 
 function backupFileName() {
@@ -80,6 +111,15 @@ export function SettingsDialog({
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<'export' | 'import' | null>(null);
   const [tab, setTab] = useState<SettingsTab>('appearance');
+  const [navQuery, setNavQuery] = useState('');
+  const q = navQuery.trim().toLowerCase();
+  const shownGroups = TAB_GROUPS.map((g) => ({
+    ...g,
+    tabs: g.tabs.filter((t) => !q || `${t.label} ${t.keywords}`.toLowerCase().includes(q)),
+  })).filter((g) => g.tabs.length > 0);
+  const firstMatch = shownGroups[0]?.tabs[0]?.id;
+  // While searching, show the best match unless the current page still matches.
+  const activeTab = q && firstMatch && !shownGroups.some((g) => g.tabs.some((t) => t.id === tab)) ? firstMatch : tab;
 
   const exportBackup = async () => {
     setBusy('export');
@@ -134,92 +174,127 @@ export function SettingsDialog({
   return (
     <Modal title="Settings" onClose={onClose} className="modal-settings">
       <div className="settings">
-        <nav className="settings-nav" role="tablist" aria-label="Settings sections">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.id}
-              className={`settings-tab ${tab === t.id ? 'is-active' : ''}`}
-              onClick={() => setTab(t.id)}
-            >
-              {t.icon}
-              <span>{t.label}</span>
-            </button>
+        <nav className="settings-nav" aria-label="Settings sections">
+          <label className="settings-search">
+            <Search size={14} aria-hidden="true" />
+            <input
+              value={navQuery}
+              onChange={(e) => setNavQuery(e.target.value)}
+              placeholder="Search"
+              aria-label="Search settings"
+            />
+          </label>
+          {shownGroups.length === 0 && <p className="settings-nav-empty muted small">No settings match.</p>}
+          {shownGroups.map((group) => (
+            <div key={group.title} className="settings-nav-group" role="tablist" aria-label={group.title}>
+              <div className="settings-nav-heading">{group.title}</div>
+              {group.tabs.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === t.id}
+                  className={`settings-tab ${activeTab === t.id ? 'is-active' : ''}`}
+                  onClick={() => setTab(t.id)}
+                >
+                  {t.icon}
+                  <span>{t.label}</span>
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="settings-pane" role="tabpanel">
-        {tab === 'appearance' && (
+        {activeTab === 'appearance' && (
         <section className="settings-section">
           <h3>Appearance</h3>
-          <div className="segmented" role="radiogroup" aria-label="Theme">
-            {THEMES.map((t) => (
-              <button
-                key={t.value}
-                type="button"
-                role="radio"
-                aria-checked={themePreference === t.value}
-                className={`segmented-option ${themePreference === t.value ? 'is-selected' : ''}`}
-                onClick={() => onSetTheme(t.value)}
-              >
-                {t.icon}
-                <span>{t.label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="settings-field">
-            <span className="settings-field-label">Accent color</span>
-            <div className="color-grid accent-grid" role="radiogroup" aria-label="Accent color">
-              {ACCENT_PRESETS.map((p) => (
-                <button
-                  key={p.hex}
-                  type="button"
-                  role="radio"
-                  aria-checked={accent === p.hex}
-                  aria-label={p.label}
-                  data-tooltip={p.label}
-                  className={`color-swatch ${accent === p.hex ? 'is-selected' : ''}`}
-                  style={{ background: p.hex }}
-                  onClick={() => onSetAccent(p.hex)}
+          <div className="settings-group">
+            <SettingRow title="Theme" description="Light, dark, or follow your computer's setting.">
+              <div className="segmented" role="radiogroup" aria-label="Theme">
+                {THEMES.map((t) => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={themePreference === t.value}
+                    className={`segmented-option ${themePreference === t.value ? 'is-selected' : ''}`}
+                    onClick={() => onSetTheme(t.value)}
+                  >
+                    {t.icon}
+                    <span>{t.label}</span>
+                  </button>
+                ))}
+              </div>
+            </SettingRow>
+            <SettingRow
+              title="Accent color"
+              description="Buttons, highlights and the selected page."
+              stacked
+              extra={
+                accent !== DEFAULT_ACCENT && (
+                  <button type="button" className="link-btn" onClick={() => onSetAccent(DEFAULT_ACCENT)}>
+                    Reset to default
+                  </button>
+                )
+              }
+            >
+              <div className="color-grid accent-grid" role="radiogroup" aria-label="Accent color">
+                {ACCENT_PRESETS.map((p) => (
+                  <button
+                    key={p.hex}
+                    type="button"
+                    role="radio"
+                    aria-checked={accent === p.hex}
+                    aria-label={p.label}
+                    data-tooltip={p.label}
+                    className={`color-swatch ${accent === p.hex ? 'is-selected' : ''}`}
+                    style={{ background: p.hex }}
+                    onClick={() => onSetAccent(p.hex)}
+                  >
+                    {accent === p.hex && <Check size={14} />}
+                  </button>
+                ))}
+                <label
+                  className={`color-swatch color-swatch-custom ${isPreset ? '' : 'is-selected'}`}
+                  data-tooltip="Custom color"
+                  style={isPreset ? undefined : { background: accent }}
                 >
-                  {accent === p.hex && <Check size={14} />}
-                </button>
-              ))}
-              <label
-                className={`color-swatch color-swatch-custom ${isPreset ? '' : 'is-selected'}`}
-                data-tooltip="Custom color"
-                style={isPreset ? undefined : { background: accent }}
-              >
-                <Pipette size={14} />
-                <input
-                  type="color"
-                  value={accent}
-                  aria-label="Custom accent color"
-                  onChange={(event) => onSetAccent(event.target.value)}
-                />
-              </label>
-            </div>
-            {accent !== DEFAULT_ACCENT && (
-              <button type="button" className="link-btn" onClick={() => onSetAccent(DEFAULT_ACCENT)}>
-                Reset to default
-              </button>
-            )}
+                  <Pipette size={14} />
+                  <input
+                    type="color"
+                    value={accent}
+                    aria-label="Custom accent color"
+                    onChange={(event) => onSetAccent(event.target.value)}
+                  />
+                </label>
+              </div>
+            </SettingRow>
           </div>
 
-          <ReduceMotionToggle />
-          <InsightsCardToggle />
+          <h3>Motion</h3>
+          <div className="settings-group">
+            <ReduceMotionToggle />
+          </div>
+
+          <h3>Sidebar</h3>
+          <div className="settings-group">
+            <InsightsCardToggle />
+          </div>
         </section>
         )}
 
-        {tab === 'shortcuts' && <ShortcutsSection />}
-        {tab === 'account' && <CloudAccountSection confirm={confirm} />}
-        {tab === 'calendar' && <CalendarSyncSection confirm={confirm} />}
-        {tab === 'ai' && <McpSection />}
-        {tab === 'about' && <AboutSection />}
+        {activeTab === 'shortcuts' && (
+          <section className="settings-section">
+            <h3>Shortcuts</h3>
+            <ShortcutsPanel />
+          </section>
+        )}
+        {activeTab === 'account' && <CloudAccountSection confirm={confirm} />}
+        {activeTab === 'calendar' && <CalendarSyncSection confirm={confirm} />}
+        {activeTab === 'ai' && <McpSection />}
+        {activeTab === 'about' && <AboutSection />}
 
-        {tab === 'data' && (
+        {activeTab === 'data' && (
         <section className="settings-section">
           <h3>Data</h3>
           <p className="settings-help">
@@ -269,32 +344,86 @@ export function SettingsDialog({
   );
 }
 
+/**
+ * One setting: title and description on the left, its control on the right (or underneath when `stacked`,
+ * for wide controls like the colour swatches). Rows sit in a `.settings-group` card, divided by lines.
+ */
+function SettingRow({
+  title,
+  description,
+  children,
+  stacked = false,
+  extra,
+  labelId,
+}: {
+  title: string;
+  description?: ReactNode;
+  children: ReactNode;
+  stacked?: boolean;
+  /** Small trailing content under the description, e.g. a reset link. */
+  extra?: ReactNode;
+  /** Id for the title so a switch can point aria-labelledby at it. */
+  labelId?: string;
+}) {
+  return (
+    <div className={`setting-row ${stacked ? 'is-stacked' : ''}`}>
+      <div className="setting-text">
+        <span className="setting-title" id={labelId}>
+          {title}
+        </span>
+        {description && (
+          <span className="setting-desc" id={labelId ? `${labelId}-desc` : undefined}>
+            {description}
+          </span>
+        )}
+        {extra}
+      </div>
+      <div className="setting-control">{children}</div>
+    </div>
+  );
+}
+
+function SwitchRow({
+  id,
+  title,
+  description,
+  on,
+  onChange,
+}: {
+  id: string;
+  title: string;
+  description: string;
+  on: boolean;
+  onChange: (on: boolean) => void;
+}) {
+  return (
+    <SettingRow title={title} description={description} labelId={id}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-labelledby={id}
+        aria-describedby={`${id}-desc`}
+        className={`switch ${on ? 'is-on' : ''}`}
+        onClick={() => onChange(!on)}
+      >
+        <span className="switch-thumb" />
+      </button>
+    </SettingRow>
+  );
+}
+
 /** Settings > Appearance: show or hide the Insights card at the top of the sidebar. */
 function InsightsCardToggle() {
   const show = useShowInsightsCard();
   return (
-    <div className="settings-field">
-      <span className="settings-field-label">Sidebar</span>
-      <div className="settings-switch-row">
-        <span className="settings-switch-text" id="insights-card-label">
-          <span>Show Insights card</span>
-          <span className="muted small" id="insights-card-hint">
-            Today's progress ring, this week's chart and your streak. When hidden, Insights becomes a normal item in the sidebar list.
-          </span>
-        </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={show}
-          aria-labelledby="insights-card-label"
-          aria-describedby="insights-card-hint"
-          className={`switch ${show ? 'is-on' : ''}`}
-          onClick={() => setShowInsightsCard(!show)}
-        >
-          <span className="switch-thumb" />
-        </button>
-      </div>
-    </div>
+    <SwitchRow
+      id="insights-card"
+      title="Show Insights card"
+      description="Today's progress ring, this week's chart and your streak. When hidden, Insights becomes a normal item in the sidebar list."
+      on={show}
+      onChange={setShowInsightsCard}
+    />
   );
 }
 
@@ -302,27 +431,12 @@ function InsightsCardToggle() {
 function ReduceMotionToggle() {
   const [reduce, setReduce] = useReduceMotionSetting();
   return (
-    <div className="settings-field">
-      <span className="settings-field-label">Motion</span>
-      <div className="settings-switch-row">
-        <span className="settings-switch-text" id="reduce-motion-label">
-          <span>Reduce motion</span>
-          <span className="muted small" id="reduce-motion-hint">
-            Turns off animations such as list movement, pop-ups and the completion effect.
-          </span>
-        </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={reduce}
-          aria-labelledby="reduce-motion-label"
-          aria-describedby="reduce-motion-hint"
-          className={`switch ${reduce ? 'is-on' : ''}`}
-          onClick={() => setReduce(!reduce)}
-        >
-          <span className="switch-thumb" />
-        </button>
-      </div>
-    </div>
+    <SwitchRow
+      id="reduce-motion"
+      title="Reduce motion"
+      description="Turns off animations such as list movement, pop-ups and the completion effect."
+      on={reduce}
+      onChange={setReduce}
+    />
   );
 }

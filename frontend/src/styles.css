@@ -4520,8 +4520,8 @@ p.detail-description {
 /* Settings dialog: side tabs on the left, one scrolling pane on the right */
 
 .modal-settings {
-  max-width: 760px;
-  height: min(620px, calc(100vh - 100px));
+  max-width: 900px;
+  height: min(680px, calc(100vh - 100px));
   padding: 0;
   overflow: hidden;
   display: flex;
@@ -4538,14 +4538,14 @@ p.detail-description {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 188px minmax(0, 1fr);
+  grid-template-columns: 208px minmax(0, 1fr);
 }
 
 .settings-nav {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 12px 10px;
+  padding: 10px 10px 14px;
   border-right: 1px solid var(--border);
   background: var(--bg-sidebar);
   overflow-y: auto;
@@ -4593,13 +4593,109 @@ p.detail-description {
 .settings-pane {
   min-height: 0;
   overflow-y: auto;
-  padding: 18px 20px 20px;
+  padding: 18px 24px 24px;
 }
 
 .settings-section h3 {
   font-size: 15px;
   font-weight: 600;
-  margin: 0 0 12px;
+  margin: 0 0 10px;
+}
+
+/* A later heading starts a new block of settings on the same page. */
+.settings-section > h3:not(:first-child) {
+  margin-top: 26px;
+}
+
+/* Nav: search box, then groups with small headings (Preferences, Account & sync, App). */
+.settings-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.settings-search:focus-within {
+  border-color: var(--accent);
+}
+
+.settings-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.settings-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-nav-heading {
+  padding: 12px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.settings-nav-empty {
+  padding: 8px 10px;
+}
+
+/* Rows of settings in a bordered card, divided by lines: text on the left, control on the right. */
+.settings-group {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 16px;
+}
+
+.setting-row + .setting-row {
+  border-top: 1px solid var(--border);
+}
+
+.setting-row.is-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.setting-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.setting-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.setting-desc {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.setting-control {
+  flex-shrink: 0;
 }
 
 @media (max-width: 640px) {
@@ -4610,10 +4706,27 @@ p.detail-description {
 
   .settings-nav {
     flex-direction: row;
+    align-items: center;
     overflow-x: auto;
     padding: 8px;
     border-right: 0;
     border-bottom: 1px solid var(--border);
+  }
+
+  /* Phone width: one scrolling row of tabs; the search box and group headings would not fit. */
+  .settings-search,
+  .settings-nav-heading {
+    display: none;
+  }
+
+  .settings-nav-group {
+    flex-direction: row;
+  }
+
+  .setting-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
   }
 
   .settings-tab span {
@@ -6688,60 +6801,134 @@ p.detail-description {
   }
 }
 
-/* Settings > Shortcuts */
+/* Keyboard shortcuts (dialog and Settings > Shortcuts) */
 
-.shortcut-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 10px;
+.modal-shortcuts {
+  max-width: 600px;
 }
 
-.shortcut-row {
+.kb-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.kb-search:focus-within {
+  border-color: var(--accent);
+}
+
+.kb-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+}
+
+.kb-group {
+  margin-top: 18px;
+}
+
+.kb-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-bottom: 6px;
+}
+
+.kb-group-head h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.kb-group-head .link-btn {
+  margin-left: auto;
+}
+
+.kb-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  min-height: 40px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
 }
 
-.shortcut-row .settings-switch-text {
+.kb-label {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
-.shortcut-btn {
-  min-width: 96px;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  font-size: 12px;
-  text-align: center;
+.kb-error {
+  color: var(--danger);
 }
 
-.shortcut-btn:hover {
-  border-color: var(--accent);
-}
-
-.shortcut-btn.is-recording {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
-  color: var(--accent-text);
-}
-
-.shortcut-keys {
+.kb-keys,
+.kb-combo {
   display: inline-flex;
+  align-items: center;
   gap: 3px;
+  flex-shrink: 0;
 }
 
-.shortcut-keys kbd {
+.kb-keys {
+  gap: 6px;
+}
+
+.kb-or {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.kb-keys kbd {
+  min-width: 20px;
   padding: 0 5px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg-hover);
+  color: var(--text-muted);
   font: inherit;
   font-size: 11px;
   line-height: 18px;
+  text-align: center;
+}
+
+/* Rebindable keys: a button that shows its keys and turns into a "Press keys…" recorder. */
+.kb-edit {
+  flex-shrink: 0;
+  min-width: 88px;
+  padding: 3px 6px;
+  border: 1px dashed transparent;
+  border-radius: 6px;
+  text-align: right;
+  font-size: 12px;
+}
+
+.kb-edit:hover,
+.kb-edit:focus-visible {
+  border-color: var(--border);
+  background: var(--bg-hover);
+}
+
+.kb-edit.is-recording {
+  border: 1px solid var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+  color: var(--accent-text);
+  text-align: center;
+}
+
+.kb-empty {
+  padding: 24px 0;
+  text-align: center;
 }

@@ -4,7 +4,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
  * App-wide keyboard shortcuts, rebindable in Settings > Shortcuts and remembered on this device.
  * `mod` means Ctrl on Windows/Linux and Cmd on a Mac. A shortcut can also be switched off (null).
  */
-export type HotkeyAction = 'search' | 'quickAdd' | 'settings' | 'toggleSidebar';
+export type HotkeyAction = 'search' | 'quickAdd' | 'shortcuts' | 'settings' | 'toggleSidebar';
 
 export interface Hotkey {
   /** `KeyboardEvent.key`, lower-cased (letters) or as typed (punctuation). */
@@ -17,6 +17,7 @@ export interface Hotkey {
 export const HOTKEY_ACTIONS: { action: HotkeyAction; label: string; hint: string }[] = [
   { action: 'search', label: 'Search', hint: 'Open search to find tasks, projects, labels and notes, or run an action.' },
   { action: 'quickAdd', label: 'Add task', hint: 'Open quick add from anywhere.' },
+  { action: 'shortcuts', label: 'Keyboard shortcuts', hint: 'Show this list.' },
   { action: 'settings', label: 'Open Settings', hint: 'Works even while you are typing.' },
   { action: 'toggleSidebar', label: 'Collapse sidebar', hint: 'Switch the sidebar between full and icons only.' },
 ];
@@ -24,6 +25,7 @@ export const HOTKEY_ACTIONS: { action: HotkeyAction; label: string; hint: string
 export const DEFAULT_HOTKEYS: Record<HotkeyAction, Hotkey | null> = {
   search: { key: 'k', mod: true, alt: false, shift: false },
   quickAdd: { key: 'q', mod: false, alt: false, shift: false },
+  shortcuts: { key: '/', mod: true, alt: false, shift: false },
   settings: { key: ',', mod: true, alt: false, shift: false },
   toggleSidebar: { key: 'm', mod: false, alt: false, shift: false },
 };
@@ -83,6 +85,10 @@ export function sameHotkey(a: Hotkey | null, b: Hotkey | null): boolean {
 }
 
 const KEY_NAMES: Record<string, string> = { ' ': 'Space', ',': ',', '.': '.', '/': '/', arrowup: '↑', arrowdown: '↓' };
+
+/** The platform's name for the Ctrl/Cmd modifier, for fixed shortcuts listed next to the rebindable ones. */
+export const MOD_KEY = IS_MAC ? '⌘' : 'Ctrl';
+export const ALT_KEY = IS_MAC ? '⌥' : 'Alt';
 
 /** Display parts, e.g. ['Ctrl', 'K'], for <kbd> chips and tooltips. */
 export function hotkeyParts(hotkey: Hotkey): string[] {
