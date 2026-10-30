@@ -6354,3 +6354,66 @@ p.detail-description {
 .sidebar-update-dot:disabled {
   cursor: default;
 }
+
+/* Theme row in the profile menu: a small three-way switch. */
+.menu-theme {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 6px 4px 10px;
+  font-size: 13px;
+}
+
+.menu-theme-options {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--bg-hover);
+}
+
+.menu-theme-option {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.menu-theme-option:hover {
+  color: var(--text);
+}
+
+.menu-theme-option.is-selected {
+  background: var(--bg);
+  color: var(--accent-text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.menu-theme-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The profile (inside its menu anchor) takes the row, so Mini mode lines up with the nav items above. */
+.sidebar-footer > .popover-anchor {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-footer .profile-btn {
+  width: 100%;
+}
+
+.sidebar.is-rail .sidebar-footer > .popover-anchor {
+  flex: 0 0 auto;
+}
+
+.sidebar.is-rail .sidebar-footer .profile-btn {
+  width: 40px;
+}

@@ -1,34 +1,41 @@
-import { ChevronsUpDown, Laptop, LogOut, Minimize2, Settings, UserRoundPen } from 'lucide-react';
+import { ChevronDown, Laptop, LogOut, Monitor, Moon, Settings, Sun, UserRoundPen } from 'lucide-react';
 import { useState } from 'react';
 import { IS_WEB_APP } from '../api/backend';
 import { signOutOfCloud, SignInCancelled, startDesktopSignIn } from '../api/cloudSession';
 import { signInWithGoogle } from '../api/firestoreClient';
+import type { ThemePreference } from '../lib/theme';
 import { showToast } from '../lib/toast';
 import type { ConfirmOptions } from './Dialogs';
 import { Popover } from './Popover';
 import { useCloudUser } from './SessionGate';
+
+const THEMES: { value: ThemePreference; label: string; icon: React.ReactNode }[] = [
+  { value: 'light', label: 'Light', icon: <Sun size={14} /> },
+  { value: 'dark', label: 'Dark', icon: <Moon size={14} /> },
+  { value: 'system', label: 'System', icon: <Monitor size={14} /> },
+];
 
 /** Shortcut shown next to Settings (handled in App). */
 const SETTINGS_SHORTCUT = /Mac/i.test(navigator.platform) ? '⌘,' : 'Ctrl+,';
 
 /**
  * Sidebar footer profile button and its menu: who is signed in (or "This PC" for the local file), Settings,
- * Mini mode (browser only; the desktop title bar has its own), and for a Google account: switch account and
- * sign out. Switching signs in again with the account chooser; Firebase replaces the current user only when
+ * the theme, and for a Google account: switch account and sign out. Switching signs in again with the account chooser; Firebase replaces the current user only when
  * that succeeds, so cancelling leaves the current account in place.
  */
 export function ProfileMenu({
   confirm,
   rail,
   onOpenSettings,
-  onCompact,
+  themePreference,
+  onSetTheme,
 }: {
   confirm: (options: ConfirmOptions) => Promise<boolean>;
   /** The sidebar shows icons only: the button is just the avatar. */
   rail: boolean;
   onOpenSettings: () => void;
-  /** Mini mode; omitted where the title bar offers it instead. */
-  onCompact?: () => void;
+  themePreference: ThemePreference;
+  onSetTheme: (preference: ThemePreference) => void;
 }) {
   const user = useCloudUser();
   const [busy, setBusy] = useState<'switch' | 'signout' | null>(null);
@@ -102,7 +109,7 @@ export function ProfileMenu({
                 <strong>{name}</strong>
                 <span className="muted"> · {where}</span>
               </span>
-              <ChevronsUpDown size={13} className="profile-btn-chevron" aria-hidden="true" />
+              <ChevronDown size={14} className="profile-btn-chevron" aria-hidden="true" />
             </>
           )}
         </button>
@@ -129,20 +136,25 @@ export function ProfileMenu({
             <span>Settings</span>
             <kbd className="menu-item-kbd">{SETTINGS_SHORTCUT}</kbd>
           </button>
-          {onCompact && (
-            <button
-              type="button"
-              role="menuitem"
-              className="menu-item"
-              onClick={() => {
-                close();
-                onCompact();
-              }}
-            >
-              <Minimize2 size={14} />
-              <span>Mini mode</span>
-            </button>
-          )}
+          {/* Theme: pick one; the menu stays open so the change can be seen. */}
+          <div className="menu-theme" role="group" aria-label="Theme">
+            <span className="menu-theme-label">Theme</span>
+            <div className="menu-theme-options">
+              {THEMES.map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  className={`menu-theme-option ${themePreference === t.value ? 'is-selected' : ''}`}
+                  aria-pressed={themePreference === t.value}
+                  aria-label={t.label}
+                  data-tooltip={t.label}
+                  onClick={() => onSetTheme(t.value)}
+                >
+                  {t.icon}
+                </button>
+              ))}
+            </div>
+          </div>
           {user && (
             <>
               <div className="menu-sep" role="separator" />

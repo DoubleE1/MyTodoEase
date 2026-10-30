@@ -9,14 +9,12 @@ import {
   ChevronUp,
   Hash,
   Inbox,
-  Monitor,
-  Moon,
+  Minimize2,
   Pencil,
   Plus,
   Search,
   Star,
   StickyNote,
-  Sun,
   Tag,
   Trash2,
   X,
@@ -50,12 +48,11 @@ interface SidebarProps {
   onEditLabel: (label: Label) => void;
   onDeleteLabel: (label: Label) => void;
   themePreference: ThemePreference;
-  onCycleTheme: () => void;
+  onSetTheme: (preference: ThemePreference) => void;
   onOpenSettings: () => void;
   /** For the profile menu's sign-out confirmation. */
   confirm: (options: ConfirmOptions) => Promise<boolean>;
-  /** In the browser there is no title bar, so Mini mode lives here instead. */
-  showCompactButton: boolean;
+  /** Mini mode: a small window with only today's tasks. */
   onCompact: () => void;
 }
 
@@ -226,12 +223,6 @@ function CollapsibleSection({
   );
 }
 
-const THEME_META: Record<ThemePreference, { label: string; icon: ReactNode }> = {
-  light: { label: 'Light', icon: <Sun size={15} /> },
-  dark: { label: 'Dark', icon: <Moon size={15} /> },
-  system: { label: 'System', icon: <Monitor size={15} /> },
-};
-
 function NavItem({
   icon,
   label,
@@ -291,10 +282,9 @@ export function Sidebar({
   onEditLabel,
   onDeleteLabel,
   themePreference,
-  onCycleTheme,
+  onSetTheme,
   onOpenSettings,
   confirm,
-  showCompactButton,
   onCompact,
 }: SidebarProps) {
   const today = todayStr();
@@ -600,23 +590,24 @@ export function Sidebar({
 
         <SidebarUpdate rail={rail} />
 
-        {/* One slim row: the profile (its menu holds Settings and Mini mode) and the theme switch. */}
+        {/* One slim row: the profile (its menu holds Settings and the theme) and Mini mode. */}
         <div className="sidebar-footer">
           <ProfileMenu
             confirm={confirm}
             rail={rail}
             onOpenSettings={onOpenSettings}
-            onCompact={showCompactButton ? onCompact : undefined}
+            themePreference={themePreference}
+            onSetTheme={onSetTheme}
           />
           <button
             type="button"
             className="footer-btn footer-btn-icon"
-            onClick={onCycleTheme}
-            data-tooltip={`Theme: ${THEME_META[themePreference].label}. Click to switch.`}
+            onClick={onCompact}
+            data-tooltip="Mini mode: only today's tasks"
             data-tooltip-side={rail ? 'right' : 'top'}
-            aria-label={`Theme: ${THEME_META[themePreference].label}. Click to switch.`}
+            aria-label="Switch to mini mode"
           >
-            {THEME_META[themePreference].icon}
+            <Minimize2 size={15} />
           </button>
         </div>
       </aside>

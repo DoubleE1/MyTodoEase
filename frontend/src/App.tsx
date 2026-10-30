@@ -418,10 +418,9 @@ export default function App() {
         onEditLabel={(label) => setDialog({ kind: 'label', label })}
         onDeleteLabel={(label) => void deleteLabel(label)}
         themePreference={theme.preference}
-        onCycleTheme={theme.cycle}
+        onSetTheme={theme.setPreference}
         onOpenSettings={() => setDialog({ kind: 'settings' })}
         confirm={confirm}
-        showCompactButton={!windowMode.isDesktop}
         onCompact={() => void windowMode.setCompact(true)}
       />
 
