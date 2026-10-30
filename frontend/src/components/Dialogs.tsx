@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import type { Label, LabelInput, Project, ProjectInput } from '../api/types';
 import { COLORS } from '../lib/colors';
 import { motionReduced } from '../lib/motion';
@@ -49,7 +50,9 @@ export function Modal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return (
+  // Rendered at the document level: a dialog opened from inside a page (e.g. a note on the Notes board) would
+  // otherwise be clipped by that page and drawn under the sidebar.
+  return createPortal(
     <div
       className={`modal-overlay ${closing ? 'is-closing' : ''}`}
       onMouseDown={(event) => {
@@ -67,7 +70,8 @@ export function Modal({
         )}
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
