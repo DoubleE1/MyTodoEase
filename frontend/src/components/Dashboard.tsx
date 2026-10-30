@@ -120,7 +120,6 @@ export function Dashboard({ tasks, completions, active, onSelectView }: Dashboar
               r={radius}
               stroke="url(#ring-grad)"
               strokeDasharray={`${dash} ${circumference - dash}`}
-              strokeDashoffset={circumference / 4}
             />
           </svg>
           <span className="ring-text">{total === 0 ? '–' : `${percent}%`}</span>
