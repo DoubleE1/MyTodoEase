@@ -58,5 +58,13 @@ interface Window {
     installUpdate?: () => Promise<boolean>;
     /** Subscribe to update state pushed by the shell; returns an unsubscribe function. */
     onUpdateState?: (callback: (state: DesktopUpdateState) => void) => () => void;
+    /** Pop a sticky note out into its own window (or bring that window forward). */
+    openNote?: (id: string) => Promise<void>;
+    /** Bring the main TodoEase window up, opening it again if it was closed. */
+    showMainWindow?: () => Promise<void>;
+    /** Tell the other windows that notes changed. */
+    notesChanged?: () => void;
+    /** Called when another window changed notes; returns an unsubscribe function. */
+    onNotesChanged?: (callback: () => void) => () => void;
   };
 }

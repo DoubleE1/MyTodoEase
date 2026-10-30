@@ -47,18 +47,24 @@ export const useNotes = (enabled = true) => useQuery({ queryKey: queryKeys.notes
  */
 export function useNoteMutations() {
   const qc = useQueryClient();
+  // Desktop: popped-out note windows and the mini list refetch when any window changes a note.
+  const announce = () => window.mytodoease?.notesChanged?.();
   const patchCache = (id: string, input: NoteInput) =>
     qc.setQueryData<Note[]>(queryKeys.notes, (old) => old?.map((n) => (n.id === id ? { ...n, ...input } : n)));
   const refetch = () => void qc.invalidateQueries({ queryKey: queryKeys.notes });
   return {
     create: useMutation({
       mutationFn: (input: NoteInput) => api.notes.create(input),
-      onSuccess: (note) => qc.setQueryData<Note[]>(queryKeys.notes, (old) => (old ? [note, ...old.filter((n) => n.id !== note.id)] : [note])),
+      onSuccess: (note) => {
+        qc.setQueryData<Note[]>(queryKeys.notes, (old) => (old ? [note, ...old.filter((n) => n.id !== note.id)] : [note]));
+        announce();
+      },
       onError,
     }),
     update: useMutation({
       mutationFn: ({ id, input }: { id: string; input: NoteInput }) => api.notes.update(id, input),
       onMutate: ({ id, input }) => patchCache(id, input),
+      onSuccess: announce,
       onError: (error) => {
         refetch();
         onError(error);
@@ -67,6 +73,7 @@ export function useNoteMutations() {
     remove: useMutation({
       mutationFn: (id: string) => api.notes.remove(id),
       onMutate: (id) => qc.setQueryData<Note[]>(queryKeys.notes, (old) => old?.filter((n) => n.id !== id)),
+      onSuccess: announce,
       onError: (error) => {
         refetch();
         onError(error);

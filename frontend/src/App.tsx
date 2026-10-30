@@ -40,6 +40,7 @@ import { useHotkey } from './lib/hotkeys';
 import { useInboxFilter } from './lib/inboxFilter';
 import { motionReduced } from './lib/motion';
 import { undoLast } from './lib/undo';
+import { useNotesSync } from './lib/notes';
 import { useTheme } from './lib/theme';
 import type { View } from './lib/views';
 
@@ -83,6 +84,8 @@ export default function App() {
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const { confirm, element: confirmElement } = useConfirm();
+  // Desktop: notes edited in a popped-out window show up here too.
+  useNotesSync();
   const theme = useTheme();
   const windowMode = useWindowMode();
 

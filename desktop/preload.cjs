@@ -29,4 +29,13 @@ contextBridge.exposeInMainWorld('mytodoease', {
     ipcRenderer.on('update:state', listener);
     return () => ipcRenderer.removeListener('update:state', listener);
   },
+  // Sticky notes in their own windows, and keeping every window's notes in step.
+  openNote: (id) => ipcRenderer.invoke('note:open', String(id)),
+  showMainWindow: () => ipcRenderer.invoke('app:show-main'),
+  notesChanged: () => ipcRenderer.send('notes:changed'),
+  onNotesChanged: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('notes:changed', listener);
+    return () => ipcRenderer.removeListener('notes:changed', listener);
+  },
 });

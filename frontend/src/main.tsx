@@ -20,6 +20,10 @@ const queryClient = new QueryClient({
 });
 
 // The hosted site has one public page besides the app: the privacy policy linked from Google's consent screen.
+// Desktop: a sticky note popped out into its own window loads this page with #note=<id>.
+const NoteWindow = lazy(() => import('./components/NoteWindow').then((m) => ({ default: m.NoteWindow })));
+const noteWindowId = /^#note=([\w-]+)$/.exec(window.location.hash)?.[1];
+
 const PrivacyPage = lazy(() => import('./components/PrivacyPage').then((m) => ({ default: m.PrivacyPage })));
 const publicPage =
   IS_WEB_APP && window.location.pathname.replace(/\/+$/, '') === '/privacy' ? (
@@ -33,7 +37,13 @@ createRoot(document.getElementById('root')!).render(
     {publicPage ?? (
       <QueryClientProvider client={queryClient}>
         <SessionGate>
-          <App />
+          {noteWindowId ? (
+            <Suspense fallback={null}>
+              <NoteWindow noteId={noteWindowId} />
+            </Suspense>
+          ) : (
+            <App />
+          )}
         </SessionGate>
       </QueryClientProvider>
     )}

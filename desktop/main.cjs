@@ -116,6 +116,9 @@ const settings = {
   dockWhenCompact: false, // set when leaving mini mode while docked; re-docks on return
   normalBounds: null,
   compactBounds: null,
+  // Sticky notes popped out into their own windows: which are open (reopened on the next start) and where each sat.
+  openNotes: [],
+  noteBounds: {},
   ...loadSettings(),
 };
 // Docking is re-applied on startup, never assumed: the shell forgets app bars when the window goes away.
@@ -245,6 +248,99 @@ function createWindow() {
   win.on('closed', () => {
     win = null;
   });
+}
+
+// ---------- Sticky notes in their own windows ----------
+
+const NOTE_DEFAULT = { width: 320, height: 320 };
+const noteWindows = new Map(); // note id -> BrowserWindow
+
+/** First spot for a new note window: beside the main window, stepped so several do not stack exactly. */
+function defaultNoteBounds() {
+  const anchor = win && !win.isDestroyed() ? win.getBounds() : null;
+  const area = (anchor ? screen.getDisplayMatching(anchor) : screen.getPrimaryDisplay()).workArea;
+  const step = 28 * (noteWindows.size % 8);
+  const leftOfMain = anchor ? anchor.x - NOTE_DEFAULT.width - 12 : area.x + area.width - NOTE_DEFAULT.width - 40;
+  const x = Math.max(area.x + 8, Math.min(leftOfMain - step, area.x + area.width - NOTE_DEFAULT.width - 8));
+  const y = Math.max(area.y + 8, Math.min((anchor ? anchor.y : area.y + 40) + step, area.y + area.height - NOTE_DEFAULT.height - 8));
+  return { ...NOTE_DEFAULT, x, y };
+}
+
+function rememberOpenNotes() {
+  settings.openNotes = [...noteWindows.keys()];
+  saveSettings();
+}
+
+/** Open a sticky note in its own small frameless window (or bring it forward if it is already open). */
+function openNoteWindow(id) {
+  if (typeof id !== 'string' || !/^[\w-]{1,64}$/.test(id)) return;
+  const existing = noteWindows.get(id);
+  if (existing && !existing.isDestroyed()) {
+    if (existing.isMinimized()) existing.restore();
+    existing.show();
+    existing.focus();
+    return;
+  }
+  const bounds = onScreen(settings.noteBounds?.[id]) ?? defaultNoteBounds();
+  const note = new BrowserWindow({
+    ...bounds,
+    minWidth: 220,
+    minHeight: 180,
+    frame: false,
+    show: false,
+    title: 'Sticky note',
+    icon: path.join(__dirname, 'build', 'icon.ico'),
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1f1f1f' : '#ffffff',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  noteWindows.set(id, note);
+  rememberOpenNotes();
+
+  if (devServerUrl) note.loadURL(`${devServerUrl}#note=${id}`);
+  else note.loadFile(path.join(__dirname, 'renderer', 'index.html'), { hash: `note=${id}` });
+  note.once('ready-to-show', () => note.show());
+  note.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const { protocol } = new URL(url);
+      if (protocol === 'https:' || protocol === 'http:' || protocol === 'mailto:') void shell.openExternal(url);
+    } catch {
+      // Not a valid URL: ignore it.
+    }
+    return { action: 'deny' };
+  });
+
+  let saveTimer = null;
+  const saveBounds = () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      if (note.isDestroyed() || note.isMinimized()) return;
+      settings.noteBounds = { ...settings.noteBounds, [id]: note.getBounds() };
+      saveSettings();
+    }, 400);
+  };
+  note.on('move', saveBounds);
+  note.on('resize', saveBounds);
+  note.on('closed', () => {
+    clearTimeout(saveTimer);
+    noteWindows.delete(id);
+    // Closing a note forgets it; quitting the app keeps the list, so those notes come back next time.
+    if (!quitting) rememberOpenNotes();
+  });
+}
+
+/** Bring the main window up again, recreating it if it was closed while notes stayed open. */
+function showMainWindow() {
+  if (!win || win.isDestroyed()) {
+    createWindow();
+    return;
+  }
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
 }
 
 function windowHandle() {
@@ -476,6 +572,15 @@ function broadcastState() {
 
 ipcMain.handle('window:get-state', () => windowState());
 
+ipcMain.handle('note:open', (_event, id) => openNoteWindow(String(id)));
+ipcMain.handle('app:show-main', () => showMainWindow());
+// A window changed notes: every other window refetches (the main app, the mini list, other note windows).
+ipcMain.on('notes:changed', (event) => {
+  for (const other of BrowserWindow.getAllWindows()) {
+    if (!other.isDestroyed() && other.webContents !== event.sender) other.webContents.send('notes:changed');
+  }
+});
+
 ipcMain.handle('window:set-docked', (_event, flag) => setDocked(Boolean(flag)));
 
 ipcMain.handle('window:set-always-on-top', (_event, flag) => {
@@ -506,6 +611,8 @@ app.whenReady().then(async () => {
     }
   }
   createWindow();
+  // Notes that were open in their own windows at the last quit come back.
+  for (const id of Array.isArray(settings.openNotes) ? settings.openNotes : []) openNoteWindow(id);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

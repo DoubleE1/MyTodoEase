@@ -1,11 +1,12 @@
 import { addDays, format } from 'date-fns';
-import { Activity, CalendarDays, Check, ChevronDown, ChevronUp, EyeOff, Inbox, Maximize2, Plus, Tag } from 'lucide-react';
+import { Activity, CalendarDays, Check, ChevronDown, ChevronUp, EyeOff, Inbox, Maximize2, Plus, StickyNote, Tag } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { useTaskMutations } from '../api/hooks';
 import type { CompletionItem, Label, Project, Section, Task, TaskInput } from '../api/types';
 import { colorHex } from '../lib/colors';
 import { toDateStr, todayStr, tomorrowStr } from '../lib/dates';
 import { isOverdue, sortByOrder, sortForAgenda } from '../lib/views';
+import { NotesListPane } from './NotesListPane';
 import { Dashboard } from './Dashboard';
 
 // Loaded on first use, like in the main window: Insights carries the World view and its sprites.
@@ -36,6 +37,7 @@ type Secondary =
   | { kind: 'nodate' }
   | { kind: 'inbox' }
   | { kind: 'upcoming' }
+  | { kind: 'notes' }
   | { kind: 'project'; id: string }
   | { kind: 'label'; id: string };
 
@@ -54,7 +56,7 @@ function deserialize(value: string | null): Secondary {
   const [kind, id] = value.split(':');
   if (kind === 'project' && id) return { kind, id };
   if (kind === 'label' && id) return { kind, id };
-  if (kind === 'nodate' || kind === 'inbox' || kind === 'upcoming' || kind === 'dashboard') return { kind };
+  if (kind === 'nodate' || kind === 'inbox' || kind === 'upcoming' || kind === 'dashboard' || kind === 'notes') return { kind };
   return { kind: 'nodate' };
 }
 
@@ -217,6 +219,8 @@ export function CompactView({
     switch (secondary.kind) {
       case 'dashboard':
         return { title: 'Overview', tasks: [], defaults: {}, empty: '' };
+      case 'notes':
+        return { title: 'Sticky notes', tasks: [], defaults: {}, empty: '' };
       case 'nodate':
         return {
           title: 'No date',
@@ -292,6 +296,7 @@ export function CompactView({
     { value: { kind: 'nodate' }, label: 'No date', icon: <CalendarDays size={14} /> },
     { value: { kind: 'inbox' }, label: 'Inbox', icon: <Inbox size={14} /> },
     { value: { kind: 'upcoming' }, label: 'Upcoming (7 days)', icon: <CalendarDays size={14} /> },
+    { value: { kind: 'notes' }, label: 'Sticky notes', icon: <StickyNote size={14} /> },
   ];
   const projectOptions: { value: Secondary; label: string; icon: ReactNode }[] = projects
     .filter((p) => !p.isInbox)
@@ -489,7 +494,9 @@ export function CompactView({
               <span className="spacer" />
               {panePicker}
             </div>
-            {secondary.kind === 'dashboard' ? (
+            {secondary.kind === 'notes' ? (
+              <NotesListPane />
+            ) : secondary.kind === 'dashboard' ? (
               // The sidebar's overview card (static here) followed by the full Insights page in a narrow layout.
               <div className="pane-body pane-dashboard">
                 <Dashboard tasks={tasks} completions={completions} active={false} />

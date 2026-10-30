@@ -1,4 +1,3 @@
-import { differenceInMinutes, format, parseISO } from 'date-fns';
 import {
   Archive,
   ArchiveRestore,
@@ -6,6 +5,7 @@ import {
   Grip,
   ListTodo,
   Maximize,
+  PictureInPicture2,
   Palette,
   Plus,
   StickyNote,
@@ -15,9 +15,10 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useNoteMutations, useNotes } from '../api/hooks';
-import { NOTE_COLORS, type Label, type Note, type NoteColor, type NoteInput, type Project, type Section } from '../api/types';
+import { NOTE_COLORS, type Label, type Note, type NoteInput, type Project, type Section } from '../api/types';
 import type { ConfirmOptions } from './Dialogs';
 import { NoteToTasksDialog } from './NoteToTasksDialog';
+import { COLOR_LABELS, canPopOutNotes, editedLabel, popOutNote } from '../lib/notes';
 import { Popover } from './Popover';
 
 const SAVE_DELAY_MS = 500;
@@ -88,25 +89,6 @@ function loadView(): CanvasView | null {
   return null;
 }
 
-/** Short "edited" time that fits the note footer: just now, 5m ago, 3h ago, then the date. */
-function editedLabel(iso: string): string {
-  const date = parseISO(iso);
-  const minutes = differenceInMinutes(new Date(), date);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  if (minutes < 24 * 60) return `${Math.floor(minutes / 60)}h ago`;
-  return format(date, 'd MMM');
-}
-
-const COLOR_LABELS: Record<NoteColor, string> = {
-  yellow: 'Yellow',
-  green: 'Green',
-  blue: 'Blue',
-  pink: 'Pink',
-  purple: 'Purple',
-  orange: 'Orange',
-  grey: 'Grey',
-};
 
 interface Rect {
   x: number;
@@ -988,6 +970,21 @@ function NoteCard({
                 ))}
               </div>
               <div className="note-menu-sep" role="separator" />
+              {canPopOutNotes() && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="note-menu-item"
+                  onClick={() => {
+                    close();
+                    flush();
+                    popOutNote(note.id);
+                  }}
+                >
+                  <PictureInPicture2 size={14} />
+                  <span>Open in its own window</span>
+                </button>
+              )}
               <button
                 type="button"
                 role="menuitem"
