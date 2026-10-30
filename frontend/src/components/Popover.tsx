@@ -53,7 +53,9 @@ export function Popover({ trigger, children, align = 'left' }: PopoverProps) {
     if (!open) return;
     const isInside = (target: EventTarget | null) =>
       (anchorRef.current?.contains(target as Node) ?? false) || (panelRef.current?.contains(target as Node) ?? false);
-    const onMouseDown = (event: MouseEvent) => {
+    // Pointer (not mouse) events, in the capture phase: a drag that starts outside (e.g. moving a note on the
+    // board) cancels the follow-up mousedown, which used to leave the menu hanging open.
+    const onPointerDown = (event: PointerEvent) => {
       if (!isInside(event.target)) close();
     };
     const onKeyDown = (event: KeyboardEvent) => {
@@ -67,11 +69,11 @@ export function Popover({ trigger, children, align = 'left' }: PopoverProps) {
     const onScroll = (event: Event) => {
       if (!panelRef.current?.contains(event.target as Node)) close();
     };
-    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('pointerdown', onPointerDown, true);
     document.addEventListener('keydown', onKeyDown, true);
     document.addEventListener('scroll', onScroll, true);
     return () => {
-      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('pointerdown', onPointerDown, true);
       document.removeEventListener('keydown', onKeyDown, true);
       document.removeEventListener('scroll', onScroll, true);
     };

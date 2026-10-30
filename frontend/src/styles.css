@@ -4062,9 +4062,10 @@ p.detail-description {
   min-height: 230px;
   padding: 14px 16px;
   border-radius: 14px;
-  /* A light wash of the note's colour at the top only; the card itself stays neutral glass. */
+  /* A light wash of the note's colour at the top only; the card itself stays neutral glass. Fixed in pixels,
+     so resizing a note does not stretch the wash with it. */
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--note-c, #8b72ff) var(--note-wash), transparent) 0%, transparent 38%),
+    linear-gradient(180deg, color-mix(in srgb, var(--note-c, #8b72ff) var(--note-wash), transparent) 0, transparent var(--note-wash-h, 88px)),
     var(--note-glass);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
@@ -4086,7 +4087,7 @@ p.detail-description {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(135deg, var(--note-reflection), transparent 38%);
+  background: linear-gradient(135deg, var(--note-reflection), transparent 120px);
   pointer-events: none;
 }
 
@@ -7172,6 +7173,7 @@ body.is-resizing-span * {
 
 /* The same note card, sized for a list: no fixed height, a few lines of preview. */
 .note-card.note-list-card {
+  --note-wash-h: 36px;
   width: 100%;
   min-height: 0;
   padding: 10px 14px 12px;
@@ -7346,4 +7348,22 @@ body.is-resizing-span * {
 .note-list-text.md p,
 .note-text-static.md p {
   margin: 0 0 4px;
+}
+
+/* Setting rows with something in front (account avatar, calendar colour). */
+.setting-icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.setting-icon .calendar-dot {
+  width: 12px;
+  height: 12px;
+}
+
+.setting-note {
+  display: block;
+  margin-top: 4px;
 }

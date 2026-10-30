@@ -14,6 +14,7 @@ import { CalendarSyncSection } from './CalendarSyncSection';
 import { CloudAccountSection } from './CloudAccountSection';
 import { McpSection } from './McpSection';
 import { ShortcutsPanel } from './KeyboardShortcuts';
+import { SettingRow, SwitchRow } from './SettingRows';
 import { useCloudUser } from './SessionGate';
 import { AboutSection } from './AboutSection';
 
@@ -341,75 +342,6 @@ export function SettingsDialog({
         </div>
       </div>
     </Modal>
-  );
-}
-
-/**
- * One setting: title and description on the left, its control on the right (or underneath when `stacked`,
- * for wide controls like the colour swatches). Rows sit in a `.settings-group` card, divided by lines.
- */
-function SettingRow({
-  title,
-  description,
-  children,
-  stacked = false,
-  extra,
-  labelId,
-}: {
-  title: string;
-  description?: ReactNode;
-  children: ReactNode;
-  stacked?: boolean;
-  /** Small trailing content under the description, e.g. a reset link. */
-  extra?: ReactNode;
-  /** Id for the title so a switch can point aria-labelledby at it. */
-  labelId?: string;
-}) {
-  return (
-    <div className={`setting-row ${stacked ? 'is-stacked' : ''}`}>
-      <div className="setting-text">
-        <span className="setting-title" id={labelId}>
-          {title}
-        </span>
-        {description && (
-          <span className="setting-desc" id={labelId ? `${labelId}-desc` : undefined}>
-            {description}
-          </span>
-        )}
-        {extra}
-      </div>
-      <div className="setting-control">{children}</div>
-    </div>
-  );
-}
-
-function SwitchRow({
-  id,
-  title,
-  description,
-  on,
-  onChange,
-}: {
-  id: string;
-  title: string;
-  description: string;
-  on: boolean;
-  onChange: (on: boolean) => void;
-}) {
-  return (
-    <SettingRow title={title} description={description} labelId={id}>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        aria-labelledby={id}
-        aria-describedby={`${id}-desc`}
-        className={`switch ${on ? 'is-on' : ''}`}
-        onClick={() => onChange(!on)}
-      >
-        <span className="switch-thumb" />
-      </button>
-    </SettingRow>
   );
 }
 

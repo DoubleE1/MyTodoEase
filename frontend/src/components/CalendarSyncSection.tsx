@@ -9,6 +9,7 @@ import type { GoogleAuthStatus } from '../api/types';
 import { showToast } from '../lib/toast';
 import type { ConfirmOptions } from './Dialogs';
 import { GoogleMark } from './GoogleMark';
+import { SettingRow, SwitchRow } from './SettingRows';
 
 const STATUS_KEY = ['google-auth'] as const;
 const SETUP_URL = 'https://console.cloud.google.com/apis/credentials';
@@ -288,99 +289,99 @@ export function CalendarSyncSection({ confirm }: { confirm: (options: ConfirmOpt
             </div>
           )}
           {data.account && (
-            <div className="account-card">
-              {data.account.picture ? (
-                <img className="account-avatar" src={data.account.picture} alt="" referrerPolicy="no-referrer" />
-              ) : (
-                <span className="account-avatar account-avatar-fallback">{data.account.name.charAt(0).toUpperCase()}</span>
-              )}
-              <div className="account-text">
-                <strong>{data.account.name}</strong>
-                <span className="muted small">Calendar connected · {data.account.email}</span>
-              </div>
-              <button
-                type="button"
-                className="btn"
-                disabled={disconnect.isPending}
-                onClick={async () => {
-                  const ok = await confirm({
-                    title: 'Disconnect Google Calendar?',
-                    message: cloud
-                      ? 'Mirrored events are removed from Google Calendar and the calendar permission is forgotten for your account, on every device. Your account, cloud sync and tasks are not affected.'
-                      : 'Mirrored events are removed from Google Calendar and TodoEase forgets the calendar permission. Your account, cloud sync and tasks are not affected.',
-                    confirmLabel: 'Disconnect',
-                  });
-                  if (ok) disconnect.mutate();
-                }}
+            <div className="settings-group">
+              <SettingRow
+                icon={
+                  data.account.picture ? (
+                    <img className="account-avatar" src={data.account.picture} alt="" referrerPolicy="no-referrer" />
+                  ) : (
+                    <span className="account-avatar account-avatar-fallback">{data.account.name.charAt(0).toUpperCase()}</span>
+                  )
+                }
+                title={data.account.name}
+                description={`Calendar connected · ${data.account.email}`}
               >
-                <LogOut size={14} />
-                <span>{disconnect.isPending ? 'Disconnecting…' : 'Disconnect'}</span>
-              </button>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={disconnect.isPending}
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: 'Disconnect Google Calendar?',
+                      message: cloud
+                        ? 'Mirrored events are removed from Google Calendar and the calendar permission is forgotten for your account, on every device. Your account, cloud sync and tasks are not affected.'
+                        : 'Mirrored events are removed from Google Calendar and TodoEase forgets the calendar permission. Your account, cloud sync and tasks are not affected.',
+                      confirmLabel: 'Disconnect',
+                    });
+                    if (ok) disconnect.mutate();
+                  }}
+                >
+                  <LogOut size={14} />
+                  <span>{disconnect.isPending ? 'Disconnecting…' : 'Disconnect'}</span>
+                </button>
+              </SettingRow>
             </div>
           )}
 
-          <label className="settings-toggle">
-            <input
-              type="checkbox"
-              checked={data.enabled}
+          <h3>Sync</h3>
+          <div className="settings-group">
+            <SwitchRow
+              id="calendar-mirror"
+              title="Mirror tasks to Google Calendar"
+              description={`Open tasks with a date become events in a “TodoEase” calendar; completing or deleting removes them.${cloud ? ' Changes reach Google on the next Sync now.' : ''}`}
+              on={data.enabled}
               disabled={update.isPending}
-              onChange={(e) => update.mutate({ enabled: e.target.checked })}
+              onChange={(enabled) => update.mutate({ enabled })}
             />
-            <span>
-              <strong>Mirror tasks to Google Calendar</strong>
-              <span className="muted small">
-                Open tasks with a date become events in a “TodoEase” calendar; completing or deleting removes them.
-                {cloud ? ' Changes reach Google on the next Sync now.' : ''}
-              </span>
-            </span>
-          </label>
-          <div className="settings-actions settings-sync-row">
-            <span className="muted small">
-              Last sync {formatWhen(data.lastSyncAt)}
-              {data.enabled && data.linkedTasks > 0 && ` · ${data.linkedTasks} task${data.linkedTasks === 1 ? '' : 's'} mirrored`}
-            </span>
-            <button type="button" className="btn" onClick={() => run.mutate()} disabled={run.isPending || update.isPending || needsLocalGrant}>
-              <RefreshCw size={14} className={run.isPending || update.isPending ? 'is-spinning' : ''} />
-              <span>{run.isPending || update.isPending ? 'Syncing…' : 'Sync now'}</span>
-            </button>
+            <SettingRow
+              title="Last sync"
+              description={
+                <>
+                  {formatWhen(data.lastSyncAt)}
+                  {data.enabled && data.linkedTasks > 0 && ` · ${data.linkedTasks} task${data.linkedTasks === 1 ? '' : 's'} mirrored`}
+                  {cloud && IS_WEB_APP && (
+                    <span className="setting-note">Google may ask you to confirm access when you sync; the permission itself is never stored in the browser.</span>
+                  )}
+                </>
+              }
+              extra={data.lastError ? <span className="settings-error">Last sync problem: {data.lastError}</span> : undefined}
+            >
+              <button type="button" className="btn" onClick={() => run.mutate()} disabled={run.isPending || update.isPending || needsLocalGrant}>
+                <RefreshCw size={14} className={run.isPending || update.isPending ? 'is-spinning' : ''} />
+                <span>{run.isPending || update.isPending ? 'Syncing…' : 'Sync now'}</span>
+              </button>
+            </SettingRow>
           </div>
-          {data.lastError && <p className="settings-error">Last sync problem: {data.lastError}</p>}
-          {cloud && IS_WEB_APP && (
-            <p className="settings-help">Google may ask you to confirm access when you sync; the permission itself is never stored in the browser.</p>
-          )}
 
-          <div className="settings-field">
-            <span className="settings-field-label">Show these calendars in TodoEase</span>
-            {calendars.isLoading && <span className="muted small">Loading calendars…</span>}
-            {calendars.error && <span className="settings-error">Could not load your calendars.</span>}
+          <h3>Calendars shown in TodoEase</h3>
+          <p className="settings-help">Their events appear beside your tasks in Today, Upcoming and the Calendar.</p>
+          <div className="settings-group">
+            {calendars.isLoading && <SettingRow title="Loading calendars…" />}
+            {calendars.error && <SettingRow title={<span className="settings-error">Could not load your calendars.</span>} />}
             {calendars.data && calendars.data.length === 0 && !calendars.isLoading && (
-              <span className="muted small">Your calendars appear here after the first sync.</span>
+              <SettingRow title="No calendars yet" description="Your calendars appear here after the first sync." />
             )}
-            {calendars.data && calendars.data.length > 0 && (
-              <div className="calendar-choices">
-                {calendars.data.map((c) => {
-                  const selected = data.sourceCalendarIds.length === 0 ? c.primary : data.sourceCalendarIds.includes(c.id);
-                  return (
-                    <label key={c.id} className="calendar-choice">
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        disabled={update.isPending}
-                        onChange={(e) => {
-                          const base = data.sourceCalendarIds.length === 0
-                            ? calendars.data.filter((x) => x.primary).map((x) => x.id)
-                            : data.sourceCalendarIds;
-                          const next = e.target.checked ? [...new Set([...base, c.id])] : base.filter((id) => id !== c.id);
-                          update.mutate({ sourceCalendarIds: next });
-                        }}
-                      />
-                      <span className="dot" style={{ background: c.backgroundColor ?? 'var(--text-muted)' }} />
-                      <span>{c.summary}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
+            {calendars.data?.map((c) => {
+              const selected = data.sourceCalendarIds.length === 0 ? c.primary : data.sourceCalendarIds.includes(c.id);
+              return (
+                <SwitchRow
+                  key={c.id}
+                  id={`calendar-${c.id.replace(/[^\w-]/g, '_')}`}
+                  icon={<span className="dot calendar-dot" style={{ background: c.backgroundColor ?? 'var(--text-muted)' }} />}
+                  title={c.summary}
+                  description={c.primary ? 'Your main calendar' : undefined}
+                  on={selected}
+                  disabled={update.isPending}
+                  onChange={(on) => {
+                    const base = data.sourceCalendarIds.length === 0
+                      ? calendars.data.filter((x) => x.primary).map((x) => x.id)
+                      : data.sourceCalendarIds;
+                    const next = on ? [...new Set([...base, c.id])] : base.filter((id) => id !== c.id);
+                    update.mutate({ sourceCalendarIds: next });
+                  }}
+                />
+              );
+            })}
           </div>
         </>
       )}
