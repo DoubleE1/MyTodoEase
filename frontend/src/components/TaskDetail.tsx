@@ -1,7 +1,8 @@
 import { addDays, format, parseISO } from 'date-fns';
 import { CalendarPlus, Check, ChevronRight, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useTaskMutations } from '../api/hooks';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys, useTaskMutations } from '../api/hooks';
 import type { Label, Project, Section, Task, TaskInput } from '../api/types';
 import { PRIORITY_META } from '../lib/colors';
 import { toDateStr, todayStr } from '../lib/dates';
@@ -27,6 +28,12 @@ interface TaskDetailProps {
   onCreateLabel: (name: string) => Promise<Label>;
 }
 
+/**
+ * The task the detail dialog shows right now, or null when it is closed. Kept outside the component: the dialog
+ * remounts when its task briefly disappears (e.g. while being completed), and a later Undo must still know.
+ */
+let shownTaskId: string | null = null;
+
 export function TaskDetail({
   taskId,
   tasks,
@@ -41,9 +48,16 @@ export function TaskDetail({
 }: TaskDetailProps) {
   const task = tasks.find((t) => t.id === taskId) ?? completedTasks.find((t) => t.id === taskId);
   const taskMut = useTaskMutations();
+  const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [continuing, setContinuing] = useState(false);
+  useEffect(() => {
+    shownTaskId = taskId;
+    return () => {
+      if (shownTaskId === taskId) shownTaskId = null;
+    };
+  }, [taskId]);
   // A ticked checklist box shows at once; the saved text replaces this as soon as it arrives.
   const [descriptionDraft, setDescriptionDraft] = useState<string | null>(null);
   useEffect(() => setDescriptionDraft(null), [task?.description]);
@@ -86,14 +100,38 @@ export function TaskDetail({
       const nextDate = toDateStr(addDays(parseISO(from), 1));
       const { order: _order, ...input } = taskToInput(task);
       const copy = await taskMut.create.mutateAsync({ ...input, dueDate: nextDate });
-      for (const sub of subtasks.filter((s) => !s.isCompleted)) {
+      const moved = subtasks.filter((s) => !s.isCompleted);
+      for (const sub of moved) {
         await taskMut.update.mutateAsync({
           id: sub.id,
           input: { ...taskToInput(sub), parentId: copy.id, projectId: copy.projectId, sectionId: copy.sectionId },
         });
       }
       await taskMut.complete.mutateAsync(task.id);
-      showToast(`Continues on ${format(parseISO(nextDate), 'EEE d MMM')}. Today's part is marked done.`);
+
+      // Undo puts everything back: sub-tasks return to today's task first (deleting the copy would delete
+      // them with it), then today's task is reopened and tomorrow's copy deleted.
+      const undo = async () => {
+        try {
+          for (const sub of moved) await taskMut.update.mutateAsync({ id: sub.id, input: taskToInput(sub) });
+          await taskMut.reopen.mutateAsync(task.id);
+          // Wait until the open list has today's task again: the dialog closes itself on a task it cannot find.
+          await queryClient.refetchQueries({ queryKey: queryKeys.tasks });
+          // Still looking at tomorrow's copy: switch to today's task before the copy goes, or the dialog would
+          // close itself when its task disappears.
+          if (shownTaskId === copy.id) onOpenTask(task.id);
+          await taskMut.remove.mutateAsync(copy.id);
+          showToast('Undone: the task is back on its original day.', 'info', { group: 'task-completed' });
+        } catch {
+          // The mutation hooks already showed the error.
+        }
+      };
+      // Same group as the "Task completed" toast, so this one (with the full undo) replaces it.
+      showToast(`Continues on ${format(parseISO(nextDate), 'EEE d MMM')}. Today's part is marked done.`, 'success', {
+        group: 'task-completed',
+        duration: 6000,
+        action: { label: 'Undo', run: () => void undo() },
+      });
       onOpenTask(copy.id);
     } catch {
       // The mutation hooks already showed the error; whatever was created stays visible to fix by hand.
