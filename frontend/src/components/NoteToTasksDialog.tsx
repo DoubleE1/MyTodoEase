@@ -6,6 +6,7 @@ import { noteToTasks, type TaskSuggestion } from '../lib/noteToTasks';
 import { showToast } from '../lib/toast';
 import { Modal } from './Dialogs';
 import { DuePicker, PriorityPicker, ProjectPicker } from './Pickers';
+import { t } from '../i18n';
 
 interface Row {
   key: string;
@@ -98,7 +99,7 @@ export function NoteToTasksDialog({
         });
         created.push(task.id);
       }
-      showToast(`Created ${created.length} task${created.length === 1 ? '' : 's'} from the note${archive ? '; note archived' : ''}.`);
+      showToast(archive ? t('Created {n} task(s) from the note; note archived.', { n: created.length }) : t('Created {n} task(s) from the note.', { n: created.length }));
       onDone(created, archive);
     } catch {
       // The task hook already showed the error. Keep what was created linked to the note.
@@ -109,7 +110,7 @@ export function NoteToTasksDialog({
   };
 
   return (
-    <Modal title="Turn note into tasks" onClose={onClose} wide className="modal-note-tasks">
+    <Modal title={t('Turn note into tasks')} onClose={onClose} wide className="modal-note-tasks">
       <form
         className="note-tasks"
         onSubmit={(e) => {
@@ -125,7 +126,7 @@ export function NoteToTasksDialog({
       >
         <p className="muted small note-tasks-intro">
           {rows.length === 0
-            ? 'Nothing in this note looks like a task yet. Add one below.'
+            ? t('Nothing in this note looks like a task yet. Add one below.')
             : 'Check the suggestions. Edit any title, date, priority or project, untick what you do not want, then create.'}
         </p>
 
@@ -143,8 +144,8 @@ export function NoteToTasksDialog({
                 <input
                   className="note-task-title"
                   value={row.title}
-                  placeholder="Task name"
-                  aria-label="Task name"
+                  placeholder={t('Task name')}
+                  aria-label={t('Task name')}
                   data-tooltip={row.source ? `From: ${row.source}` : undefined}
                   onChange={(e) => patch(row.key, { title: e.target.value, selected: e.target.value.trim() ? row.selected || !row.title : false })}
                 />
@@ -172,8 +173,8 @@ export function NoteToTasksDialog({
               <button
                 type="button"
                 className="icon-btn note-task-remove"
-                aria-label="Remove this suggestion"
-                data-tooltip="Remove"
+                aria-label={t('Remove this suggestion')}
+                data-tooltip={t('Remove')}
                 onClick={() => setRows((all) => all.filter((r) => r.key !== row.key))}
               >
                 <Trash2 size={15} />
@@ -207,20 +208,20 @@ export function NoteToTasksDialog({
           }
         >
           <Plus size={14} />
-          <span>Add another task</span>
+          <span>{t('Add another task')}</span>
         </button>
 
         <footer className="note-tasks-footer">
           <label className="settings-toggle note-tasks-archive">
             <input type="checkbox" checked={archive} onChange={(e) => setArchive(e.target.checked)} />
-            <span>Archive the note afterwards</span>
+            <span>{t('Archive the note afterwards')}</span>
           </label>
           <span className="spacer" />
           <button type="button" className="btn" onClick={onClose}>
             Cancel
           </button>
           <button type="submit" className="btn btn-primary" disabled={chosen.length === 0 || creating}>
-            {creating ? 'Creating…' : `Create ${chosen.length} task${chosen.length === 1 ? '' : 's'}`}
+            {creating ? t('Creating…') : t('Create {n} task(s)', { n: chosen.length })}
           </button>
         </footer>
       </form>

@@ -14,6 +14,7 @@ import { evaluate, markUnlocked, pointsOf, recordClearDay, useAchievementStore, 
 import { DEFAULT_HOTKEYS, sameHotkey, useHotkeys, type HotkeyAction } from './hotkeys';
 import { todayStr } from './dates';
 import { showToast } from './toast';
+import { t } from '../i18n';
 
 const THEME_KEY = 'mytodoease.theme';
 
@@ -95,8 +96,8 @@ export function useAchievementWatcher(onOpen: () => void) {
     const points = fresh.reduce((n, s) => n + s.def.points, 0);
     const message =
       fresh.length === 1
-        ? `Achievement unlocked: ${fresh[0].def.name} (+${points} points)`
-        : `${fresh.length} achievements unlocked (+${points.toLocaleString()} points)`;
-    showToast(message, 'success', { group: 'achievement', duration: 6000, action: { label: 'View', run: () => opened.current() } });
+        ? t('Achievement unlocked: {name} (+{points} points)', { name: fresh[0].def.name, points })
+        : t('{n} achievements unlocked (+{points} points)', { n: fresh.length, points: points.toLocaleString() });
+    showToast(message, 'success', { group: 'achievement', duration: 6000, action: { label: t('View'), run: () => opened.current() } });
   }, [ready, states]);
 }

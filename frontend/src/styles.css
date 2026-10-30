@@ -7746,3 +7746,15 @@ body.is-resizing-span * {
   font-size: 13px;
   line-height: 1.5;
 }
+
+/* Settings: a native dropdown styled like the other controls (Language). */
+.settings-select {
+  min-width: 160px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}

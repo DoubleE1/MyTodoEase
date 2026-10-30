@@ -14,6 +14,7 @@ import { ArrowRightLeft } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import type { Task } from '../api/types';
 import { Popover } from './Popover';
+import { t } from '../i18n';
 
 /** One column: a group from the list layout (section, day, priority, project…). */
 export interface BoardColumn {
@@ -66,7 +67,7 @@ export function BoardView({
       onDragEnd={onDragEnd}
       onDragCancel={() => setActive(null)}
     >
-      <div className="board" role="list" aria-label="Board">
+      <div className="board" role="list" aria-label={t('Board')}>
         {columns.map((column) => (
           <Column
             key={column.key}
@@ -106,7 +107,7 @@ function Column({
     <section
       ref={setNodeRef}
       role="listitem"
-      aria-label={`${column.title}, ${column.tasks.length} task${column.tasks.length === 1 ? '' : 's'}`}
+      aria-label={`${column.title}, ${column.tasks.length === 1 ? t('1 task') : t('{n} tasks', { n: column.tasks.length })}`}
       className={`board-column ${isOver ? 'is-over' : ''} ${dragging && !column.accepts ? 'is-locked' : ''}`}
     >
       <header className="board-column-head">
@@ -161,8 +162,8 @@ function Card({
             <button
               type="button"
               className={`icon-btn board-move ${open ? 'is-open' : ''}`}
-              aria-label={`Move ${task.content} to another column`}
-              data-tooltip="Move to…"
+              aria-label={t('Move {name} to another column', { name: task.content })}
+              data-tooltip={t('Move to…')}
               aria-haspopup="menu"
               aria-expanded={open}
               onPointerDown={(e) => e.stopPropagation()}
@@ -174,9 +175,9 @@ function Card({
           )}
         >
           {(close) => (
-            <div className="picker picker-scroll" role="menu" aria-label="Move to">
+            <div className="picker picker-scroll" role="menu" aria-label={t('Move to')}>
               <div className="picker-heading" role="presentation">
-                Move to
+                {t('Move to')}
               </div>
               {targets.map((target) => (
                 <button

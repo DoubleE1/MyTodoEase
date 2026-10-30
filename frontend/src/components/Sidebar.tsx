@@ -33,6 +33,7 @@ import { ProfileMenu } from './AccountMenu';
 import type { ConfirmOptions } from './Dialogs';
 import { Wordmark } from './Logo';
 import { SidebarUpdate } from './UpdateBanner';
+import { t } from '../i18n';
 
 interface SidebarProps {
   view: View;
@@ -155,7 +156,7 @@ function MoreToggle({ expanded, hidden, onToggle }: { expanded: boolean; hidden?
   return (
     <button type="button" className="nav-item sidebar-more" aria-expanded={expanded} onClick={onToggle}>
       <span className="nav-icon">{expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
-      <span className="nav-label">{expanded ? 'Less' : 'More'}</span>
+      <span className="nav-label">{expanded ? t('Less') : t('More')}</span>
       {!expanded && hidden ? <span className="nav-count">{hidden}</span> : null}
     </button>
   );
@@ -323,7 +324,7 @@ export function Sidebar({
       <button
         type="button"
         className="icon-btn"
-        data-tooltip="Edit project"
+        data-tooltip={t('Edit project')}
         aria-label={`Edit project ${project.name}`}
         onClick={(e) => {
           e.stopPropagation();
@@ -335,7 +336,7 @@ export function Sidebar({
       <button
         type="button"
         className="icon-btn"
-        data-tooltip="Delete project"
+        data-tooltip={t('Delete project')}
         aria-label={`Delete project ${project.name}`}
         onClick={(e) => {
           e.stopPropagation();
@@ -367,26 +368,26 @@ export function Sidebar({
       <button
         type="button"
         className="sidebar-edge-toggle"
-        data-tooltip={rail ? 'Expand sidebar' : 'Collapse to icons'}
+        data-tooltip={rail ? t('Expand sidebar') : t('Collapse to icons')}
         data-tooltip-kbd={formatHotkey(hotkeys.toggleSidebar) || undefined}
         data-tooltip-side="right"
-        aria-label={rail ? 'Expand sidebar' : 'Collapse sidebar to icons'}
+        aria-label={rail ? t('Expand sidebar') : t('Collapse sidebar to icons')}
         aria-expanded={!rail}
         onClick={() => setMode(rail ? 'full' : 'rail')}
       >
         {rail ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
-      <aside className={`sidebar is-${mode}`} aria-label="Sidebar">
+      <aside className={`sidebar is-${mode}`} aria-label={t('Sidebar')}>
         <div className="sidebar-top">
           <div className="brand">
             <Wordmark size={26} />
           </div>
           {/* New task and search, as plain rows like the nav below (search opens the command palette). */}
-          <nav className="sidebar-actions" aria-label="Add and search">
+          <nav className="sidebar-actions" aria-label={t('Add and search')}>
             <NavItem
               className="nav-add-task"
               icon={<Plus size={18} />}
-              label="Add task"
+              label={t('Add task')}
               kbd={formatHotkey(hotkeys.quickAdd)}
               active={false}
               onClick={onAddTask}
@@ -394,7 +395,7 @@ export function Sidebar({
             />
             <NavItem
               icon={<Search size={18} />}
-              label={search ? `Search: ${search}` : 'Search'}
+              label={search ? t('Search: {query}', { query: search }) : t('Search')}
               kbd={formatHotkey(hotkeys.search)}
               active={!!search}
               onClick={onOpenSearch}
@@ -419,7 +420,7 @@ export function Sidebar({
             {(rail || !showInsightsCard) && (
               <NavItem
                 icon={<ChartColumn size={18} />}
-                label="Insights"
+                label={t('Insights')}
                 active={isActive({ kind: 'insights' })}
                 onClick={() => onSelectView({ kind: 'insights' })}
                 iconOnly={rail}
@@ -427,14 +428,14 @@ export function Sidebar({
             )}
             <NavItem
               icon={<StickyNote size={18} />}
-              label="Notes"
+              label={t('Notes')}
               iconOnly={rail}
               active={isActive({ kind: 'notes' })}
               onClick={() => onSelectView({ kind: 'notes' })}
             />
             <NavItem
               icon={<Inbox size={18} />}
-              label="Inbox"
+              label={t('Inbox')}
               iconOnly={rail}
               count={inboxCount}
               active={isActive({ kind: 'inbox' })}
@@ -442,7 +443,7 @@ export function Sidebar({
             />
             <NavItem
               icon={<CalendarDays size={18} />}
-              label="Today"
+              label={t('Today')}
               iconOnly={rail}
               count={todayCount}
               active={isActive({ kind: 'today' })}
@@ -450,14 +451,14 @@ export function Sidebar({
             />
             <NavItem
               icon={<CalendarDays size={18} />}
-              label="Upcoming"
+              label={t('Upcoming')}
               iconOnly={rail}
               active={isActive({ kind: 'upcoming' })}
               onClick={() => onSelectView({ kind: 'upcoming' })}
             />
             <NavItem
               icon={<CalendarRange size={18} />}
-              label="Calendar"
+              label={t('Calendar')}
               iconOnly={rail}
               active={isActive({ kind: 'calendar' })}
               onClick={() => onSelectView({ kind: 'calendar' })}
@@ -466,7 +467,7 @@ export function Sidebar({
             {(rail || navMore.expanded || isActive({ kind: 'completed' })) && (
               <NavItem
                 icon={<CheckCircle2 size={18} />}
-                label="Completed"
+                label={t('Completed')}
                 iconOnly={rail}
                 active={isActive({ kind: 'completed' })}
                 onClick={() => onSelectView({ kind: 'completed' })}
@@ -475,7 +476,7 @@ export function Sidebar({
             {(rail || navMore.expanded || isActive({ kind: 'achievements' })) && (
               <NavItem
                 icon={<Trophy size={18} />}
-                label="Achievements"
+                label={t('Achievements')}
                 iconOnly={rail}
                 active={isActive({ kind: 'achievements' })}
                 onClick={() => onSelectView({ kind: 'achievements' })}
@@ -485,7 +486,7 @@ export function Sidebar({
           </nav>
 
           {favorites.length > 0 && (
-            <CollapsibleSection id="favorites" icon={<Star size={13} />} title="Favorites" forceOpen={rail}>
+            <CollapsibleSection id="favorites" icon={<Star size={13} />} title={t('Favorites')} forceOpen={rail}>
               {favorites.map(projectItem)}
             </CollapsibleSection>
           )}
@@ -493,10 +494,10 @@ export function Sidebar({
           <CollapsibleSection
             id="projects"
             icon={<Hash size={13} />}
-            title="My Projects"
+            title={t('My Projects')}
             forceOpen={rail}
             action={
-              <button type="button" className="icon-btn" data-tooltip="Add project" aria-label="Add project" onClick={onAddProject}>
+              <button type="button" className="icon-btn" data-tooltip={t('Add project')} aria-label={t('Add project')} onClick={onAddProject}>
                 <Plus size={15} />
               </button>
             }
@@ -515,10 +516,10 @@ export function Sidebar({
           <CollapsibleSection
             id="labels"
             icon={<Tag size={13} />}
-            title="Labels"
+            title={t('Labels')}
             forceOpen={rail}
             action={
-              <button type="button" className="icon-btn" data-tooltip="Add label" aria-label="Add label" onClick={onAddLabel}>
+              <button type="button" className="icon-btn" data-tooltip={t('Add label')} aria-label={t('Add label')} onClick={onAddLabel}>
                 <Plus size={15} />
               </button>
             }
@@ -538,7 +539,7 @@ export function Sidebar({
                     <button
                       type="button"
                       className="icon-btn"
-                      data-tooltip="Edit label"
+                      data-tooltip={t('Edit label')}
                       aria-label={`Edit label ${label.name}`}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -550,7 +551,7 @@ export function Sidebar({
                     <button
                       type="button"
                       className="icon-btn"
-                      data-tooltip="Delete label"
+                      data-tooltip={t('Delete label')}
                       aria-label={`Delete label ${label.name}`}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -588,9 +589,9 @@ export function Sidebar({
             type="button"
             className="footer-btn footer-btn-icon"
             onClick={onCompact}
-            data-tooltip="Mini mode: only today's tasks"
+            data-tooltip={t('Mini mode: only today\'s tasks')}
             data-tooltip-side={rail ? 'right' : 'top'}
-            aria-label="Switch to mini mode"
+            aria-label={t('Switch to mini mode')}
           >
             <Minimize2 size={15} />
           </button>

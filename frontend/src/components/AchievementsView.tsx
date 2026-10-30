@@ -3,6 +3,7 @@ import { Lock, ShoppingBag, Trophy } from 'lucide-react';
 import { useState } from 'react';
 import { CATEGORY_TITLES, SHOP_TIERS, TOTAL_POINTS, type AchievementState, type Category } from '../lib/achievements';
 import { useAchievements } from '../lib/useAchievements';
+import { datePattern, t } from '../i18n';
 
 type Tab = 'achievements' | 'shop';
 
@@ -21,12 +22,12 @@ export function AchievementsView() {
     <div className="view view-achievements">
       <header className="view-header">
         <div className="view-header-row">
-          <h1>Achievements</h1>
-          <div className="segmented" role="tablist" aria-label="Achievements or shop">
+          <h1>{t('Achievements')}</h1>
+          <div className="segmented" role="tablist" aria-label={t('Achievements or shop')}>
             {(
               [
-                ['achievements', 'Achievements', <Trophy key="a" size={14} />],
-                ['shop', 'Shop', <ShoppingBag key="s" size={14} />],
+                ['achievements', t('Achievements'), <Trophy key="a" size={14} />],
+                ['shop', t('Shop'), <ShoppingBag key="s" size={14} />],
               ] as const
             ).map(([id, label, icon]) => (
               <button
@@ -46,13 +47,13 @@ export function AchievementsView() {
         <div className="points-summary" aria-live="polite">
           <span className="points-value">{points.toLocaleString()}</span>
           <span className="muted">
-            points · {unlockedCount} of {states.length} unlocked · {TOTAL_POINTS.toLocaleString()} in total
+            {t('points · {unlocked} of {all} unlocked · {total} in total', { unlocked: unlockedCount, all: states.length, total: TOTAL_POINTS.toLocaleString() })}
           </span>
           <span className="points-bar" aria-hidden="true">
             <span style={{ width: `${(points / TOTAL_POINTS) * 100}%` }} />
           </span>
         </div>
-        {!ready && <p className="muted small">Counting your history…</p>}
+        {!ready && <p className="muted small">{t('Counting your history…')}</p>}
       </header>
 
       {tab === 'achievements' ? (
@@ -65,7 +66,7 @@ export function AchievementsView() {
               <div className="achievement-group-head">
                 <h2>{CATEGORY_TITLES[category]}</h2>
                 <span className="muted small">
-                  {earned.toLocaleString()} / {total.toLocaleString()} points
+                  {t('{earned} / {total} points', { earned: earned.toLocaleString(), total: total.toLocaleString() })}
                 </span>
               </div>
               <ul className="achievement-grid">
@@ -94,9 +95,9 @@ function AchievementCard({ state }: { state: AchievementState }) {
       </span>
       <div className="achievement-text">
         <span className="achievement-name">{secret ? '???' : def.name}</span>
-        <span className="achievement-desc">{secret ? 'A hidden achievement. Keep exploring.' : def.description}</span>
+        <span className="achievement-desc">{secret ? t('A hidden achievement. Keep exploring.') : def.description}</span>
         {unlocked ? (
-          <span className="achievement-when">{unlockedAt ? `Unlocked ${format(parseISO(unlockedAt), 'd MMM yyyy')}` : 'Unlocked'}</span>
+          <span className="achievement-when">{unlockedAt ? t('Unlocked {date}', { date: format(parseISO(unlockedAt), datePattern('dayMonthYear')) }) : t('Unlocked')}</span>
         ) : (
           !secret &&
           target > 1 && (
@@ -125,10 +126,9 @@ function AchievementCard({ state }: { state: AchievementState }) {
 
 function Shop({ points }: { points: number }) {
   return (
-    <section className="shop" aria-label="Skin shop preview">
+    <section className="shop" aria-label={t('Skin shop preview')}>
       <p className="settings-help">
-        Skins for your avatar, pet, borders, sticky notes, background and Insights are on the way. Points you earn now
-        are kept for them. All 50 achievements buy one or two skins.
+        {t('Skins for your avatar, pet, borders, sticky notes, background and Insights are on the way. Points you earn now are kept for them. All 50 achievements buy one or two skins.')}
       </p>
       <ul className="shop-grid">
         {SHOP_TIERS.map((tier) => {
@@ -145,10 +145,10 @@ function Shop({ points }: { points: number }) {
                 ))}
               </ul>
               <span className="muted small">
-                {short === 0 ? 'You have enough points for this tier.' : `${short.toLocaleString()} more points to go.`}
+                {short === 0 ? t('You have enough points for this tier.') : t('{n} more points to go.', { n: short.toLocaleString() })}
               </span>
               <button type="button" className="btn" disabled>
-                Coming soon
+                {t('Coming soon')}
               </button>
             </li>
           );

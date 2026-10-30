@@ -46,6 +46,7 @@ import { useAchievementWatcher } from './lib/useAchievements';
 import { useNotesSync } from './lib/notes';
 import { useTheme } from './lib/theme';
 import type { View } from './lib/views';
+import { t } from './i18n';
 
 type Dialog =
   | { kind: 'project'; project?: Project }
@@ -124,8 +125,8 @@ export default function App() {
   const deleteTask = useCallback(
     async (task: Task) => {
       const ok = await confirm({
-        title: 'Delete task?',
-        message: `“${task.content}” and its sub-tasks will be permanently deleted.`,
+        title: t('Delete task?'),
+        message: t('“{name}” and its sub-tasks will be permanently deleted.', { name: task.content }),
       });
       if (!ok) return;
       if (openTaskId === task.id) setOpenTaskId(null);
@@ -136,8 +137,8 @@ export default function App() {
 
   const deleteProject = async (project: Project) => {
     const ok = await confirm({
-      title: `Delete project “${project.name}”?`,
-      message: 'All tasks and sections in this project will be permanently deleted.',
+      title: t('Delete project “{name}”?', { name: project.name }),
+      message: t('All tasks and sections in this project will be permanently deleted.'),
     });
     if (!ok) return;
     if (view.kind === 'project' && view.projectId === project.id) setView({ kind: 'inbox' });
@@ -146,8 +147,8 @@ export default function App() {
 
   const deleteLabel = async (label: Label) => {
     const ok = await confirm({
-      title: `Delete label “${label.name}”?`,
-      message: 'The label is removed from all tasks. Tasks themselves are kept.',
+      title: t('Delete label “{name}”?', { name: label.name }),
+      message: t('The label is removed from all tasks. Tasks themselves are kept.'),
     });
     if (!ok) return;
     if (view.kind === 'label' && view.labelId === label.id) setView({ kind: 'today' });
@@ -295,7 +296,7 @@ export default function App() {
   const overlays = (
     <>
       {dialog?.kind === 'quick-add' && inbox && (
-        <Modal title="Add task" onClose={closeDialog}>
+        <Modal title={t('Add task')} onClose={closeDialog}>
           <TaskEditor
             mode="create"
             defaults={quickAddDefaults}

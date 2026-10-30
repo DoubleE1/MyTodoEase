@@ -17,11 +17,12 @@ import { ShortcutsPanel } from './KeyboardShortcuts';
 import { SettingRow, SwitchRow } from './SettingRows';
 import { useCloudUser } from './SessionGate';
 import { AboutSection } from './AboutSection';
+import { LANGUAGES, language, setLanguage, t, type Language } from '../i18n';
 
 const THEMES: { value: ThemePreference; label: string; icon: ReactNode }[] = [
-  { value: 'light', label: 'Light', icon: <Sun size={15} /> },
-  { value: 'dark', label: 'Dark', icon: <Moon size={15} /> },
-  { value: 'system', label: 'System', icon: <Monitor size={15} /> },
+  { value: 'light', label: t('Light'), icon: <Sun size={15} /> },
+  { value: 'dark', label: t('Dark'), icon: <Moon size={15} /> },
+  { value: 'system', label: t('System'), icon: <Monitor size={15} /> },
 ];
 
 type SettingsTab = 'appearance' | 'shortcuts' | 'account' | 'calendar' | 'ai' | 'data' | 'about';
@@ -29,40 +30,40 @@ type SettingsTab = 'appearance' | 'shortcuts' | 'account' | 'calendar' | 'ai' | 
 /** The nav, grouped like a desktop app's preferences. `keywords` feed the search box at the top of the nav. */
 const TAB_GROUPS: { title: string; tabs: { id: SettingsTab; label: string; icon: ReactNode; keywords: string }[] }[] = [
   {
-    title: 'Preferences',
+    title: t('Preferences'),
     tabs: [
       {
         id: 'appearance',
-        label: 'Appearance',
+        label: t('Appearance'),
         icon: <Palette size={16} />,
-        keywords: 'theme light dark system accent color colour motion animation reduce sidebar insights card',
+        keywords: 'language 语言 言語 언어 theme light dark system accent color colour motion animation reduce sidebar insights card',
       },
       {
         id: 'shortcuts',
-        label: 'Shortcuts',
+        label: t('Shortcuts'),
         icon: <Keyboard size={16} />,
         keywords: 'keyboard hotkey keybind shortcut search quick add settings collapse sidebar',
       },
     ],
   },
   {
-    title: 'Account & sync',
+    title: t('Account & sync'),
     tabs: [
-      { id: 'account', label: 'Account', icon: <UserRound size={16} />, keywords: 'sign in google cloud sync log out email' },
+      { id: 'account', label: t('Account'), icon: <UserRound size={16} />, keywords: 'sign in google cloud sync log out email' },
       {
         id: 'calendar',
-        label: 'Google Calendar',
+        label: t('Google Calendar'),
         icon: <CalendarDays size={16} />,
         keywords: 'calendar events google sync meetings',
       },
-      { id: 'ai', label: 'AI assistants', icon: <Bot size={16} />, keywords: 'mcp claude ai assistant chatgpt cursor' },
+      { id: 'ai', label: t('AI assistants'), icon: <Bot size={16} />, keywords: 'mcp claude ai assistant chatgpt cursor' },
     ],
   },
   {
-    title: 'App',
+    title: t('App'),
     tabs: [
-      { id: 'data', label: 'Data', icon: <Database size={16} />, keywords: 'backup export import restore storage file' },
-      { id: 'about', label: 'About', icon: <Info size={16} />, keywords: 'version update release about' },
+      { id: 'data', label: t('Data'), icon: <Database size={16} />, keywords: 'backup export import restore storage file' },
+      { id: 'about', label: t('About'), icon: <Info size={16} />, keywords: 'version update release about' },
     ],
   },
 ];
@@ -128,10 +129,10 @@ export function SettingsDialog({
       const doc = await api.backup.export();
       const result = await saveText(backupFileName(), JSON.stringify(doc, null, 2));
       if (result === 'saved') {
-        showToast(`Backup saved: ${doc.tasks.length} tasks, ${doc.projects.length} projects.`);
+        showToast(t('Backup saved: {tasks} tasks, {projects} projects.', { tasks: doc.tasks.length, projects: doc.projects.length }));
       }
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Export failed.', 'error');
+      showToast(error instanceof Error ? error.message : t('Export failed.'), 'error');
     } finally {
       setBusy(null);
     }
@@ -144,27 +145,30 @@ export function SettingsDialog({
       try {
         parsed = JSON.parse(await file.text());
       } catch {
-        throw new Error('That file is not valid JSON.');
+        throw new Error(t('That file is not valid JSON.'));
       }
       const doc = parsed as { app?: unknown; tasks?: unknown[]; projects?: unknown[]; exportedAt?: string };
-      if (doc?.app !== 'MyTodoEase') throw new Error('That file is not a TodoEase backup.');
+      if (doc?.app !== 'MyTodoEase') throw new Error(t('That file is not a TodoEase backup.'));
 
-      const exported = doc.exportedAt ? new Date(doc.exportedAt).toLocaleString() : 'unknown date';
+      const exported = doc.exportedAt ? new Date(doc.exportedAt).toLocaleString() : t('unknown date');
       const ok = await confirm({
-        title: 'Replace all data?',
+        title: t('Replace all data?'),
         message:
-          `This will delete everything currently in TodoEase and load the backup from ${exported} ` +
-          `(${doc.projects?.length ?? 0} projects, ${doc.tasks?.length ?? 0} tasks). This cannot be undone.`,
-        confirmLabel: 'Replace and import',
+          t('This will delete everything currently in TodoEase and load the backup from {date} ({projects} projects, {tasks} tasks). This cannot be undone.', {
+            date: exported,
+            projects: doc.projects?.length ?? 0,
+            tasks: doc.tasks?.length ?? 0,
+          }),
+        confirmLabel: t('Replace and import'),
       });
       if (!ok) return;
 
       const result = await api.backup.import(parsed);
       await queryClient.invalidateQueries();
-      showToast(`Imported ${result.tasks} tasks, ${result.projects} projects, ${result.labels} labels.`);
+      showToast(t('Imported {tasks} tasks, {projects} projects, {labels} labels.', { tasks: result.tasks, projects: result.projects, labels: result.labels }));
       onClose();
     } catch (error) {
-      const message = error instanceof ApiError || error instanceof Error ? error.message : 'Import failed.';
+      const message = error instanceof ApiError || error instanceof Error ? error.message : t('Import failed.');
       showToast(message, 'error');
     } finally {
       setBusy(null);
@@ -173,19 +177,19 @@ export function SettingsDialog({
   };
 
   return (
-    <Modal title="Settings" onClose={onClose} className="modal-settings">
+    <Modal title={t('Settings')} onClose={onClose} className="modal-settings">
       <div className="settings">
-        <nav className="settings-nav" aria-label="Settings sections">
+        <nav className="settings-nav" aria-label={t('Settings sections')}>
           <label className="settings-search">
             <Search size={14} aria-hidden="true" />
             <input
               value={navQuery}
               onChange={(e) => setNavQuery(e.target.value)}
-              placeholder="Search"
-              aria-label="Search settings"
+              placeholder={t('Search')}
+              aria-label={t('Search settings')}
             />
           </label>
-          {shownGroups.length === 0 && <p className="settings-nav-empty muted small">No settings match.</p>}
+          {shownGroups.length === 0 && <p className="settings-nav-empty muted small">{t('No settings match.')}</p>}
           {shownGroups.map((group) => (
             <div key={group.title} className="settings-nav-group" role="tablist" aria-label={group.title}>
               <div className="settings-nav-heading">{group.title}</div>
@@ -208,10 +212,28 @@ export function SettingsDialog({
         <div className="settings-pane" role="tabpanel">
         {activeTab === 'appearance' && (
         <section className="settings-section">
-          <h3>Appearance</h3>
+          <h3>{t('Appearance')}</h3>
           <div className="settings-group">
-            <SettingRow title="Theme" description="Light, dark, or follow your computer's setting.">
-              <div className="segmented" role="radiogroup" aria-label="Theme">
+            <SettingRow
+              title={t('Language')}
+              description={t('Menus, buttons and dates. The window reloads to switch.')}
+              labelId="setting-language"
+            >
+              <select
+                className="settings-select"
+                value={language}
+                aria-labelledby="setting-language"
+                onChange={(e) => setLanguage(e.target.value as Language)}
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l.id} value={l.id} lang={l.id}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </SettingRow>
+            <SettingRow title={t('Theme')} description={t("Light, dark, or follow your computer's setting.")}>
+              <div className="segmented" role="radiogroup" aria-label={t('Theme')}>
                 {THEMES.map((t) => (
                   <button
                     key={t.value}
@@ -228,18 +250,18 @@ export function SettingsDialog({
               </div>
             </SettingRow>
             <SettingRow
-              title="Accent color"
-              description="Buttons, highlights and the selected page."
+              title={t('Accent color')}
+              description={t('Buttons, highlights and the selected page.')}
               stacked
               extra={
                 accent !== DEFAULT_ACCENT && (
                   <button type="button" className="link-btn" onClick={() => onSetAccent(DEFAULT_ACCENT)}>
-                    Reset to default
+                    {t('Reset to default')}
                   </button>
                 )
               }
             >
-              <div className="color-grid accent-grid" role="radiogroup" aria-label="Accent color">
+              <div className="color-grid accent-grid" role="radiogroup" aria-label={t('Accent color')}>
                 {ACCENT_PRESETS.map((p) => (
                   <button
                     key={p.hex}
@@ -257,14 +279,14 @@ export function SettingsDialog({
                 ))}
                 <label
                   className={`color-swatch color-swatch-custom ${isPreset ? '' : 'is-selected'}`}
-                  data-tooltip="Custom color"
+                  data-tooltip={t('Custom color')}
                   style={isPreset ? undefined : { background: accent }}
                 >
                   <Pipette size={14} />
                   <input
                     type="color"
                     value={accent}
-                    aria-label="Custom accent color"
+                    aria-label={t('Custom accent color')}
                     onChange={(event) => onSetAccent(event.target.value)}
                   />
                 </label>
@@ -272,12 +294,12 @@ export function SettingsDialog({
             </SettingRow>
           </div>
 
-          <h3>Motion</h3>
+          <h3>{t('Motion')}</h3>
           <div className="settings-group">
             <ReduceMotionToggle />
           </div>
 
-          <h3>Sidebar</h3>
+          <h3>{t('Sidebar')}</h3>
           <div className="settings-group">
             <InsightsCardToggle />
           </div>
@@ -286,7 +308,7 @@ export function SettingsDialog({
 
         {activeTab === 'shortcuts' && (
           <section className="settings-section">
-            <h3>Shortcuts</h3>
+            <h3>{t('Shortcuts')}</h3>
             <ShortcutsPanel />
           </section>
         )}
@@ -297,7 +319,7 @@ export function SettingsDialog({
 
         {activeTab === 'data' && (
         <section className="settings-section">
-          <h3>Data</h3>
+          <h3>{t('Data')}</h3>
           <p className="settings-help">
             {cloudUser
               ? `Your tasks are stored in the cloud under ${cloudUser.email} and synced to every device signed in with that account. ` +
@@ -315,7 +337,7 @@ export function SettingsDialog({
           <div className="settings-actions">
             <button type="button" className="btn" onClick={() => void exportBackup()} disabled={busy !== null}>
               <Download size={14} />
-              <span>{busy === 'export' ? 'Exporting…' : 'Export backup…'}</span>
+              <span>{busy === 'export' ? t('Exporting…') : t('Export backup…')}</span>
             </button>
             <button
               type="button"
@@ -324,7 +346,7 @@ export function SettingsDialog({
               disabled={busy !== null}
             >
               <Upload size={14} />
-              <span>{busy === 'import' ? 'Importing…' : 'Import backup…'}</span>
+              <span>{busy === 'import' ? t('Importing…') : t('Import backup…')}</span>
             </button>
             <input
               ref={fileInput}
@@ -351,8 +373,8 @@ function InsightsCardToggle() {
   return (
     <SwitchRow
       id="insights-card"
-      title="Show Insights card"
-      description="Today's progress ring, this week's chart and your streak. When hidden, Insights becomes a normal item in the sidebar list."
+      title={t('Show Insights card')}
+      description={t("Today's progress ring, this week's chart and your streak. When hidden, Insights becomes a normal item in the sidebar list.")}
       on={show}
       onChange={setShowInsightsCard}
     />
@@ -365,8 +387,8 @@ function ReduceMotionToggle() {
   return (
     <SwitchRow
       id="reduce-motion"
-      title="Reduce motion"
-      description="Turns off animations such as list movement, pop-ups and the completion effect."
+      title={t('Reduce motion')}
+      description={t('Turns off animations such as list movement, pop-ups and the completion effect.')}
       on={reduce}
       onChange={setReduce}
     />

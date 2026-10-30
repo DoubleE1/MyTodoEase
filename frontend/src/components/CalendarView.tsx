@@ -38,6 +38,7 @@ import { projectedOccurrences } from '../lib/recurrence';
 import { showToast } from '../lib/toast';
 import { recordEvent } from '../lib/achievements';
 import { taskToInput } from './TaskEditor';
+import { datePattern, t } from '../i18n';
 
 interface CalendarViewProps {
   tasks: Task[];
@@ -175,9 +176,9 @@ function TaskChip({
       className={`cal-chip ${isDragging ? 'is-dragging' : ''} ${overlay ? 'is-overlay' : ''} ${projected ? 'is-projected' : ''} ${done ? 'is-done' : ''}`}
       data-tooltip={
         projected
-          ? `${task.content} (repeats here after the current one is completed)`
+          ? `${task.content} (${t('repeats here after the current one is completed')})`
           : done
-            ? `${task.content} (completed)`
+            ? `${task.content} (${t('completed')})`
             : task.content
       }
       onClick={onOpen}
@@ -243,14 +244,14 @@ function SpanBar({
   const { task, from, to, lane, before, after } = segment;
   const done = task.isCompleted;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `${SPAN_PREFIX}${task.id}:${row}`, disabled: done });
-  const range = `${format(parseISO(task.startDate ?? task.dueDate!), 'd MMM')} – ${format(parseISO(task.dueDate!), 'd MMM')}`;
+  const range = `${format(parseISO(task.startDate ?? task.dueDate!), datePattern('dayMonth'))} – ${format(parseISO(task.dueDate!), datePattern('dayMonth'))}`;
   return (
     <button
       type="button"
       ref={done ? undefined : setNodeRef}
       className={`cal-span ${before ? 'is-continued' : ''} ${after ? 'is-continuing' : ''} ${isDragging ? 'is-dragging' : ''} ${done ? 'is-done' : ''}`}
       style={{ gridRow: row, gridColumn: `${column + from} / ${column + to + 1}`, marginTop: top + lane * LANE_PX }}
-      data-tooltip={`${task.content} · ${range}${project && !project.isInbox ? ` · ${project.name}` : ''}${done ? ' (completed)' : ''}`}
+      data-tooltip={`${task.content} · ${range}${project && !project.isInbox ? ` · ${project.name}` : ''}${done ? ` (${t('completed')})` : ''}`}
       aria-label={`${task.content}, ${range}`}
       onClick={onOpen}
       {...(done ? {} : { ...attributes, ...listeners })}
@@ -274,7 +275,7 @@ function SpanBar({
 
 /** A Google Calendar event as a chip: read-only, opens in Google on click. */
 function EventChip({ event }: { event: ExternalEvent }) {
-  const time = event.allDay ? 'All day' : `${formatTime(event.startTime!)}${event.endTime ? `–${formatTime(event.endTime)}` : ''}`;
+  const time = event.allDay ? t('All day') : `${formatTime(event.startTime!)}${event.endTime ? `–${formatTime(event.endTime)}` : ''}`;
   return (
     <button
       type="button"
@@ -347,8 +348,8 @@ function DayCell({
         <button
           type="button"
           className="icon-btn cal-add"
-          data-tooltip={`Add task on ${format(day, 'd MMM')}`}
-          aria-label={`Add task on ${format(day, 'd MMMM')}`}
+          data-tooltip={t('Add task on {date}', { date: format(day, datePattern('dayMonth')) })}
+          aria-label={t('Add task on {date}', { date: format(day, datePattern('dayMonth')) })}
           onClick={() => onAddTask(dateStr)}
         >
           <Plus size={13} />
@@ -444,7 +445,7 @@ function TimeBlock({
       ref={interactive ? setNodeRef : undefined}
       className={`tl-block ${isDragging ? 'is-dragging' : ''} ${overlay ? 'is-overlay' : ''} ${done ? 'is-done' : ''}`}
       style={style}
-      data-tooltip={done ? `${task.content} (completed)` : task.content}
+      data-tooltip={done ? `${task.content} (${t('completed')})` : task.content}
       role="button"
       tabIndex={0}
       onClick={onOpen}
@@ -555,12 +556,12 @@ function UnscheduledPanel({
   return (
     <aside ref={setNodeRef} className={`cal-unscheduled ${isOver ? 'is-over' : ''}`}>
       <div className="cal-unscheduled-head">
-        <span>No date</span>
+        <span>{t('No date')}</span>
         <span className="muted">{tasks.length}</span>
       </div>
-      <p className="muted small cal-hint">Drag a task onto a day or a time slot to schedule it, or drop one here to clear its date.</p>
+      <p className="muted small cal-hint">{t('Drag a task onto a day or a time slot to schedule it, or drop one here to clear its date.')}</p>
       <div className="cal-unscheduled-list">
-        {tasks.length === 0 && <p className="muted small">Everything is scheduled.</p>}
+        {tasks.length === 0 && <p className="muted small">{t('Everything is scheduled.')}</p>}
         {tasks.map((task) => (
           <TaskChip key={task.id} task={task} project={projectById.get(task.projectId)} onOpen={() => onOpenTask(task.id)} />
         ))}
@@ -685,8 +686,8 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
 
   const title =
     mode === 'month'
-      ? format(anchor, 'MMMM yyyy')
-      : `${format(rangeStart, 'd MMM')} – ${format(rangeEnd, 'd MMM yyyy')}`;
+      ? format(anchor, datePattern('monthYear'))
+      : `${format(rangeStart, datePattern('dayMonth'))} – ${format(rangeEnd, datePattern('dayMonthYear'))}`;
 
   const shift = (direction: -1 | 1) =>
     setAnchor((a) => (mode === 'month' ? addMonths(a, direction) : addWeeks(a, direction)));
@@ -825,12 +826,12 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
       const { placed, unplaced } = planDay({ date: today, tasks, events: eventsByDate.get(today) ?? [] });
       recordEvent('planDay');
       await taskMut.updateMany(
-        `planned ${placed.length} task${placed.length === 1 ? '' : 's'} into today`,
+        t('planned {n} task(s) into today', { n: placed.length }),
         placed.map(({ task, dueTime }) => ({ task, input: { ...taskToInput(task), dueDate: today, dueTime } })),
       );
-      if (placed.length === 0 && unplaced.length === 0) showToast('Nothing left to plan: every task today already has a time.');
-      else if (unplaced.length === 0) showToast(`Planned ${placed.length} task${placed.length === 1 ? '' : 's'} into today's free time.`);
-      else showToast(`Planned ${placed.length}; ${unplaced.length} did not fit before 6 pm.`);
+      if (placed.length === 0 && unplaced.length === 0) showToast(t('Nothing left to plan: every task today already has a time.'));
+      else if (unplaced.length === 0) showToast(t("Planned {n} task(s) into today's free time.", { n: placed.length }));
+      else showToast(t('Planned {n}; {left} did not fit before 6 pm.', { n: placed.length, left: unplaced.length }));
     } finally {
       setPlanning(false);
     }
@@ -879,7 +880,7 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
       </div>
       <div className="tl-allday">
         <div className="tl-gutter" style={{ gridRow: 1, gridColumn: 1 }}>
-          all day
+          {t('all day')}
         </div>
         {days.map((day, i) => {
           const date = toDateStr(day);
@@ -1032,17 +1033,17 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
           <div className="cal-title-row">
             <h1>{title}</h1>
             <div className="cal-nav">
-              <button type="button" className="icon-btn" aria-label="Previous" onClick={() => shift(-1)}>
+              <button type="button" className="icon-btn" aria-label={t('Previous')} onClick={() => shift(-1)}>
                 <ChevronLeft size={18} />
               </button>
               <button type="button" className="btn" onClick={() => setAnchor(new Date())}>
-                Today
+                {t('Today')}
               </button>
-              <button type="button" className="icon-btn" aria-label="Next" onClick={() => shift(1)}>
+              <button type="button" className="icon-btn" aria-label={t('Next')} onClick={() => shift(1)}>
                 <ChevronRight size={18} />
               </button>
             </div>
-            <div className="segmented" role="radiogroup" aria-label="Calendar mode">
+            <div className="segmented" role="radiogroup" aria-label={t('Calendar mode')}>
               {(['month', 'week'] as Mode[]).map((m) => (
                 <button
                   key={m}
@@ -1052,7 +1053,7 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
                   className={`segmented-option ${mode === m ? 'is-selected' : ''}`}
                   onClick={() => setMode(m)}
                 >
-                  {m === 'month' ? 'Month' : 'Week'}
+                  {m === 'month' ? t('Month') : t('Week')}
                 </button>
               ))}
             </div>
@@ -1062,14 +1063,14 @@ export function CalendarView({ tasks, completedTasks, projects, onOpenTask, onAd
                 className="btn cal-plan-btn"
                 onClick={() => void planToday()}
                 disabled={planning}
-                data-tooltip="Give today's untimed and overdue tasks a time slot in the gaps between your meetings"
+                data-tooltip={t("Give today's untimed and overdue tasks a time slot in the gaps between your meetings")}
               >
                 <Sparkles size={14} />
-                <span>{planning ? 'Planning…' : 'Plan my day'}</span>
+                <span>{planning ? t('Planning…') : t('Plan my day')}</span>
               </button>
             )}
           </div>
-          {mode === 'week' && <p className="muted small">Drag a task onto a time to block it. Drag the bottom edge to change its length. Double-click an empty slot to add a task there.</p>}
+          {mode === 'week' && <p className="muted small">{t('Drag a task onto a time to block it. Drag the bottom edge to change its length. Double-click an empty slot to add a task there.')}</p>}
         </header>
 
         <div className="cal-layout">

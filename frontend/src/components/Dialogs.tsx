@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import type { Label, LabelInput, Project, ProjectInput } from '../api/types';
 import { COLORS } from '../lib/colors';
 import { motionReduced } from '../lib/motion';
+import { t } from '../i18n';
 
 /** Matches the modal-out animation in styles.css. */
 const MODAL_CLOSE_MS = 140;
@@ -63,7 +64,7 @@ export function Modal({
         {title && (
           <div className="modal-title">
             <h2>{title}</h2>
-            <button type="button" className="icon-btn" onClick={requestClose} aria-label="Close">
+            <button type="button" className="icon-btn" onClick={requestClose} aria-label={t('Close')}>
               <X size={18} />
             </button>
           </div>
@@ -77,7 +78,7 @@ export function Modal({
 
 function ColorGrid({ value, onChange }: { value: string; onChange: (name: string) => void }) {
   return (
-    <div className="color-grid" role="radiogroup" aria-label="Color">
+    <div className="color-grid" role="radiogroup" aria-label={t('Color')}>
       {COLORS.map((c) => (
         <button
           key={c.name}
@@ -122,26 +123,26 @@ export function ProjectDialog({
   };
 
   return (
-    <Modal title={project ? 'Edit project' : 'Add project'} onClose={onClose}>
+    <Modal title={project ? t('Edit project') : t('Add project')} onClose={onClose}>
       <form className="dialog-form" onSubmit={submit}>
         <label className="field">
-          <span>Name</span>
+          <span>{t('Name')}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} autoFocus maxLength={120} />
         </label>
         <div className="field">
-          <span>Color</span>
+          <span>{t('Color')}</span>
           <ColorGrid value={color} onChange={setColor} />
         </div>
         <label className="field-inline">
           <input type="checkbox" checked={favorite} onChange={(e) => setFavorite(e.target.checked)} />
-          <span>Add to favorites</span>
+          <span>{t('Add to favorites')}</span>
         </label>
         <div className="dialog-actions">
           <button type="button" className="btn" onClick={onClose}>
             Cancel
           </button>
           <button type="submit" className="btn btn-primary" disabled={!name.trim() || saving}>
-            {project ? 'Save' : 'Add'}
+            {project ? t('Save') : t('Add')}
           </button>
         </div>
       </form>
@@ -176,15 +177,15 @@ export function LabelDialog({
   };
 
   return (
-    <Modal title={label ? 'Edit label' : 'Add label'} onClose={onClose}>
+    <Modal title={label ? t('Edit label') : t('Add label')} onClose={onClose}>
       <form className="dialog-form" onSubmit={submit}>
         <label className="field">
-          <span>Name</span>
+          <span>{t('Name')}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} autoFocus maxLength={60} />
-          <small className="muted">Spaces become underscores so the label works with @ in quick add.</small>
+          <small className="muted">{t('Spaces become underscores so the label works with @ in quick add.')}</small>
         </label>
         <div className="field">
-          <span>Color</span>
+          <span>{t('Color')}</span>
           <ColorGrid value={color} onChange={setColor} />
         </div>
         <div className="dialog-actions">
@@ -192,7 +193,7 @@ export function LabelDialog({
             Cancel
           </button>
           <button type="submit" className="btn btn-primary" disabled={!name.trim() || saving}>
-            {label ? 'Save' : 'Add'}
+            {label ? t('Save') : t('Add')}
           </button>
         </div>
       </form>
@@ -218,10 +219,10 @@ export function ConfirmDialog({
       <p className="dialog-message">{options.message}</p>
       <div className="dialog-actions">
         <button type="button" className="btn" onClick={() => onResolve(false)} autoFocus>
-          Cancel
+          {t('Cancel')}
         </button>
         <button type="button" className="btn btn-danger" onClick={() => onResolve(true)}>
-          {options.confirmLabel ?? 'Delete'}
+          {options.confirmLabel ?? t('Delete')}
         </button>
       </div>
     </Modal>

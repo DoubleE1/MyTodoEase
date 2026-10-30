@@ -63,6 +63,7 @@ import { TaskEditor, taskToInput } from './TaskEditor';
 import { TaskItem, type TaskItemProps } from './TaskItem';
 import { AnimatedList } from './AnimatedList';
 import { setDragging } from '../lib/motion';
+import { datePattern, t } from '../i18n';
 
 interface TaskListProps {
   view: View;
@@ -119,7 +120,7 @@ function SortableTask({ task, ...rest }: Omit<TaskItemProps, 'handle' | 'innerRe
           type="button"
           ref={setActivatorNodeRef}
           className="drag-handle"
-          data-tooltip="Drag to reorder"
+          data-tooltip={t('Drag to reorder')}
           aria-label={`Drag to reorder ${task.content}`}
           {...attributes}
           {...listeners}
@@ -163,17 +164,17 @@ function InboxFilterPicker({ projects, tasks, filter }: { projects: Project[]; t
           onClick={onClick}
           aria-haspopup="menu"
           aria-expanded={open}
-          aria-label={`Show tasks from: ${selected?.name ?? 'All projects'}`}
+          aria-label={`Show tasks from: ${selected?.name ?? t('All projects')}`}
         >
           {selected ? <ProjectIcon project={selected} /> : <Layers size={14} />}
-          <span>{selected?.name ?? 'All projects'}</span>
+          <span>{selected?.name ?? t('All projects')}</span>
           <ChevronDown size={14} aria-hidden="true" />
         </button>
       )}
     >
       {(close) => (
-        <div className="picker picker-scroll" role="menu" aria-label="Show tasks from">
-          {row('all', <Layers size={14} />, 'All projects', close)}
+        <div className="picker picker-scroll" role="menu" aria-label={t('Show tasks from')}>
+          {row('all', <Layers size={14} />, t('All projects'), close)}
           <div className="menu-sep" role="separator" />
           {ordered.map((p) => row(p.id, <ProjectIcon project={p} />, p.name, close))}
         </div>
@@ -201,18 +202,18 @@ function ViewOptionsMenu({
 }) {
   const groupChoices: [GroupBy, string][] = [
     ['default', defaultGroupLabel],
-    ['none', 'None'],
-    ...(showProjectGrouping ? ([['project', 'Project']] as [GroupBy, string][]) : []),
-    ['date', 'Due date'],
-    ['priority', 'Priority'],
-    ['label', 'Label'],
+    ['none', t('None')],
+    ...(showProjectGrouping ? ([['project', t('Project')]] as [GroupBy, string][]) : []),
+    ['date', t('Due date')],
+    ['priority', t('Priority')],
+    ['label', t('Label')],
   ];
   const sortChoices: [SortBy, string][] = [
     ['default', defaultSortLabel],
-    ['date', 'Due date'],
-    ['priority', 'Priority'],
-    ['name', 'Name'],
-    ['added', 'Date added'],
+    ['date', t('Due date')],
+    ['priority', t('Priority')],
+    ['name', t('Name')],
+    ['added', t('Date added')],
   ];
   // A choice that matches the page's default is the same thing; drop the duplicate row.
   const dedupe = <T extends string>(choices: [T, string][]) =>
@@ -247,21 +248,21 @@ function ViewOptionsMenu({
           onClick={onClick}
           aria-haspopup="menu"
           aria-expanded={open}
-          aria-label={customized ? 'View options (customized)' : 'View options'}
-          data-tooltip="Layout, group and sort"
+          aria-label={customized ? t('View options (customized)') : t('View options')}
+          data-tooltip={t('Layout, group and sort')}
         >
           <SlidersHorizontal size={16} />
         </button>
       )}
     >
       {(close) => (
-        <div className="picker view-options" role="menu" aria-label="View options">
-          <div className="picker-heading" role="presentation">Layout</div>
-          <div className="segmented view-layout" role="radiogroup" aria-label="Layout">
+        <div className="picker view-options" role="menu" aria-label={t('View options')}>
+          <div className="picker-heading" role="presentation">{t('Layout')}</div>
+          <div className="segmented view-layout" role="radiogroup" aria-label={t('Layout')}>
             {(
               [
-                ['list', 'List', <List key="l" size={14} />],
-                ['board', 'Board', <Columns3 key="b" size={14} />],
+                ['list', t('List'), <List key="l" size={14} />],
+                ['board', t('Board'), <Columns3 key="b" size={14} />],
               ] as const
             ).map(([value, label, icon]) => (
               <button
@@ -278,15 +279,15 @@ function ViewOptionsMenu({
             ))}
           </div>
           <div className="menu-sep" role="separator" />
-          <div className="picker-heading" role="presentation">Group by</div>
-          <div role="group" aria-label="Group by">
+          <div className="picker-heading" role="presentation">{t('Group by')}</div>
+          <div role="group" aria-label={t('Group by')}>
             {dedupe(groupChoices).map(([value, label]) =>
               row(options.groupBy, value, label, (groupBy) => onChange({ ...options, groupBy })),
             )}
           </div>
           <div className="menu-sep" role="separator" />
-          <div className="picker-heading" role="presentation">Sort by</div>
-          <div role="group" aria-label="Sort by">
+          <div className="picker-heading" role="presentation">{t('Sort by')}</div>
+          <div role="group" aria-label={t('Sort by')}>
             {dedupe(sortChoices).map(([value, label]) =>
               row(options.sortBy, value, label, (sortBy) => onChange({ ...options, sortBy })),
             )}
@@ -302,7 +303,7 @@ function ViewOptionsMenu({
               close();
             }}
           >
-            <span className="row-label">Reset to defaults</span>
+            <span className="row-label">{t('Reset to defaults')}</span>
           </button>
         </div>
       )}
@@ -400,12 +401,12 @@ export function TaskList({
       const { placed, unplaced } = planDay({ date: today, tasks, events: eventsFor(today) });
       recordEvent('planDay');
       await taskMut.updateMany(
-        `planned ${placed.length} task${placed.length === 1 ? '' : 's'} into today`,
+        t('planned {n} task(s) into today', { n: placed.length }),
         placed.map(({ task, dueTime }) => ({ task, input: { ...taskToInput(task), dueDate: today, dueTime } })),
       );
-      if (placed.length === 0 && unplaced.length === 0) showToast('Nothing left to plan: every task today already has a time.');
-      else if (unplaced.length === 0) showToast(`Planned ${placed.length} task${placed.length === 1 ? '' : 's'} into today's free time.`);
-      else showToast(`Planned ${placed.length}; ${unplaced.length} did not fit before 6 pm.`);
+      if (placed.length === 0 && unplaced.length === 0) showToast(t('Nothing left to plan: every task today already has a time.'));
+      else if (unplaced.length === 0) showToast(t("Planned {n} task(s) into today's free time.", { n: placed.length }));
+      else showToast(t('Planned {n}; {left} did not fit before 6 pm.', { n: placed.length, left: unplaced.length }));
     } finally {
       setPlanning(false);
     }
@@ -434,7 +435,7 @@ export function TaskList({
         defaults: { projectId: currentProjectId },
         nested: true,
         sortable: !byDue,
-        emptyText: projectSections.length === 0 ? 'No tasks here yet.' : undefined,
+        emptyText: projectSections.length === 0 ? t('No tasks here yet.') : undefined,
       },
     ];
     for (const section of projectSections) {
@@ -477,7 +478,7 @@ export function TaskList({
       const sectionIds = new Set(inboxSections.map((s) => s.id));
       groups.push({
         ...projectGroup(own.filter((t) => !t.sectionId || !sectionIds.has(t.sectionId))),
-        emptyText: topLevel.length === 0 ? 'No tasks here yet.' : undefined,
+        emptyText: topLevel.length === 0 ? t('No tasks here yet.') : undefined,
       });
       for (const section of inboxSections) {
         groups.push({
@@ -504,7 +505,7 @@ export function TaskList({
         const dueToday = sortForAgenda(tasks.filter((t) => t.dueDate === today));
         const groups: Group[] = [];
         if (overdue.length > 0) {
-          groups.push({ key: 'overdue', title: 'Overdue', tasks: overdue, defaults: null, nested: false, isOverdue: true });
+          groups.push({ key: 'overdue', title: t('Overdue'), tasks: overdue, defaults: null, nested: false, isOverdue: true });
         }
         groups.push({
           key: 'today',
@@ -513,7 +514,7 @@ export function TaskList({
           defaults: { projectId: inbox?.id, dueDate: today },
           nested: false,
           events: eventsFor(today),
-          emptyText: 'Nothing due today. Add a task or enjoy the calm.',
+          emptyText: t('Nothing due today. Add a task or enjoy the calm.'),
         });
         return groups;
       }
@@ -521,7 +522,7 @@ export function TaskList({
         const groups: Group[] = [];
         const overdue = sortForAgenda(tasks.filter((t) => isOverdue(t, today)));
         if (overdue.length > 0) {
-          groups.push({ key: 'overdue', title: 'Overdue', tasks: overdue, defaults: null, nested: false, isOverdue: true });
+          groups.push({ key: 'overdue', title: t('Overdue'), tasks: overdue, defaults: null, nested: false, isOverdue: true });
         }
         for (let i = 0; i < 7; i++) {
           const day = toDateStr(addDays(new Date(), i));
@@ -537,7 +538,7 @@ export function TaskList({
         const lastDay = toDateStr(addDays(new Date(), 6));
         const later = sortForAgenda(tasks.filter((t) => t.dueDate !== null && t.dueDate > lastDay));
         if (later.length > 0) {
-          groups.push({ key: 'later', title: 'Later', tasks: later, defaults: null, nested: false });
+          groups.push({ key: 'later', title: t('Later'), tasks: later, defaults: null, nested: false });
         }
         return groups;
       }
@@ -549,7 +550,7 @@ export function TaskList({
             tasks: sortForAgenda(tasks.filter((t) => t.labelIds.includes(view.labelId))),
             defaults: { projectId: inbox?.id, labelIds: [view.labelId] },
             nested: false,
-            emptyText: 'No tasks with this label.',
+            emptyText: t('No tasks with this label.'),
           },
         ];
       case 'search':
@@ -560,7 +561,7 @@ export function TaskList({
             tasks: sortForAgenda(tasks.filter((t) => matchesSearch(t, view.query))),
             defaults: null,
             nested: false,
-            emptyText: 'No tasks match your search.',
+            emptyText: t('No tasks match your search.'),
           },
         ];
       default:
@@ -573,11 +574,11 @@ export function TaskList({
   const optionsKey = viewOptionsKey(view);
   const viewOptions = useViewOptions(optionsKey);
   const defaultGroupLabel =
-    view.kind === 'project' ? 'Sections'
-    : view.kind === 'inbox' ? (inboxAll ? 'Projects' : 'Sections')
-    : view.kind === 'today' || view.kind === 'upcoming' ? 'Days'
-    : 'None';
-  const defaultSortLabel = view.kind === 'project' ? 'Manual' : 'Due date';
+    view.kind === 'project' ? t('Sections')
+    : view.kind === 'inbox' ? (inboxAll ? t('Projects') : t('Sections'))
+    : view.kind === 'today' || view.kind === 'upcoming' ? t('Days')
+    : t('None');
+  const defaultSortLabel = view.kind === 'project' ? t('Manual') : t('Due date');
   // Grouping by project is the Inbox's own default and meaningless on a single project's page.
   const showProjectGrouping = view.kind !== 'project' && view.kind !== 'inbox';
 
@@ -590,7 +591,7 @@ export function TaskList({
     // A bucket is not a section, so new tasks land outside sections.
     const baseDefaults = firstDefaults ? { ...firstDefaults, sectionId: undefined } : null;
     const withDefaults = (extra: Partial<TaskInput>) => (baseDefaults ? { ...baseDefaults, ...extra } : null);
-    const emptyText = base.find((g) => g.emptyText)?.emptyText ?? 'No tasks here yet.';
+    const emptyText = base.find((g) => g.emptyText)?.emptyText ?? t('No tasks here yet.');
     const showsEvents = view.kind === 'today' || view.kind === 'upcoming';
 
     let groups: Group[] = [];
@@ -613,7 +614,7 @@ export function TaskList({
       case 'date': {
         const overdue = all.filter((t) => isOverdue(t, today));
         if (overdue.length > 0) {
-          groups.push({ key: 'overdue', title: 'Overdue', tasks: sortForAgenda(overdue), defaults: null, nested, isOverdue: true });
+          groups.push({ key: 'overdue', title: t('Overdue'), tasks: sortForAgenda(overdue), defaults: null, nested, isOverdue: true });
         }
         const days = [...new Set(all.map((t) => t.dueDate).filter((d): d is string => d !== null && d >= today))].sort();
         for (const day of days) {
@@ -629,7 +630,7 @@ export function TaskList({
         }
         groups.push({
           key: 'by-date:none',
-          title: 'No date',
+          title: t('No date'),
           tasks: sortForAgenda(all.filter((t) => t.dueDate === null)),
           defaults: withDefaults({ dueDate: null }),
           nested,
@@ -659,7 +660,7 @@ export function TaskList({
         }));
         groups.push({
           key: 'by-label:none',
-          title: 'No label',
+          title: t('No label'),
           tasks: sortForAgenda(all.filter((t) => t.labelIds.length === 0)),
           defaults: baseDefaults,
           nested,
@@ -687,15 +688,15 @@ export function TaskList({
   const rescheduleOverdue = async () => {
     const overdue = tasks.filter((t) => isOverdue(t, today));
     await taskMut.updateMany(
-      `rescheduled ${overdue.length} overdue task${overdue.length === 1 ? '' : 's'} to today`,
+      t('rescheduled {n} overdue task(s) to today', { n: overdue.length }),
       overdue.map((t) => ({ task: t, input: { ...taskToInput(t), dueDate: today } })),
     );
   };
 
   const deleteSection = async (section: Section) => {
     const ok = await confirm({
-      title: `Delete section “${section.name}”?`,
-      message: 'Tasks in this section are kept and moved out of the section.',
+      title: t('Delete section “{name}”?', { name: section.name }),
+      message: t('Tasks in this section are kept and moved out of the section.'),
     });
     if (ok) sectionMut.remove.mutate(section.id);
   };
@@ -825,10 +826,10 @@ export function TaskList({
       <div className="view">
         <header className="view-header">
           <h1>{title}</h1>
-          <p className="muted">Most recent first. Tick a task to bring it back.</p>
+          <p className="muted">{t('Most recent first. Tick a task to bring it back.')}</p>
         </header>
         {completedTasks.length === 0 ? (
-          <p className="empty">Nothing completed yet.</p>
+          <p className="empty">{t('Nothing completed yet.')}</p>
         ) : (
           <AnimatedList className="task-list">
             {completedTasks.map((task) => (
@@ -851,7 +852,7 @@ export function TaskList({
   }
 
   const groups = arrangeGroups();
-  const subtitle = view.kind === 'today' ? format(new Date(), 'EEEE d MMMM') : null;
+  const subtitle = view.kind === 'today' ? format(new Date(), datePattern('weekdayLong')) : null;
   const totalShown = groups.reduce((n, g) => n + g.tasks.length, 0);
 
   const renderAdd = (group: Group) =>
@@ -868,7 +869,7 @@ export function TaskList({
       ) : (
         <button type="button" className="add-task-btn" onClick={() => setAddingIn(group.key)}>
           <Plus size={16} />
-          <span>Add task</span>
+          <span>{t('Add task')}</span>
         </button>
       )
     ) : null;
@@ -894,7 +895,7 @@ export function TaskList({
   };
 
   const columnTitle = (group: Group) =>
-    group.title ?? (view.kind === 'today' ? 'Today' : view.kind === 'project' || view.kind === 'inbox' ? 'No section' : title);
+    group.title ?? (view.kind === 'today' ? t('Today') : view.kind === 'project' || view.kind === 'inbox' ? t('No section') : title);
 
   const boardColumns: BoardColumn[] = isBoard
     ? groups.map((group) => ({
@@ -925,7 +926,7 @@ export function TaskList({
         });
       }
     }
-    void taskMut.updateMany(`moved “${task.content}” to ${column.title}`, changes);
+    void taskMut.updateMany(t('moved “{task}” to {column}', { task: task.content, column: column.title }), changes);
   };
 
   const renderGroupTasks = (group: Group) => {
@@ -954,10 +955,10 @@ export function TaskList({
               className="btn cal-plan-btn"
               onClick={() => void planToday()}
               disabled={planning}
-              data-tooltip="Give today's untimed and overdue tasks a time slot in the gaps between your meetings"
+              data-tooltip={t("Give today's untimed and overdue tasks a time slot in the gaps between your meetings")}
             >
               <Sparkles size={14} />
-              <span>{planning ? 'Planning…' : 'Plan my day'}</span>
+              <span>{planning ? t('Planning…') : t('Plan my day')}</span>
             </button>
           )}
           <ViewOptionsMenu
@@ -986,9 +987,9 @@ export function TaskList({
         <section key={group.key} className="task-group">
           {group.isOverdue ? (
             <div className="group-header">
-              <h2 className="overdue-title">Overdue</h2>
+              <h2 className="overdue-title">{t('Overdue')}</h2>
               <button type="button" className="link-btn" onClick={() => void rescheduleOverdue()}>
-                Reschedule to today
+                {t('Reschedule to today')}
               </button>
             </div>
           ) : group.section ? (
@@ -1015,12 +1016,12 @@ export function TaskList({
                       if (e.key === 'Escape') setRenaming(null);
                     }}
                     autoFocus
-                    aria-label="Section name"
+                    aria-label={t('Section name')}
                   />
-                  <button type="submit" className="icon-btn" aria-label="Save">
+                  <button type="submit" className="icon-btn" aria-label={t('Save')}>
                     <Check size={16} />
                   </button>
-                  <button type="button" className="icon-btn" aria-label="Cancel" onClick={() => setRenaming(null)}>
+                  <button type="button" className="icon-btn" aria-label={t('Cancel')} onClick={() => setRenaming(null)}>
                     <X size={16} />
                   </button>
                 </form>
@@ -1031,7 +1032,7 @@ export function TaskList({
                     className="group-toggle"
                     onClick={() => toggleCollapsed(group.key)}
                     aria-expanded={!collapsed.has(group.key)}
-                    aria-label={`${collapsed.has(group.key) ? 'Expand' : 'Collapse'} ${group.title}`}
+                    aria-label={`${collapsed.has(group.key) ? t('Expand') : t('Collapse')} ${group.title}`}
                   >
                     <ChevronDown size={16} className={`group-chevron ${collapsed.has(group.key) ? 'is-collapsed' : ''}`} />
                     <h2>{group.title}</h2>
@@ -1041,8 +1042,8 @@ export function TaskList({
                   <button
                     type="button"
                     className="icon-btn hover-only"
-                    data-tooltip="Rename section"
-                    aria-label="Rename section"
+                    data-tooltip={t('Rename section')}
+                    aria-label={t('Rename section')}
                     onClick={() => group.section && setRenaming({ id: group.section.id, name: group.section.name })}
                   >
                     <Pencil size={14} />
@@ -1050,8 +1051,8 @@ export function TaskList({
                   <button
                     type="button"
                     className="icon-btn hover-only"
-                    data-tooltip="Delete section"
-                    aria-label="Delete section"
+                    data-tooltip={t('Delete section')}
+                    aria-label={t('Delete section')}
                     onClick={() => group.section && void deleteSection(group.section)}
                   >
                     <Trash2 size={14} />
@@ -1066,7 +1067,7 @@ export function TaskList({
                 className="group-toggle"
                 onClick={() => toggleCollapsed(group.key)}
                 aria-expanded={!collapsed.has(group.key)}
-                aria-label={`${collapsed.has(group.key) ? 'Expand' : 'Collapse'} ${group.title}`}
+                aria-label={`${collapsed.has(group.key) ? t('Expand') : t('Collapse')} ${group.title}`}
               >
                 <ChevronDown size={16} className={`group-chevron ${collapsed.has(group.key) ? 'is-collapsed' : ''}`} />
                 {group.icon}
@@ -1080,7 +1081,7 @@ export function TaskList({
             <>
 
           {group.events && group.events.length > 0 && (
-            <ul className="event-list" aria-label="Calendar events">
+            <ul className="event-list" aria-label={t('Calendar events')}>
               {group.events.map((event) => (
                 <li key={`${event.calendarId}-${event.id}`}>
                   <button
@@ -1095,7 +1096,7 @@ export function TaskList({
                   >
                     <span className="dot" style={{ background: event.color ?? 'var(--text-muted)' }} />
                     <span className="event-row-time">
-                      {event.allDay ? 'All day' : `${formatTime(event.startTime!)}${event.endTime ? ` – ${formatTime(event.endTime)}` : ''}`}
+                      {event.allDay ? t('All day') : `${formatTime(event.startTime!)}${event.endTime ? ` – ${formatTime(event.endTime)}` : ''}`}
                     </span>
                     <span className="event-row-title">{event.title}</span>
                     <span className="event-row-cal muted">{event.calendarName}</span>
@@ -1131,26 +1132,26 @@ export function TaskList({
               }}
             >
               <input
-                placeholder="Section name"
+                placeholder={t('Section name')}
                 value={newSectionName}
                 onChange={(e) => setNewSectionName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Escape') setAddingSection(false);
                 }}
                 autoFocus
-                aria-label="Section name"
+                aria-label={t('Section name')}
               />
               <button type="submit" className="btn btn-primary" disabled={!newSectionName.trim()}>
-                Add section
+                {t('Add section')}
               </button>
               <button type="button" className="btn" onClick={() => setAddingSection(false)}>
-                Cancel
+                {t('Cancel')}
               </button>
             </form>
           ) : (
             <button type="button" className="add-section-btn" onClick={() => setAddingSection(true)}>
               <MoreHorizontal size={14} />
-              <span>Add section</span>
+              <span>{t('Add section')}</span>
             </button>
           )}
         </div>

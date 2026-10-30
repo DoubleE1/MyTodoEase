@@ -20,6 +20,7 @@ import { completionsPerDay, currentStreak, longestStreak } from '../lib/stats';
 import { completionLevel } from '../lib/world';
 import { ProjectIcon } from './Pickers';
 import { WorldView } from './WorldView';
+import { datePattern, t } from '../i18n';
 
 interface InsightsViewProps {
   /** Compact layout for a narrow host such as the mini window's lower pane: no page title, stacked header. */
@@ -28,7 +29,7 @@ interface InsightsViewProps {
 }
 
 const WEEK_STARTS_ON = 1; // Monday
-const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const WEEKDAY_LABELS = [t('Mon'), t('Tue'), t('Wed'), t('Thu'), t('Fri'), t('Sat'), t('Sun')];
 
 /** How the year is drawn: the classic heat grid or the isometric world. Remembered across sessions. */
 type InsightsMode = 'grid' | 'world';
@@ -50,8 +51,9 @@ function storeMode(mode: InsightsMode) {
   }
 }
 
-function plural(n: number, word: string): string {
-  return `${n} ${word}${n === 1 ? '' : 's'}`;
+function plural(n: number, word: 'task' | 'day'): string {
+  if (word === 'day') return n === 1 ? t('1 day') : t('{n} days', { n });
+  return n === 1 ? t('1 task') : t('{n} tasks', { n });
 }
 
 export function InsightsView({ projects, embedded = false }: InsightsViewProps) {
@@ -87,16 +89,16 @@ export function InsightsView({ projects, embedded = false }: InsightsViewProps) 
     <div className={`view view-insights ${embedded ? 'is-embedded' : ''}`}>
       <header className="view-header insights-header">
         <div>
-          {!embedded && <h1>Insights</h1>}
+          {!embedded && <h1>{t('Insights')}</h1>}
           <p className="muted">
             {stats.total === 0
-              ? `No tasks completed in ${year} yet.`
-              : `${plural(stats.total, 'task')} completed in ${year} across ${plural(stats.activeDays, 'day')}.`}
+              ? t('No tasks completed in {year} yet.', { year })
+              : t('{tasks} completed in {year} across {days}.', { tasks: plural(stats.total, 'task'), year, days: plural(stats.activeDays, 'day') })}
           </p>
         </div>
         <div className="insights-controls">
           {!embedded && (
-            <div className="segmented" role="radiogroup" aria-label="View">
+            <div className="segmented" role="radiogroup" aria-label={t('View')}>
               <button
                 type="button"
                 role="radio"
@@ -105,7 +107,7 @@ export function InsightsView({ projects, embedded = false }: InsightsViewProps) 
                 onClick={() => selectMode('grid')}
               >
                 <LayoutGrid size={14} aria-hidden="true" />
-                Grid
+                {t('Grid')}
               </button>
               <button
                 type="button"
@@ -115,11 +117,11 @@ export function InsightsView({ projects, embedded = false }: InsightsViewProps) 
                 onClick={() => selectMode('world')}
               >
                 <TreePine size={14} aria-hidden="true" />
-                World
+                {t('World')}
               </button>
             </div>
           )}
-          <div className="segmented" role="radiogroup" aria-label="Year">
+          <div className="segmented" role="radiogroup" aria-label={t('Year')}>
             {years.map((y) => (
               <button
                 key={y}
@@ -171,9 +173,9 @@ export function InsightsView({ projects, embedded = false }: InsightsViewProps) 
                         key={cell.date}
                         className={`heat-cell level-${completionLevel(cell.count)} ${cell.date === todayStr() ? 'is-today' : ''}`}
                         style={{ gridColumn: cell.column + 1, gridRow: cell.row + 1 }}
-                        data-tooltip={`${plural(cell.count, 'task')} on ${format(parseDateStr(cell.date)!, 'EEE d MMM yyyy')}`}
+                        data-tooltip={t('{count} on {date}', { count: plural(cell.count, 'task'), date: format(parseDateStr(cell.date)!, datePattern('dayMonthYear')) })}
                         role="img"
-                        aria-label={`${plural(cell.count, 'task')} on ${format(parseDateStr(cell.date)!, 'EEEE d MMMM yyyy')}`}
+                        aria-label={t('{count} on {date}', { count: plural(cell.count, 'task'), date: format(parseDateStr(cell.date)!, datePattern('dayMonthYear')) })}
                       />
                     ) : (
                       <div
@@ -189,11 +191,11 @@ export function InsightsView({ projects, embedded = false }: InsightsViewProps) 
             </div>
           </div>
           <div className="heatmap-legend">
-            <span className="muted small">Less</span>
+            <span className="muted small">{t('Less')}</span>
             {[0, 1, 2, 3, 4].map((l) => (
               <span key={l} className={`heat-cell level-${l}`} />
             ))}
-            <span className="muted small">More</span>
+            <span className="muted small">{t('More')}</span>
           </div>
         </section>
       )}
@@ -202,38 +204,39 @@ export function InsightsView({ projects, embedded = false }: InsightsViewProps) 
         <div className="insight-tile">
           <CalendarCheck size={18} />
           <div className="insight-value">{stats.total}</div>
-          <div className="insight-label">completed in {year}</div>
+          <div className="insight-label">{t('completed in {year}', { year })}</div>
         </div>
         <div className="insight-tile">
           <Flame size={18} />
           <div className="insight-value">{isCurrentYear ? streakNow : stats.longest.length}</div>
-          <div className="insight-label">{isCurrentYear ? 'current streak (days)' : 'longest streak (days)'}</div>
+          <div className="insight-label">{isCurrentYear ? t('current streak (days)') : t('longest streak (days)')}</div>
         </div>
         <div className="insight-tile">
           <Award size={18} />
           <div className="insight-value">{stats.longest.length}</div>
           <div className="insight-label">
-            longest streak
-            {stats.longest.end && ` · ended ${format(parseDateStr(stats.longest.end)!, 'd MMM')}`}
+            {t('longest streak')}
+            {stats.longest.end && ` · ${t('ended {date}', { date: format(parseDateStr(stats.longest.end)!, datePattern('dayMonth')) })}`}
           </div>
         </div>
         <div className="insight-tile">
           <Sparkles size={18} />
           <div className="insight-value">{stats.bestDay ? stats.bestDay.count : 0}</div>
           <div className="insight-label">
-            best day{stats.bestDay && ` · ${format(parseDateStr(stats.bestDay.date)!, 'EEE d MMM')}`}
+            {t('best day')}
+            {stats.bestDay && ` · ${format(parseDateStr(stats.bestDay.date)!, datePattern('weekdayDayMonth'))}`}
           </div>
         </div>
         <div className="insight-tile">
           <TrendingUp size={18} />
           <div className="insight-value">{stats.activeDays === 0 ? '0' : (stats.total / stats.activeDays).toFixed(1)}</div>
-          <div className="insight-label">per active day</div>
+          <div className="insight-label">{t('per active day')}</div>
         </div>
       </section>
 
       <div className="insight-columns">
-        <section className="insight-panel" aria-label="By weekday">
-          <h2>By weekday</h2>
+        <section className="insight-panel" aria-label={t('By weekday')}>
+          <h2>{t('By weekday')}</h2>
           <div className="weekday-bars">
             {stats.byWeekday.map((count, i) => (
               <div key={WEEKDAY_LABELS[i]} className="weekday-slot" data-tooltip={`${WEEKDAY_LABELS[i]}: ${plural(count, 'task')}`}>
@@ -248,22 +251,22 @@ export function InsightsView({ projects, embedded = false }: InsightsViewProps) 
           </div>
           <p className="muted small">
             {stats.maxWeekday > 0
-              ? `${WEEKDAY_LABELS[stats.byWeekday.indexOf(stats.maxWeekday)]} is your most productive day.`
-              : 'Complete a few tasks to see your weekly rhythm.'}
+              ? t('{day} is your most productive day.', { day: WEEKDAY_LABELS[stats.byWeekday.indexOf(stats.maxWeekday)] })
+              : t('Complete a few tasks to see your weekly rhythm.')}
           </p>
         </section>
 
-        <section className="insight-panel" aria-label="By project">
-          <h2>By project</h2>
+        <section className="insight-panel" aria-label={t('By project')}>
+          <h2>{t('By project')}</h2>
           {stats.byProject.length === 0 ? (
-            <p className="muted small">Nothing yet.</p>
+            <p className="muted small">{t('Nothing yet.')}</p>
           ) : (
             <ul className="project-stats">
               {stats.byProject.map((p) => (
                 <li key={p.id}>
                   <span className="project-stat-name">
                     <ProjectIcon project={p.project} />
-                    <span>{p.project?.name ?? 'Deleted project'}</span>
+                    <span>{p.project?.name ?? t('Deleted project')}</span>
                   </span>
                   <span className="project-stat-bar">
                     <span

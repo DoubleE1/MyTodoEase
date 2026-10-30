@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { t } from '../i18n';
 
 // The same rich-text editor as task descriptions (TipTap); large, so it loads on demand.
 const DescriptionEditor = lazy(() => import('./DescriptionEditor'));
@@ -37,8 +38,8 @@ export function NoteEditor({
         toolbarHost={toolbarHost}
         autoFocus={autoFocus}
         variant="note"
-        placeholder="Write anything… e.g. a list of things to do"
-        label="Note"
+        placeholder={t('Write anything… e.g. a list of things to do')}
+        label={t('Note')}
       />
     </Suspense>
   );

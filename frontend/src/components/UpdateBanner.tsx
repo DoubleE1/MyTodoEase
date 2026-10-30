@@ -1,6 +1,7 @@
 import { Download, RefreshCw, X } from 'lucide-react';
 import { useState } from 'react';
 import { useUpdateState } from '../lib/updates';
+import { t } from '../i18n';
 
 /** "Not now" lasts until the next launch, shared by the sidebar card and the mini-window banner. */
 let dismissedVersion: string | null = null;
@@ -34,12 +35,12 @@ export function UpdateBanner() {
     <div className="update-banner" role="status">
       <RefreshCw size={16} className="update-banner-icon" aria-hidden="true" />
       <span className="update-banner-text">
-        <strong>TodoEase {state.version}</strong> is ready to install.
+        {t('TodoEase {version} is ready to install.', { version: state.version ?? '' })}
       </span>
       <button type="button" className="btn btn-primary" onClick={() => void restart()} disabled={restarting}>
-        {restarting ? 'Restarting…' : 'Restart to update'}
+        {restarting ? t('Restarting…') : t('Restart to update')}
       </button>
-      <button type="button" className="icon-btn" onClick={dismiss} aria-label="Not now" data-tooltip="Not now">
+      <button type="button" className="icon-btn" onClick={dismiss} aria-label={t('Not now')} data-tooltip={t('Not now')}>
         <X size={14} />
       </button>
     </div>
@@ -54,7 +55,7 @@ export function SidebarUpdate({ rail }: { rail: boolean }) {
   const { state, hidden, restarting, restart, dismiss } = useRestart();
   if (hidden || !state || (state.status !== 'ready' && state.status !== 'downloading')) return null;
   const ready = state.status === 'ready';
-  const version = state.version ? `TodoEase ${state.version}` : 'A new version';
+  const version = state.version ? `TodoEase ${state.version}` : t('A new version');
 
   if (rail) {
     return (
@@ -65,7 +66,7 @@ export function SidebarUpdate({ rail }: { rail: boolean }) {
         disabled={!ready || restarting}
         data-tooltip={ready ? `${version} is ready. Restart to update` : `Downloading ${version}… ${state.progress}%`}
         data-tooltip-side="right"
-        aria-label={ready ? 'Restart to update' : `Downloading update, ${state.progress}%`}
+        aria-label={ready ? t('Restart to update') : `Downloading update, ${state.progress}%`}
       >
         <Download size={16} />
       </button>
@@ -76,9 +77,9 @@ export function SidebarUpdate({ rail }: { rail: boolean }) {
     <div className="sidebar-update" role="status">
       <div className="sidebar-update-head">
         <Download size={14} className="sidebar-update-icon" aria-hidden="true" />
-        <span className="sidebar-update-title">{ready ? 'Update available' : 'Downloading update…'}</span>
+        <span className="sidebar-update-title">{ready ? t('Update available') : t('Downloading update…')}</span>
         {ready && (
-          <button type="button" className="icon-btn" onClick={dismiss} aria-label="Not now" data-tooltip="Not now">
+          <button type="button" className="icon-btn" onClick={dismiss} aria-label={t('Not now')} data-tooltip={t('Not now')}>
             <X size={13} />
           </button>
         )}
@@ -88,7 +89,7 @@ export function SidebarUpdate({ rail }: { rail: boolean }) {
       </p>
       {ready ? (
         <button type="button" className="btn btn-primary sidebar-update-btn" onClick={() => void restart()} disabled={restarting}>
-          {restarting ? 'Restarting…' : 'Restart to update'}
+          {restarting ? t('Restarting…') : t('Restart to update')}
         </button>
       ) : (
         <div className="sidebar-update-progress" aria-hidden="true">

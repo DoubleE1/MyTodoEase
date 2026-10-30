@@ -1,6 +1,7 @@
 import { addDays, differenceInCalendarDays, format, getISOWeek, getISOWeekYear, parseISO, startOfDay } from 'date-fns';
 import { useSyncExternalStore } from 'react';
 import type { CompletionItem, Label, Note, Project, Section, Task } from '../api/types';
+import { t } from '../i18n';
 
 /**
  * Achievements and points (docs/ACHIEVEMENTS.md). Every achievement pays its points once; all 50 are worth
@@ -12,14 +13,14 @@ import type { CompletionItem, Label, Note, Project, Section, Task } from '../api
 export type Category = 'start' | 'milestones' | 'streaks' | 'habits' | 'planning' | 'notes' | 'insights' | 'hidden';
 
 export const CATEGORY_TITLES: Record<Category, string> = {
-  start: 'Getting started',
-  milestones: 'Completion milestones',
-  streaks: 'Streaks',
-  habits: 'Habits',
-  planning: 'Planning and organising',
-  notes: 'Notes and capture',
-  insights: 'Insights and World',
-  hidden: 'Hidden',
+  start: t('Getting started'),
+  milestones: t('Completion milestones'),
+  streaks: t('Streaks'),
+  habits: t('Habits'),
+  planning: t('Planning and organising'),
+  notes: t('Notes and capture'),
+  insights: t('Insights and World'),
+  hidden: t('Hidden'),
 };
 
 /** Everything an achievement can look at. Built once per render from the queries. */
@@ -307,70 +308,70 @@ function daysSinceFirstUse(d: Derived): number {
 
 export const ACHIEVEMENTS: AchievementDef[] = [
   // Getting started (180)
-  { id: 'first-step', category: 'start', name: 'First step', description: 'Complete your first task', points: 20, progress: (d) => count(d.counted.length, 1) },
-  { id: 'captured', category: 'start', name: 'Captured', description: 'Add 10 tasks', points: 20, progress: (d) => count(d.allTasks.length, 10) },
-  { id: 'organiser', category: 'start', name: 'Organiser', description: 'Create your first project', points: 20, progress: (d) => count(d.projects.filter((p) => !p.isInbox).length, 1) },
-  { id: 'tagged', category: 'start', name: 'Tagged', description: 'Use one label on 3 tasks', points: 30, progress: (d) => count(bestLabelUse(d), 3) },
-  { id: 'sectioned', category: 'start', name: 'Sectioned', description: 'Add a section to a project', points: 20, progress: (d) => count(d.sections.length, 1) },
-  { id: 'make-it-yours', category: 'start', name: 'Make it yours', description: 'Change the theme or accent colour', points: 20, progress: (d) => flag(d.customized.theme) },
-  { id: 'shortcut-savvy', category: 'start', name: 'Shortcut savvy', description: 'Open search with Ctrl+K 10 times', points: 30, progress: (d) => count(d.events.paletteOpened ?? 0, 10) },
-  { id: 'sticky-start', category: 'start', name: 'Sticky start', description: 'Write your first sticky note', points: 20, progress: (d) => count(d.notes.length, 1) },
+  { id: 'first-step', category: 'start', name: t('First step'), description: t('Complete your first task'), points: 20, progress: (d) => count(d.counted.length, 1) },
+  { id: 'captured', category: 'start', name: t('Captured'), description: t('Add 10 tasks'), points: 20, progress: (d) => count(d.allTasks.length, 10) },
+  { id: 'organiser', category: 'start', name: t('Organiser'), description: t('Create your first project'), points: 20, progress: (d) => count(d.projects.filter((p) => !p.isInbox).length, 1) },
+  { id: 'tagged', category: 'start', name: t('Tagged'), description: t('Use one label on 3 tasks'), points: 30, progress: (d) => count(bestLabelUse(d), 3) },
+  { id: 'sectioned', category: 'start', name: t('Sectioned'), description: t('Add a section to a project'), points: 20, progress: (d) => count(d.sections.length, 1) },
+  { id: 'make-it-yours', category: 'start', name: t('Make it yours'), description: t('Change the theme or accent colour'), points: 20, progress: (d) => flag(d.customized.theme) },
+  { id: 'shortcut-savvy', category: 'start', name: t('Shortcut savvy'), description: t('Open search with Ctrl+K 10 times'), points: 30, progress: (d) => count(d.events.paletteOpened ?? 0, 10) },
+  { id: 'sticky-start', category: 'start', name: t('Sticky start'), description: t('Write your first sticky note'), points: 20, progress: (d) => count(d.notes.length, 1) },
 
   // Completion milestones (2,600)
-  { id: 'done-10', category: 'milestones', name: 'Getting going', description: 'Complete 10 tasks', points: 50, progress: (d) => count(d.cappedTotal, 10) },
-  { id: 'done-50', category: 'milestones', name: 'Half century', description: 'Complete 50 tasks', points: 100, progress: (d) => count(d.cappedTotal, 50) },
-  { id: 'done-100', category: 'milestones', name: 'Centurion', description: 'Complete 100 tasks', points: 150, progress: (d) => count(d.cappedTotal, 100) },
-  { id: 'done-250', category: 'milestones', name: 'Quarter thousand', description: 'Complete 250 tasks', points: 250, progress: (d) => count(d.cappedTotal, 250) },
-  { id: 'done-500', category: 'milestones', name: 'Machine', description: 'Complete 500 tasks', points: 400, progress: (d) => count(d.cappedTotal, 500) },
-  { id: 'done-1000', category: 'milestones', name: 'Thousandaire', description: 'Complete 1,000 tasks', points: 600, progress: (d) => count(d.cappedTotal, 1000) },
-  { id: 'done-2500', category: 'milestones', name: 'Legend of done', description: 'Complete 2,500 tasks', points: 900, progress: (d) => count(d.cappedTotal, 2500) },
-  { id: 'p1-slayer', category: 'milestones', name: 'P1 slayer', description: 'Complete 25 Priority 1 tasks', points: 150, progress: (d) => count(d.completedTasks.filter((t) => t.priority === 1).length, 25) },
+  { id: 'done-10', category: 'milestones', name: t('Getting going'), description: t('Complete 10 tasks'), points: 50, progress: (d) => count(d.cappedTotal, 10) },
+  { id: 'done-50', category: 'milestones', name: t('Half century'), description: t('Complete 50 tasks'), points: 100, progress: (d) => count(d.cappedTotal, 50) },
+  { id: 'done-100', category: 'milestones', name: t('Centurion'), description: t('Complete 100 tasks'), points: 150, progress: (d) => count(d.cappedTotal, 100) },
+  { id: 'done-250', category: 'milestones', name: t('Quarter thousand'), description: t('Complete 250 tasks'), points: 250, progress: (d) => count(d.cappedTotal, 250) },
+  { id: 'done-500', category: 'milestones', name: t('Machine'), description: t('Complete 500 tasks'), points: 400, progress: (d) => count(d.cappedTotal, 500) },
+  { id: 'done-1000', category: 'milestones', name: t('Thousandaire'), description: t('Complete 1,000 tasks'), points: 600, progress: (d) => count(d.cappedTotal, 1000) },
+  { id: 'done-2500', category: 'milestones', name: t('Legend of done'), description: t('Complete 2,500 tasks'), points: 900, progress: (d) => count(d.cappedTotal, 2500) },
+  { id: 'p1-slayer', category: 'milestones', name: t('P1 slayer'), description: t('Complete 25 Priority 1 tasks'), points: 150, progress: (d) => count(d.completedTasks.filter((t) => t.priority === 1).length, 25) },
 
   // Streaks (4,250)
-  { id: 'streak-3', category: 'streaks', name: 'Warm-up', description: 'Reach a 3-day streak', points: 50, progress: (d) => count(d.longestStreak, 3) },
-  { id: 'streak-7', category: 'streaks', name: 'One week', description: 'Reach a 7-day streak', points: 150, progress: (d) => count(d.longestStreak, 7) },
-  { id: 'streak-14', category: 'streaks', name: 'Fortnight', description: 'Reach a 14-day streak', points: 250, progress: (d) => count(d.longestStreak, 14) },
-  { id: 'streak-30', category: 'streaks', name: 'Month strong', description: 'Reach a 30-day streak', points: 500, progress: (d) => count(d.longestStreak, 30) },
-  { id: 'streak-60', category: 'streaks', name: 'Two months', description: 'Reach a 60-day streak', points: 750, progress: (d) => count(d.longestStreak, 60) },
-  { id: 'streak-100', category: 'streaks', name: 'Hundred days', description: 'Reach a 100-day streak', points: 1000, progress: (d) => count(d.longestStreak, 100) },
-  { id: 'streak-365', category: 'streaks', name: 'Year of done', description: 'Reach a 365-day streak', points: 1500, progress: (d) => count(d.longestStreak, 365) },
-  { id: 'comeback', category: 'streaks', name: 'Comeback', description: 'Start a new streak within 2 days of losing one of 7+ days', points: 50, progress: (d) => flag(d.hadComeback) },
+  { id: 'streak-3', category: 'streaks', name: t('Warm-up'), description: t('Reach a 3-day streak'), points: 50, progress: (d) => count(d.longestStreak, 3) },
+  { id: 'streak-7', category: 'streaks', name: t('One week'), description: t('Reach a 7-day streak'), points: 150, progress: (d) => count(d.longestStreak, 7) },
+  { id: 'streak-14', category: 'streaks', name: t('Fortnight'), description: t('Reach a 14-day streak'), points: 250, progress: (d) => count(d.longestStreak, 14) },
+  { id: 'streak-30', category: 'streaks', name: t('Month strong'), description: t('Reach a 30-day streak'), points: 500, progress: (d) => count(d.longestStreak, 30) },
+  { id: 'streak-60', category: 'streaks', name: t('Two months'), description: t('Reach a 60-day streak'), points: 750, progress: (d) => count(d.longestStreak, 60) },
+  { id: 'streak-100', category: 'streaks', name: t('Hundred days'), description: t('Reach a 100-day streak'), points: 1000, progress: (d) => count(d.longestStreak, 100) },
+  { id: 'streak-365', category: 'streaks', name: t('Year of done'), description: t('Reach a 365-day streak'), points: 1500, progress: (d) => count(d.longestStreak, 365) },
+  { id: 'comeback', category: 'streaks', name: t('Comeback'), description: t('Start a new streak within 2 days of losing one of 7+ days'), points: 50, progress: (d) => flag(d.hadComeback) },
 
   // Habits (900)
-  { id: 'inbox-zero', category: 'habits', name: 'Inbox zero', description: 'Empty your Inbox after completing at least 5 of its tasks that day', points: 100, progress: (d) => flag(inboxZeroToday(d)) },
-  { id: 'clean-slate', category: 'habits', name: 'Clean slate', description: 'End 7 days in a row with nothing overdue', points: 200, progress: (d) => count(longestRun(d.clearDays), 7) },
-  { id: 'planner', category: 'habits', name: 'Planner', description: 'Use Plan my day 10 times', points: 100, progress: (d) => count(d.events.planDay ?? 0, 10) },
-  { id: 'early-bird', category: 'habits', name: 'Early bird', description: 'Complete 20 tasks before 9 am', points: 100, progress: (d) => count(d.counted.filter((c) => c.hour < 9).length, 20) },
-  { id: 'weekend-warrior', category: 'habits', name: 'Weekend warrior', description: 'Complete tasks on 10 different weekends', points: 100, progress: (d) => count(weekendsWithCompletions(d), 10) },
-  { id: 'perfect-week', category: 'habits', name: 'Perfect week', description: 'Complete every task due in a week on time (at least 10)', points: 300, progress: (d) => count(perfectWeeks(d), 1) },
+  { id: 'inbox-zero', category: 'habits', name: t('Inbox zero'), description: t('Empty your Inbox after completing at least 5 of its tasks that day'), points: 100, progress: (d) => flag(inboxZeroToday(d)) },
+  { id: 'clean-slate', category: 'habits', name: t('Clean slate'), description: t('End 7 days in a row with nothing overdue'), points: 200, progress: (d) => count(longestRun(d.clearDays), 7) },
+  { id: 'planner', category: 'habits', name: t('Planner'), description: t('Use Plan my day 10 times'), points: 100, progress: (d) => count(d.events.planDay ?? 0, 10) },
+  { id: 'early-bird', category: 'habits', name: t('Early bird'), description: t('Complete 20 tasks before 9 am'), points: 100, progress: (d) => count(d.counted.filter((c) => c.hour < 9).length, 20) },
+  { id: 'weekend-warrior', category: 'habits', name: t('Weekend warrior'), description: t('Complete tasks on 10 different weekends'), points: 100, progress: (d) => count(weekendsWithCompletions(d), 10) },
+  { id: 'perfect-week', category: 'habits', name: t('Perfect week'), description: t('Complete every task due in a week on time (at least 10)'), points: 300, progress: (d) => count(perfectWeeks(d), 1) },
 
   // Planning and organising (830)
-  { id: 'on-repeat', category: 'planning', name: 'On repeat', description: 'Create 5 repeating tasks', points: 50, progress: (d) => count(d.allTasks.filter((t) => t.recurrence !== 'none').length, 5) },
-  { id: 'ritual', category: 'planning', name: 'Ritual', description: 'Complete one repeating task 30 times', points: 200, progress: (d) => count(maxRepeats(d), 30) },
-  { id: 'time-blocker', category: 'planning', name: 'Time blocker', description: 'Give 20 tasks a time on the calendar', points: 100, progress: (d) => count(d.allTasks.filter((t) => t.dueTime).length, 20) },
-  { id: 'long-haul', category: 'planning', name: 'Long haul', description: 'Create a multi-day task', points: 30, progress: (d) => flag(d.allTasks.some((t) => t.startDate)) },
-  { id: 'synced', category: 'planning', name: 'Synced', description: 'Connect Google Calendar', points: 50, progress: (d) => flag(d.calendarConnected) },
-  { id: 'broken-down', category: 'planning', name: 'Broken down', description: 'Finish a task whose 5+ sub-tasks are all done', points: 100, progress: (d) => count(finishedBigTasks(d), 1) },
-  { id: 'project-finisher', category: 'planning', name: 'Project finisher', description: 'Complete every task in a project of 10+ tasks', points: 200, progress: (d) => count(finishedProjects(d), 1) },
-  { id: 'ahead-of-time', category: 'planning', name: 'Ahead of time', description: 'Complete 25 tasks before their due date', points: 100, progress: (d) => count(d.completedTasks.filter((t) => t.dueDate && t.completedAt && dayOf(parseISO(t.completedAt)) < t.dueDate).length, 25) },
+  { id: 'on-repeat', category: 'planning', name: t('On repeat'), description: t('Create 5 repeating tasks'), points: 50, progress: (d) => count(d.allTasks.filter((t) => t.recurrence !== 'none').length, 5) },
+  { id: 'ritual', category: 'planning', name: t('Ritual'), description: t('Complete one repeating task 30 times'), points: 200, progress: (d) => count(maxRepeats(d), 30) },
+  { id: 'time-blocker', category: 'planning', name: t('Time blocker'), description: t('Give 20 tasks a time on the calendar'), points: 100, progress: (d) => count(d.allTasks.filter((t) => t.dueTime).length, 20) },
+  { id: 'long-haul', category: 'planning', name: t('Long haul'), description: t('Create a multi-day task'), points: 30, progress: (d) => flag(d.allTasks.some((t) => t.startDate)) },
+  { id: 'synced', category: 'planning', name: t('Synced'), description: t('Connect Google Calendar'), points: 50, progress: (d) => flag(d.calendarConnected) },
+  { id: 'broken-down', category: 'planning', name: t('Broken down'), description: t('Finish a task whose 5+ sub-tasks are all done'), points: 100, progress: (d) => count(finishedBigTasks(d), 1) },
+  { id: 'project-finisher', category: 'planning', name: t('Project finisher'), description: t('Complete every task in a project of 10+ tasks'), points: 200, progress: (d) => count(finishedProjects(d), 1) },
+  { id: 'ahead-of-time', category: 'planning', name: t('Ahead of time'), description: t('Complete 25 tasks before their due date'), points: 100, progress: (d) => count(d.completedTasks.filter((t) => t.dueDate && t.completedAt && dayOf(parseISO(t.completedAt)) < t.dueDate).length, 25) },
 
   // Notes and capture (330)
-  { id: 'brain-dump', category: 'notes', name: 'Brain dump', description: 'Write 10 sticky notes', points: 50, progress: (d) => count(d.notes.length, 10) },
-  { id: 'thought-to-action', category: 'notes', name: 'Thought to action', description: 'Turn one note into 3+ tasks', points: 50, progress: (d) => flag(d.notes.some((n) => n.taskIds.length >= 3)) },
-  { id: 'note-keeper', category: 'notes', name: 'Note keeper', description: 'Create 25 tasks from notes in total', points: 100, progress: (d) => count(d.notes.reduce((n, note) => n + note.taskIds.length, 0), 25) },
-  { id: 'on-the-desk', category: 'notes', name: 'On the desk', description: 'Pop a note out into its own window (desktop)', points: 30, progress: (d) => count(d.events.notePopped ?? 0, 1) },
-  { id: 'quick-draw', category: 'notes', name: 'Quick draw', description: 'Add 50 tasks using quick-add words (#project, @label, dates, p1–p4)', points: 100, progress: (d) => count(d.events.quickAddWords ?? 0, 50) },
+  { id: 'brain-dump', category: 'notes', name: t('Brain dump'), description: t('Write 10 sticky notes'), points: 50, progress: (d) => count(d.notes.length, 10) },
+  { id: 'thought-to-action', category: 'notes', name: t('Thought to action'), description: t('Turn one note into 3+ tasks'), points: 50, progress: (d) => flag(d.notes.some((n) => n.taskIds.length >= 3)) },
+  { id: 'note-keeper', category: 'notes', name: t('Note keeper'), description: t('Create 25 tasks from notes in total'), points: 100, progress: (d) => count(d.notes.reduce((n, note) => n + note.taskIds.length, 0), 25) },
+  { id: 'on-the-desk', category: 'notes', name: t('On the desk'), description: t('Pop a note out into its own window (desktop)'), points: 30, progress: (d) => count(d.events.notePopped ?? 0, 1) },
+  { id: 'quick-draw', category: 'notes', name: t('Quick draw'), description: t('Add 50 tasks using quick-add words (#project, @label, dates, p1–p4)'), points: 100, progress: (d) => count(d.events.quickAddWords ?? 0, 50) },
 
   // Insights and World (500)
-  { id: 'self-aware', category: 'insights', name: 'Self-aware', description: 'Open Insights on 7 different days', points: 50, progress: (d) => count(d.insightsDays.length, 7) },
-  { id: 'green-year', category: 'insights', name: 'Green year', description: 'Have 100 days with a completion in one calendar year', points: 300, progress: (d) => count(bestYearActiveDays(d), 100) },
-  { id: 'world-builder', category: 'insights', name: 'World builder', description: 'Grow 30 things in your Insights World (30 active days)', points: 150, progress: (d) => count(d.perDay.size, 30) },
+  { id: 'self-aware', category: 'insights', name: t('Self-aware'), description: t('Open Insights on 7 different days'), points: 50, progress: (d) => count(d.insightsDays.length, 7) },
+  { id: 'green-year', category: 'insights', name: t('Green year'), description: t('Have 100 days with a completion in one calendar year'), points: 300, progress: (d) => count(bestYearActiveDays(d), 100) },
+  { id: 'world-builder', category: 'insights', name: t('World builder'), description: t('Grow 30 things in your Insights World (30 active days)'), points: 150, progress: (d) => count(d.perDay.size, 30) },
 
   // Hidden (410)
-  { id: 'oops-fixed', category: 'hidden', name: 'Oops, fixed', description: 'Undo an action with Ctrl+Z', points: 20, hidden: true, progress: (d) => count(d.events.undo ?? 0, 1) },
-  { id: 'docked', category: 'hidden', name: 'Docked', description: 'Dock the mini window to the screen edge', points: 30, hidden: true, progress: (d) => count(d.events.docked ?? 0, 1) },
-  { id: 'my-keys', category: 'hidden', name: 'My keys', description: 'Change a keyboard shortcut', points: 30, hidden: true, progress: (d) => flag(d.customized.shortcuts) },
-  { id: 'anniversary', category: 'hidden', name: 'Anniversary', description: 'Use TodoEase for a full year', points: 330, hidden: true, progress: (d) => count(daysSinceFirstUse(d), 365) },
+  { id: 'oops-fixed', category: 'hidden', name: t('Oops, fixed'), description: t('Undo an action with Ctrl+Z'), points: 20, hidden: true, progress: (d) => count(d.events.undo ?? 0, 1) },
+  { id: 'docked', category: 'hidden', name: t('Docked'), description: t('Dock the mini window to the screen edge'), points: 30, hidden: true, progress: (d) => count(d.events.docked ?? 0, 1) },
+  { id: 'my-keys', category: 'hidden', name: t('My keys'), description: t('Change a keyboard shortcut'), points: 30, hidden: true, progress: (d) => flag(d.customized.shortcuts) },
+  { id: 'anniversary', category: 'hidden', name: t('Anniversary'), description: t('Use TodoEase for a full year'), points: 330, hidden: true, progress: (d) => count(daysSinceFirstUse(d), 365) },
 ];
 
 export const TOTAL_POINTS = ACHIEVEMENTS.reduce((sum, a) => sum + a.points, 0);
@@ -405,8 +406,8 @@ export interface ShopTier {
 }
 
 export const SHOP_TIERS: ShopTier[] = [
-  { id: 'common', name: 'Common', price: 2500, examples: ['Static profile border', 'Sticky-note paper skin', 'Accent colour pack'] },
-  { id: 'rare', name: 'Rare', price: 5000, examples: ['Avatar frame', 'Pet skin', 'Subtle background effect', 'Insights colour theme'] },
-  { id: 'epic', name: 'Epic', price: 7500, examples: ['Animated avatar frame', 'Animated background effect', 'Insights design (World pack)'] },
-  { id: 'legendary', name: 'Legendary', price: 10000, examples: ['Matching bundle: frame, border, note skin, background and pet in one theme'] },
+  { id: 'common', name: t('Common'), price: 2500, examples: [t('Static profile border'), t('Sticky-note paper skin'), t('Accent colour pack')] },
+  { id: 'rare', name: t('Rare'), price: 5000, examples: [t('Avatar frame'), t('Pet skin'), t('Subtle background effect'), t('Insights colour theme')] },
+  { id: 'epic', name: t('Epic'), price: 7500, examples: [t('Animated avatar frame'), t('Animated background effect'), t('Insights design (World pack)')] },
+  { id: 'legendary', name: t('Legendary'), price: 10000, examples: [t('Matching bundle: frame, border, note skin, background and pet in one theme')] },
 ];

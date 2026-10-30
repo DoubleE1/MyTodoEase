@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { t } from '../i18n';
 
 /**
  * Notion-style handles for the table under the cursor: a grip above the current column and one left of the
@@ -135,25 +136,25 @@ function columnActions(editor: Editor, col: number, width: number): Action[] {
     return ok;
   };
   return [
-    { id: 'sort-asc', label: 'Sort increasing', icon: ArrowUpNarrowWide, run: run(() => sortByColumn(editor, col, 1)) },
-    { id: 'sort-desc', label: 'Sort decreasing', icon: ArrowDownNarrowWide, run: run(() => sortByColumn(editor, col, -1)) },
+    { id: 'sort-asc', label: t('Sort increasing'), icon: ArrowUpNarrowWide, run: run(() => sortByColumn(editor, col, 1)) },
+    { id: 'sort-desc', label: t('Sort decreasing'), icon: ArrowDownNarrowWide, run: run(() => sortByColumn(editor, col, -1)) },
     {
       id: 'add-left',
-      label: 'Add column left',
+      label: t('Add column left'),
       icon: ArrowLeftToLine,
       shortcut: `${MOD}+${ALT}+←`,
       run: run(() => (caretInCell(editor, 0, col), editor.chain().addColumnBefore().run())),
     },
     {
       id: 'add-right',
-      label: 'Add column right',
+      label: t('Add column right'),
       icon: ArrowRightToLine,
       shortcut: `${MOD}+${ALT}+→`,
       run: run(() => (caretInCell(editor, 0, col), editor.chain().addColumnAfter().run())),
     },
     {
       id: 'move-left',
-      label: 'Move column left',
+      label: t('Move column left'),
       icon: ChevronLeft,
       shortcut: `${MOD}+${ALT}+Shift+←`,
       disabled: col === 0,
@@ -161,7 +162,7 @@ function columnActions(editor: Editor, col: number, width: number): Action[] {
     },
     {
       id: 'move-right',
-      label: 'Move column right',
+      label: t('Move column right'),
       icon: ChevronRight,
       shortcut: `${MOD}+${ALT}+Shift+→`,
       disabled: col >= width - 1,
@@ -169,7 +170,7 @@ function columnActions(editor: Editor, col: number, width: number): Action[] {
     },
     {
       id: 'clear',
-      label: 'Clear cells',
+      label: t('Clear cells'),
       icon: Eraser,
       run: run(() => (selectAxis(editor, 'column', col), deleteCellSelection(editor.state, d))),
     },
@@ -198,7 +199,7 @@ function rowActions(editor: Editor, row: number, height: number): Action[] {
   return [
     {
       id: 'add-above',
-      label: 'Add row above',
+      label: t('Add row above'),
       icon: ArrowUpToLine,
       shortcut: `${MOD}+${ALT}+↑`,
       disabled: isHeader,
@@ -206,14 +207,14 @@ function rowActions(editor: Editor, row: number, height: number): Action[] {
     },
     {
       id: 'add-below',
-      label: 'Add row below',
+      label: t('Add row below'),
       icon: ArrowDownToLine,
       shortcut: `${MOD}+${ALT}+↓`,
       run: run(() => (caretInCell(editor, row, 0), editor.chain().addRowAfter().run())),
     },
     {
       id: 'move-up',
-      label: 'Move row up',
+      label: t('Move row up'),
       icon: ChevronUp,
       shortcut: `${MOD}+${ALT}+Shift+↑`,
       disabled: row <= 1,
@@ -221,7 +222,7 @@ function rowActions(editor: Editor, row: number, height: number): Action[] {
     },
     {
       id: 'move-down',
-      label: 'Move row down',
+      label: t('Move row down'),
       icon: ChevronDown,
       shortcut: `${MOD}+${ALT}+Shift+↓`,
       disabled: isHeader || row >= height - 1,
@@ -229,7 +230,7 @@ function rowActions(editor: Editor, row: number, height: number): Action[] {
     },
     {
       id: 'clear',
-      label: 'Clear cells',
+      label: t('Clear cells'),
       icon: Eraser,
       run: run(() => (selectAxis(editor, 'row', row), deleteCellSelection(editor.state, d))),
     },
@@ -386,7 +387,7 @@ export function TableControls({ editor }: { editor: Editor }) {
           type="button"
           className={`table-grip table-grip-col ${menu?.axis === 'column' ? 'is-open' : ''}`}
           style={{ left: place.column.left + place.column.width / 2 - 14, top: place.column.top - 9 }}
-          data-tooltip="Column options"
+          data-tooltip={t('Column options')}
           aria-label={`Column ${current.col + 1} options`}
           aria-haspopup="menu"
           aria-expanded={menu?.axis === 'column'}
@@ -401,7 +402,7 @@ export function TableControls({ editor }: { editor: Editor }) {
           type="button"
           className={`table-grip table-grip-row ${menu?.axis === 'row' ? 'is-open' : ''}`}
           style={{ left: place.row.left - 9, top: place.row.top + place.row.height / 2 - 14 }}
-          data-tooltip="Row options"
+          data-tooltip={t('Row options')}
           aria-label={`Row ${current.row + 1} options`}
           aria-haspopup="menu"
           aria-expanded={menu?.axis === 'row'}

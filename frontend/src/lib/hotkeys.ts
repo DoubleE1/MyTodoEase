@@ -1,4 +1,5 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { t } from '../i18n';
 
 /**
  * App-wide keyboard shortcuts, rebindable in Settings > Shortcuts and remembered on this device.
@@ -15,16 +16,16 @@ export interface Hotkey {
 }
 
 export const HOTKEY_ACTIONS: { action: HotkeyAction; label: string; hint: string }[] = [
-  { action: 'search', label: 'Search', hint: 'Open search to find tasks, projects, labels and notes, or run an action.' },
-  { action: 'quickAdd', label: 'Add task', hint: 'Open quick add from anywhere.' },
+  { action: 'search', label: t('Search'), hint: t('Open search to find tasks, projects, labels and notes, or run an action.') },
+  { action: 'quickAdd', label: t('Add task'), hint: t('Open quick add from anywhere.') },
   {
     action: 'undo',
-    label: 'Undo last action',
-    hint: 'Reverses the last change to a task (one step). In a text field it undoes typing instead.',
+    label: t('Undo last action'),
+    hint: t('Reverses the last change to a task (one step). In a text field it undoes typing instead.'),
   },
-  { action: 'shortcuts', label: 'Keyboard shortcuts', hint: 'Show this list.' },
-  { action: 'settings', label: 'Open Settings', hint: 'Works even while you are typing.' },
-  { action: 'toggleSidebar', label: 'Collapse sidebar', hint: 'Switch the sidebar between full and icons only.' },
+  { action: 'shortcuts', label: t('Keyboard shortcuts'), hint: t('Show this list.') },
+  { action: 'settings', label: t('Open Settings'), hint: t('Works even while you are typing.') },
+  { action: 'toggleSidebar', label: t('Collapse sidebar'), hint: t('Switch the sidebar between full and icons only.') },
 ];
 
 export const DEFAULT_HOTKEYS: Record<HotkeyAction, Hotkey | null> = {
@@ -127,9 +128,9 @@ export function hotkeyFromEvent(event: KeyboardEvent, allowReserved = false): Ho
   }
   // Without Ctrl/Alt a shortcut fires on a bare key press, so it has to be a single printable key.
   if (!hotkey.mod && !hotkey.alt && event.key.length !== 1) {
-    return { error: 'Use a single key (like Q) or add Ctrl or Alt.' };
+    return { error: t('Use a single key (like Q) or add Ctrl or Alt.') };
   }
-  if (!hotkey.mod && !hotkey.alt && key === ' ') return { error: 'Space is used to tick tasks. Pick another.' };
+  if (!hotkey.mod && !hotkey.alt && key === ' ') return { error: t('Space is used to tick tasks. Pick another.') };
   return hotkey;
 }
 

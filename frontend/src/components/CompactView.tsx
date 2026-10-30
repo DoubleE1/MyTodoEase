@@ -15,6 +15,7 @@ import { Popover } from './Popover';
 import { TaskEditor, taskToInput } from './TaskEditor';
 import { TaskItem } from './TaskItem';
 import { AnimatedList } from './AnimatedList';
+import { datePattern, t } from '../i18n';
 
 interface CompactViewProps {
   tasks: Task[];
@@ -195,7 +196,7 @@ export function CompactView({
 
   const rescheduleOverdue = async () => {
     await taskMut.updateMany(
-      `rescheduled ${overdue.length} overdue task${overdue.length === 1 ? '' : 's'} to today`,
+      t('rescheduled {n} overdue task(s) to today', { n: overdue.length }),
       overdue.map((t) => ({ task: t, input: { ...taskToInput(t), dueDate: today } })),
     );
   };
@@ -218,27 +219,27 @@ export function CompactView({
   const lower = ((): { title: string; tasks: Task[]; defaults: Partial<TaskInput>; empty: string } => {
     switch (secondary.kind) {
       case 'dashboard':
-        return { title: 'Overview', tasks: [], defaults: {}, empty: '' };
+        return { title: t('Overview'), tasks: [], defaults: {}, empty: '' };
       case 'notes':
-        return { title: 'Sticky notes', tasks: [], defaults: {}, empty: '' };
+        return { title: t('Sticky notes'), tasks: [], defaults: {}, empty: '' };
       case 'nodate':
         return {
-          title: 'No date',
+          title: t('No date'),
           tasks: tasks.filter((t) => !t.dueDate).sort((a, b) => a.priority - b.priority || a.order - b.order),
           defaults: { projectId: inbox?.id },
-          empty: 'Everything has a date.',
+          empty: t('Everything has a date.'),
         };
       case 'inbox':
         return {
-          title: 'Inbox',
+          title: t('Inbox'),
           tasks: inbox ? sortByOrder(tasks.filter((t) => t.projectId === inbox.id)) : [],
           defaults: { projectId: inbox?.id },
-          empty: 'Inbox is empty.',
+          empty: t('Inbox is empty.'),
         };
       case 'upcoming': {
         const last = toDateStr(addDays(new Date(), 7));
         return {
-          title: 'Upcoming',
+          title: t('Upcoming'),
           tasks: sortForAgenda(tasks.filter((t) => t.dueDate !== null && t.dueDate > today && t.dueDate <= last)),
           defaults: { projectId: inbox?.id, dueDate: tomorrowStr() },
           empty: 'Nothing due in the next 7 days.',
@@ -250,7 +251,7 @@ export function CompactView({
           title: project?.name ?? 'Project',
           tasks: sortByOrder(tasks.filter((t) => t.projectId === secondary.id)),
           defaults: { projectId: secondary.id },
-          empty: 'No tasks in this project.',
+          empty: t('No tasks in this project.'),
         };
       }
       case 'label': {
@@ -259,7 +260,7 @@ export function CompactView({
           title: label ? `@${label.name}` : 'Label',
           tasks: sortForAgenda(tasks.filter((t) => t.labelIds.includes(secondary.id))),
           defaults: { projectId: inbox?.id, labelIds: [secondary.id] },
-          empty: 'No tasks with this label.',
+          empty: t('No tasks with this label.'),
         };
       }
     }
@@ -286,17 +287,17 @@ export function CompactView({
   const addButton = (onClick: () => void): ReactNode => (
     <button type="button" className="add-task-btn" onClick={onClick}>
       <Plus size={16} />
-      <span>Add task</span>
+      <span>{t('Add task')}</span>
     </button>
   );
 
   // Built-in views first, then the user's projects and labels behind a divider.
   const builtinOptions: { value: Secondary; label: string; icon: ReactNode }[] = [
-    { value: { kind: 'dashboard' }, label: 'Overview', icon: <Activity size={14} /> },
-    { value: { kind: 'nodate' }, label: 'No date', icon: <CalendarDays size={14} /> },
-    { value: { kind: 'inbox' }, label: 'Inbox', icon: <Inbox size={14} /> },
-    { value: { kind: 'upcoming' }, label: 'Upcoming (7 days)', icon: <CalendarDays size={14} /> },
-    { value: { kind: 'notes' }, label: 'Sticky notes', icon: <StickyNote size={14} /> },
+    { value: { kind: 'dashboard' }, label: t('Overview'), icon: <Activity size={14} /> },
+    { value: { kind: 'nodate' }, label: t('No date'), icon: <CalendarDays size={14} /> },
+    { value: { kind: 'inbox' }, label: t('Inbox'), icon: <Inbox size={14} /> },
+    { value: { kind: 'upcoming' }, label: t('Upcoming (7 days)'), icon: <CalendarDays size={14} /> },
+    { value: { kind: 'notes' }, label: t('Sticky notes'), icon: <StickyNote size={14} /> },
   ];
   const projectOptions: { value: Secondary; label: string; icon: ReactNode }[] = projects
     .filter((p) => !p.isInbox)
@@ -325,11 +326,11 @@ export function CompactView({
           type="button"
           className={`chip ${open ? 'is-open' : ''}`}
           onClick={onClick}
-          aria-label="Choose what the lower pane shows"
-          data-tooltip="Choose what this pane shows"
+          aria-label={t('Choose what the lower pane shows')}
+          data-tooltip={t('Choose what this pane shows')}
         >
           {currentOption?.icon}
-          <span>{currentOption?.label ?? 'Choose'}</span>
+          <span>{currentOption?.label ?? t('Choose')}</span>
           <ChevronDown size={13} />
         </button>
       )}
@@ -363,7 +364,7 @@ export function CompactView({
               onClick={() => setLabelsOpen(!showLabels)}
             >
               <Tag size={14} />
-              <span className="row-label">Labels</span>
+              <span className="row-label">{t('Labels')}</span>
               <span className="muted small">{labelOptions.length}</span>
               <ChevronDown size={13} className={`picker-fold ${showLabels ? 'is-open' : ''}`} />
             </button>
@@ -396,7 +397,7 @@ export function CompactView({
             }}
           >
             <EyeOff size={14} />
-            <span className="row-label">Hide this pane</span>
+            <span className="row-label">{t('Hide this pane')}</span>
           </button>
         </div>
       )}
@@ -407,9 +408,9 @@ export function CompactView({
     <div className="compact">
       <header className="compact-header">
         <div className="compact-title">
-          <h1>Today</h1>
+          <h1>{t('Today')}</h1>
           <span className="muted small">
-            {format(new Date(), 'EEE d MMM')} · {remaining === 0 ? 'all done' : `${remaining} left`}
+            {format(new Date(), datePattern('weekdayDayMonth'))} · {remaining === 0 ? t('all done') : t('{n} left', { n: remaining })}
           </span>
         </div>
         {showExpand && (
@@ -417,8 +418,8 @@ export function CompactView({
             <button
               type="button"
               className="icon-btn"
-              data-tooltip="Back to full window"
-              aria-label="Back to full window"
+              data-tooltip={t('Back to full window')}
+              aria-label={t('Back to full window')}
               onClick={onExpand}
             >
               <Maximize2 size={16} />
@@ -428,14 +429,14 @@ export function CompactView({
       </header>
 
       <div className={`compact-split ${dragging ? 'is-dragging' : ''}`} ref={splitRef}>
-        <section className="compact-pane" style={{ flexGrow: lowerVisible ? ratio : 1 }} aria-label="Today">
+        <section className="compact-pane" style={{ flexGrow: lowerVisible ? ratio : 1 }} aria-label={t('Today')}>
           <div className="pane-body">
             {overdue.length > 0 && (
               <div className="task-group">
                 <div className="group-header">
-                  <h2 className="overdue-title">Overdue</h2>
+                  <h2 className="overdue-title">{t('Overdue')}</h2>
                   <button type="button" className="link-btn" onClick={() => void rescheduleOverdue()}>
-                    Reschedule to today
+                    {t('Reschedule to today')}
                   </button>
                 </div>
                 <AnimatedList className="task-list">{overdue.map(renderTask)}</AnimatedList>
@@ -444,18 +445,18 @@ export function CompactView({
             <div className="task-group">
               {overdue.length > 0 && (
                 <div className="group-header">
-                  <h2>Today</h2>
+                  <h2>{t('Today')}</h2>
                 </div>
               )}
               <AnimatedList className="task-list">{dueToday.map(renderTask)}</AnimatedList>
               {dueToday.length === 0 && !addingTop && (
-                <p className="empty">{overdue.length > 0 ? 'Nothing else due today.' : 'Nothing due today.'}</p>
+                <p className="empty">{overdue.length > 0 ? t('Nothing else due today.') : t('Nothing due today.')}</p>
               )}
             </div>
           </div>
           <div className="pane-footer">
             {addingTop
-              ? addEditor({ projectId: inbox?.id, dueDate: today }, 'Add a task for today', () => setAddingTop(false))
+              ? addEditor({ projectId: inbox?.id, dueDate: today }, t('Add a task for today'), () => setAddingTop(false))
               : addButton(() => setAddingTop(true))}
           </div>
         </section>
@@ -465,12 +466,12 @@ export function CompactView({
             className={`compact-divider ${dragging && ratio > MAX_RATIO ? 'will-collapse' : ''}`}
             role="separator"
             aria-orientation="horizontal"
-            aria-label="Resize panes"
+            aria-label={t('Resize panes')}
             aria-valuemin={Math.round(MIN_RATIO * 100)}
             aria-valuemax={Math.round(MAX_RATIO * 100)}
             aria-valuenow={Math.round(ratio * 100)}
             tabIndex={0}
-            data-tooltip="Drag to resize (or use the arrow keys)"
+            data-tooltip={t('Drag to resize (or use the arrow keys)')}
             onPointerDown={onDividerPointerDown}
             onKeyDown={onDividerKeyDown}
           >
@@ -500,7 +501,7 @@ export function CompactView({
               // The sidebar's overview card (static here) followed by the full Insights page in a narrow layout.
               <div className="pane-body pane-dashboard">
                 <Dashboard tasks={tasks} completions={completions} active={false} />
-                <Suspense fallback={<div className="loading">Loading…</div>}>
+                <Suspense fallback={<div className="loading">{t('Loading…')}</div>}>
                   <InsightsView projects={projects} embedded />
                 </Suspense>
               </div>
@@ -512,7 +513,7 @@ export function CompactView({
                 </div>
                 <div className="pane-footer">
                   {addingBottom
-                    ? addEditor(lower.defaults, `Add a task to ${lower.title}`, () => setAddingBottom(false))
+                    ? addEditor(lower.defaults, t('Add a task to {name}', { name: lower.title }), () => setAddingBottom(false))
                     : addButton(() => setAddingBottom(true))}
                 </div>
               </>
@@ -526,8 +527,8 @@ export function CompactView({
             <button
               type="button"
               className="icon-btn pane-expand"
-              data-tooltip={`Show ${lower.title}`}
-              aria-label={`Show ${lower.title} pane`}
+              data-tooltip={t('Show {name}', { name: lower.title })}
+              aria-label={t('Show {name} pane', { name: lower.title })}
               onClick={() => setLowerCollapsed(false)}
             >
               <ChevronUp size={16} />

@@ -5,6 +5,7 @@ import type { Label, Priority, Project, Recurrence, Section } from '../api/types
 import { colorHex, PRIORITY_META } from '../lib/colors';
 import { describeDue, nextWeekStr, parseDateStr, todayStr, tomorrowStr, weekendStr } from '../lib/dates';
 import { Popover } from './Popover';
+import { t } from '../i18n';
 
 export interface DueValue {
   dueDate: string | null;
@@ -13,13 +14,13 @@ export interface DueValue {
 }
 
 const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
-  { value: 'none', label: 'No repeat' },
-  { value: 'daily', label: 'Every day' },
-  { value: 'weekdays', label: 'Every weekday' },
-  { value: 'weekly', label: 'Every week' },
-  { value: 'biweekly', label: 'Every 2 weeks' },
-  { value: 'monthly', label: 'Every month' },
-  { value: 'yearly', label: 'Every year' },
+  { value: 'none', label: t('No repeat') },
+  { value: 'daily', label: t('Every day') },
+  { value: 'weekdays', label: t('Every weekday') },
+  { value: 'weekly', label: t('Every week') },
+  { value: 'biweekly', label: t('Every 2 weeks') },
+  { value: 'monthly', label: t('Every month') },
+  { value: 'yearly', label: t('Every year') },
 ];
 
 const weekdayShort = (dateStr: string): string => {
@@ -30,10 +31,10 @@ const weekdayShort = (dateStr: string): string => {
 export function DuePicker({ value, onChange }: { value: DueValue; onChange: (value: DueValue) => void }) {
   const due = value.dueDate ? describeDue(value.dueDate, value.dueTime) : null;
   const quick = [
-    { label: 'Today', date: todayStr() },
-    { label: 'Tomorrow', date: tomorrowStr() },
-    { label: 'This weekend', date: weekendStr() },
-    { label: 'Next week', date: nextWeekStr() },
+    { label: t('Today'), date: todayStr() },
+    { label: t('Tomorrow'), date: tomorrowStr() },
+    { label: t('This weekend'), date: weekendStr() },
+    { label: t('Next week'), date: nextWeekStr() },
   ];
   const set = (patch: Partial<DueValue>) => onChange({ ...value, ...patch });
 
@@ -46,7 +47,7 @@ export function DuePicker({ value, onChange }: { value: DueValue; onChange: (val
           onClick={onClick}
         >
           <Calendar size={14} />
-          <span>{due ? due.text : 'Date'}</span>
+          <span>{due ? due.text : t('Date')}</span>
           {value.recurrence !== 'none' && <Repeat size={12} />}
         </button>
       )}
@@ -78,13 +79,13 @@ export function DuePicker({ value, onChange }: { value: DueValue; onChange: (val
                 }}
               >
                 <X size={14} />
-                <span className="row-label">No date</span>
+                <span className="row-label">{t('No date')}</span>
               </button>
             )}
           </div>
           <div className="picker-section picker-fields">
             <label>
-              <span>Date</span>
+              <span>{t('Date')}</span>
               <input
                 type="date"
                 value={value.dueDate ?? ''}
@@ -96,7 +97,7 @@ export function DuePicker({ value, onChange }: { value: DueValue; onChange: (val
               />
             </label>
             <label>
-              <span>Time</span>
+              <span>{t('Time')}</span>
               <input
                 type="time"
                 value={value.dueTime ?? ''}
@@ -105,7 +106,7 @@ export function DuePicker({ value, onChange }: { value: DueValue; onChange: (val
               />
             </label>
             <label>
-              <span>Repeat</span>
+              <span>{t('Repeat')}</span>
               <select
                 value={value.recurrence}
                 disabled={!value.dueDate}
@@ -135,7 +136,7 @@ export function PriorityPicker({ value, onChange }: { value: Priority; onChange:
       trigger={({ onClick, open }) => (
         <button type="button" className={`chip ${open ? 'is-open' : ''}`} onClick={onClick} data-tooltip={meta.label}>
           {flag(value)}
-          <span>{value < 4 ? `P${value}` : 'Priority'}</span>
+          <span>{value < 4 ? `P${value}` : t('Priority')}</span>
         </button>
       )}
     >
@@ -185,7 +186,7 @@ export function LabelPicker({
       trigger={({ onClick, open }) => (
         <button type="button" className={`chip ${open ? 'is-open' : ''}`} onClick={onClick}>
           <Tag size={14} />
-          <span>{selected.length ? `${selected.length} label${selected.length > 1 ? 's' : ''}` : 'Labels'}</span>
+          <span>{selected.length ? `${selected.length} label${selected.length > 1 ? 's' : ''}` : t('Labels')}</span>
         </button>
       )}
     >
@@ -193,7 +194,7 @@ export function LabelPicker({
         <div className="picker">
           <input
             className="picker-search"
-            placeholder="Type a label"
+            placeholder={t('Type a label')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
@@ -220,7 +221,7 @@ export function LabelPicker({
                 <span className="row-label">Create “{query.trim()}”</span>
               </button>
             )}
-            {filtered.length === 0 && !canCreate && <div className="picker-empty muted">No labels yet</div>}
+            {filtered.length === 0 && !canCreate && <div className="picker-empty muted">{t('No labels yet')}</div>}
           </div>
         </div>
       )}
@@ -255,7 +256,7 @@ export function ProjectPicker({
         <button type="button" className={`chip ${open ? 'is-open' : ''}`} onClick={onClick}>
           <ProjectIcon project={project} />
           <span>
-            {project?.name ?? 'Project'}
+            {project?.name ?? t('Project')}
             {section ? ` / ${section.name}` : ''}
           </span>
         </button>

@@ -9,6 +9,7 @@ import {
   parse,
   startOfDay,
 } from 'date-fns';
+import { datePattern, t } from '../i18n';
 
 export const DATE_FORMAT = 'yyyy-MM-dd';
 
@@ -41,19 +42,19 @@ export function describeDue(dueDate: string, dueTime: string | null): DueInfo | 
   let text: string;
   let tone: DueTone;
   if (diff < 0) {
-    text = isSameYear(date, today) ? format(date, 'd MMM') : format(date, 'd MMM yyyy');
+    text = format(date, datePattern(isSameYear(date, today) ? 'dayMonth' : 'dayMonthYear'));
     tone = 'overdue';
   } else if (diff === 0) {
-    text = 'Today';
+    text = t('Today');
     tone = 'today';
   } else if (diff === 1) {
-    text = 'Tomorrow';
+    text = t('Tomorrow');
     tone = 'tomorrow';
   } else if (diff < 7) {
     text = format(date, 'EEEE');
     tone = 'week';
   } else {
-    text = isSameYear(date, today) ? format(date, 'd MMM') : format(date, 'd MMM yyyy');
+    text = format(date, datePattern(isSameYear(date, today) ? 'dayMonth' : 'dayMonthYear'));
     tone = 'future';
   }
   if (dueTime) text += ` ${formatTime(dueTime)}`;
@@ -65,7 +66,7 @@ export function formatTime(time: string): string {
   if (Number.isNaN(h) || Number.isNaN(m)) return time;
   const date = new Date();
   date.setHours(h, m, 0, 0);
-  return format(date, 'h:mm a');
+  return format(date, datePattern('time'));
 }
 
 /** Heading for an Upcoming day group: "Today · Wed 15 Oct". */
@@ -73,9 +74,9 @@ export function describeDayHeading(dateStr: string): string {
   const date = parseDateStr(dateStr);
   if (!date) return dateStr;
   const diff = differenceInCalendarDays(date, startOfDay(new Date()));
-  const base = format(date, 'EEE d MMM');
-  if (diff === 0) return `Today · ${base}`;
-  if (diff === 1) return `Tomorrow · ${base}`;
+  const base = format(date, datePattern('weekdayDayMonth'));
+  if (diff === 0) return `${t('Today')} · ${base}`;
+  if (diff === 1) return `${t('Tomorrow')} · ${base}`;
   return base;
 }
 

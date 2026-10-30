@@ -6,6 +6,7 @@ import * as grove from '../assets/world/grove/sprites';
 import type { Sprite } from '../assets/world/sprite';
 import { parseDateStr, todayStr } from '../lib/dates';
 import { celebratedStreakDays, completionLevel, type WorldLevel } from '../lib/world';
+import { datePattern, t } from '../i18n';
 
 /**
  * Insights "World": the year heatmap drawn as an isometric landscape. Every day is a small block in the
@@ -162,8 +163,9 @@ interface WorldViewProps {
   total: number;
 }
 
-function plural(n: number, word: string): string {
-  return `${n} ${word}${n === 1 ? '' : 's'}`;
+function plural(n: number, word: 'task' | 'day'): string {
+  if (word === 'day') return n === 1 ? t('1 day') : t('{n} days', { n });
+  return n === 1 ? t('1 task') : t('{n} tasks', { n });
 }
 
 /** Small stable hash of a date string into [0, 1), for per-day variety. */
@@ -205,7 +207,7 @@ export function WorldView({ year, weeks, monthLabels, cells, perDay, total }: Wo
   const weekdayStyle: CSSProperties = { top: `${(rowsTop / height) * 100}%`, height: `${((7 * ROW) / height) * 100}%` };
 
   return (
-    <section className={`world-card world-theme-${theme.id}`} aria-label={`Completions in ${year}, drawn as a world`}>
+    <section className={`world-card world-theme-${theme.id}`} aria-label={t('Completions in {year}, drawn as a world', { year })}>
       <div className="world-scroll">
         <div className="world">
           <div className="world-months" style={{ gridTemplateColumns: `repeat(${weeks}, minmax(0, 1fr))` }}>
@@ -261,9 +263,9 @@ export function WorldView({ year, weeks, monthLabels, cells, perDay, total }: Wo
                     transform={`translate(${cx} ${cy})`}
                     style={vars}
                     role="img"
-                    aria-label={`${plural(cell.count, 'task')} on ${format(date, 'EEEE d MMMM yyyy')}`}
+                    aria-label={t('{count} on {date}', { count: plural(cell.count, 'task'), date: format(date, datePattern('dayMonthYear')) })}
                   >
-                    <title>{`${plural(cell.count, 'task')} on ${format(date, 'EEE d MMM yyyy')}`}</title>
+                    <title>{t('{count} on {date}', { count: plural(cell.count, 'task'), date: format(date, datePattern('dayMonthYear')) })}</title>
                     {flags.inStreak && <polygon className="world-glow" points={GLOW} />}
                     {!art?.ground && (
                       <>
@@ -304,27 +306,27 @@ export function WorldView({ year, weeks, monthLabels, cells, perDay, total }: Wo
       <div className="world-footer">
         <div className="world-footer-left">
           <label className="world-theme-pick muted small">
-            Theme
+            {t('Theme')}
             <select value={themeId} onChange={(e) => selectTheme(e.target.value as WorldThemeId)}>
               {(Object.keys(WORLD_THEMES) as WorldThemeId[]).map((id) => (
                 <option key={id} value={id}>
-                  {WORLD_THEMES[id].name}
+                  {t(WORLD_THEMES[id].name)}
                 </option>
               ))}
             </select>
           </label>
           <span className="muted small world-hint">
             {total === 0 ? (
-              `Complete tasks to grow your ${theme.name.toLowerCase()}.`
+              t('Complete tasks to grow your {world}.', { world: t(theme.name).toLowerCase() })
             ) : streak.size > 0 ? (
               <>
-                <Flame size={13} aria-hidden="true" /> {streak.size}-day streak
+                <Flame size={13} aria-hidden="true" /> {t('{n}-day streak', { n: streak.size })}
               </>
             ) : null}
           </span>
         </div>
         <div className="world-legend">
-          <span className="muted small">Less</span>
+          <span className="muted small">{t('Less')}</span>
           {([0, 1, 2, 3, 4] as WorldLevel[]).map((level) => {
             const art = theme.plotArt(level, LEGEND_FLAGS);
             return (
@@ -342,7 +344,7 @@ export function WorldView({ year, weeks, monthLabels, cells, perDay, total }: Wo
               </svg>
             );
           })}
-          <span className="muted small">More</span>
+          <span className="muted small">{t('More')}</span>
         </div>
       </div>
     </section>

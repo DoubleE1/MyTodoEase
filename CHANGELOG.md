@@ -9,7 +9,7 @@ Newest first. Each release is a GitHub release with the Windows installer; todoe
   another column changes that field.
 - "When I get things done" heatmap in Insights: completions by weekday and hour, with your best slot.
 - Achievements and points (50 achievements, 10,000 points) and a skin shop preview (coming soon).
-- Languages: English, 简体中文, 日本語, 한국어 (Settings > Appearance > Language).
+- Languages: English, 简体中文, 日本語, 한국어 (Settings > Appearance > Language). Dates and times follow the language. Still English: the web sign-in page and the setup pages for Account & sync, Google Calendar and AI assistants.
 - Turn into tasks understands more date phrases ("next Friday at 3pm", "end of the month", "in 2 weeks").
 
 ### Docs

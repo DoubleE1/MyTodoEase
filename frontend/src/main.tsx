@@ -4,9 +4,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { SessionGate } from './components/SessionGate';
 import { applyStoredMotionPreference } from './lib/motion';
+import { applyLanguage } from './i18n';
 import './styles.css';
 
 applyStoredMotionPreference();
+applyLanguage();
 
 const queryClient = new QueryClient({
   defaultOptions: {

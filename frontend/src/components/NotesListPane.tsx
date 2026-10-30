@@ -8,6 +8,7 @@ import type { Note } from '../api/types';
 import { canPopOutNotes, popOutNote } from '../lib/notes';
 import { showToast } from '../lib/toast';
 import { useNoteDraft } from '../lib/useNoteDraft';
+import { t } from '../i18n';
 
 /**
  * Sticky notes as a list, for the mini window's lower pane (like the list in Windows Sticky Notes): search,
@@ -34,11 +35,11 @@ export function NotesListPane() {
   // Deleting is immediate; the toast's Undo brings the note back with the same text and colour.
   const remove = (note: Note) => {
     noteMut.remove.mutate(note.id);
-    showToast('Note deleted', 'success', {
+    showToast(t('Note deleted'), 'success', {
       group: 'note-deleted',
       duration: 5000,
       action: {
-        label: 'Undo',
+        label: t('Undo'),
         run: () => void noteMut.create.mutate({ text: note.text, color: note.color, taskIds: note.taskIds }),
       },
     });
@@ -55,16 +56,16 @@ export function NotesListPane() {
       <div className="notes-list-tools">
         <label className="notes-list-search">
           <Search size={14} aria-hidden="true" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search notes" aria-label="Search notes" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('Search notes')} aria-label={t('Search notes')} />
         </label>
-        <button type="button" className="icon-btn" data-tooltip="New note" aria-label="New note" onClick={() => void create()}>
+        <button type="button" className="icon-btn" data-tooltip={t('New note')} aria-label={t('New note')} onClick={() => void create()}>
           <Plus size={16} />
         </button>
       </div>
       {notes.isSuccess && shown.length === 0 && (
         <p className="empty">{q ? `No notes match “${query.trim()}”.` : 'No notes yet. Press + to write one.'}</p>
       )}
-      <ul className="notes-list" aria-label="Sticky notes">
+      <ul className="notes-list" aria-label={t('Sticky notes')}>
         {shown.map((note) =>
           editingId === note.id ? (
             <li key={note.id}>
@@ -76,21 +77,21 @@ export function NotesListPane() {
                 <button
                   type="button"
                   className="note-list-open"
-                  aria-label={`${popOut ? 'Open' : 'Edit'} note: ${note.text.trim().slice(0, 60) || 'Empty note'}`}
+                  aria-label={`${popOut ? 'Open' : 'Edit'} note: ${note.text.trim().slice(0, 60) || t('Empty note')}`}
                   onClick={() => open(note)}
                 >
                   <span className="note-list-date">{format(parseISO(note.updatedAt), 'd MMM yyyy')}</span>
                   {note.text.trim() ? (
                     <MarkdownText text={note.text} className="md note-list-text" />
                   ) : (
-                    <span className="note-list-text muted">Empty note</span>
+                    <span className="note-list-text muted">{t('Empty note')}</span>
                   )}
                 </button>
                 <button
                   type="button"
                   className="note-btn note-list-delete"
-                  data-tooltip="Delete note"
-                  aria-label="Delete note"
+                  data-tooltip={t('Delete note')}
+                  aria-label={t('Delete note')}
                   onClick={() => remove(note)}
                 >
                   <Trash2 size={14} />

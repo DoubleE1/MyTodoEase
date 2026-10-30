@@ -3,6 +3,7 @@ import type { Label, Priority, Project, Recurrence, Section, Task, TaskInput } f
 import { parseQuickAdd } from '../lib/quickAdd';
 import { recordEvent } from '../lib/achievements';
 import { DuePicker, LabelPicker, PriorityPicker, ProjectPicker } from './Pickers';
+import { t } from '../i18n';
 
 // The rich-text description editor (TipTap) is large; it loads on demand the first time any task editor opens.
 const DescriptionEditor = lazy(() => import('./DescriptionEditor'));
@@ -191,11 +192,11 @@ export function TaskEditor({
       <input
         ref={inputRef}
         className="editor-content"
-        placeholder={placeholder ?? (mode === 'create' ? 'Task name, e.g. "Pay rent tomorrow p1 #Home @finance"' : 'Task name')}
+        placeholder={placeholder ?? (mode === 'create' ? t('Task name, e.g. "Pay rent tomorrow p1 #Home @finance"') : t('Task name'))}
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={onContentKeyDown}
-        aria-label="Task name"
+        aria-label={t('Task name')}
       />
       {/* The same Markdown editor everywhere (quick add, inline add, task detail); its toolbar sits in the footer. */}
       <Suspense fallback={<div className={`rich-desc rich-desc-loading ${textOnly ? '' : 'is-compact'}`} aria-hidden="true" />}>
@@ -245,10 +246,10 @@ export function TaskEditor({
         <span ref={setToolbarHost} className="editor-toolbar-host" />
         <div className="editor-actions">
           <button type="button" className="btn" onClick={onCancel}>
-            Cancel
+            {t('Cancel')}
           </button>
           <button type="submit" className="btn btn-primary" disabled={!canSubmit}>
-            {mode === 'create' ? 'Add task' : 'Save'}
+            {mode === 'create' ? t('Add task') : t('Save')}
           </button>
         </div>
       </div>

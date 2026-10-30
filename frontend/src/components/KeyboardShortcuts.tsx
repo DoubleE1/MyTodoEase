@@ -15,6 +15,7 @@ import {
   type HotkeyAction,
 } from '../lib/hotkeys';
 import { Modal } from './Dialogs';
+import { t } from '../i18n';
 
 /**
  * Every keyboard shortcut in the app, searchable and grouped. The "General" shortcuts can be rebound in place:
@@ -30,47 +31,47 @@ interface FixedShortcut {
 
 const FIXED_GROUPS: { title: string; items: FixedShortcut[] }[] = [
   {
-    title: 'Search',
+    title: t('Search'),
     items: [
-      { label: 'Open the highlighted result', keys: [['↵']] },
-      { label: 'Move through results', keys: [['↑'], ['↓']] },
-      { label: 'Next / previous result type', keys: [['Tab'], ['Shift', 'Tab']] },
-      { label: 'Close', keys: [['Esc']] },
+      { label: t('Open the highlighted result'), keys: [['↵']] },
+      { label: t('Move through results'), keys: [['↑'], ['↓']] },
+      { label: t('Next / previous result type'), keys: [['Tab'], ['Shift', 'Tab']] },
+      { label: t('Close'), keys: [['Esc']] },
     ],
   },
   {
-    title: 'Tasks',
+    title: t('Tasks'),
     items: [
-      { label: 'Open the focused task', keys: [['↵']] },
-      { label: 'Save a new task (title field)', keys: [['↵']] },
-      { label: 'Save from the description', keys: [[MOD_KEY, '↵']] },
-      { label: 'Cancel editing', keys: [['Esc']] },
+      { label: t('Open the focused task'), keys: [['↵']] },
+      { label: t('Save a new task (title field)'), keys: [['↵']] },
+      { label: t('Save from the description'), keys: [[MOD_KEY, '↵']] },
+      { label: t('Cancel editing'), keys: [['Esc']] },
     ],
   },
   {
-    title: 'Description',
+    title: t('Description'),
     items: [
-      { label: 'Bold', keys: [[MOD_KEY, 'B']] },
-      { label: 'Italic', keys: [[MOD_KEY, 'I']] },
-      { label: 'Insert link', keys: [[MOD_KEY, 'K']] },
-      { label: 'Add table row or column', keys: [[MOD_KEY, ALT_KEY, '←↑→↓']] },
-      { label: 'Move table row or column', keys: [[MOD_KEY, ALT_KEY, 'Shift', '←↑→↓']] },
+      { label: t('Bold'), keys: [[MOD_KEY, 'B']] },
+      { label: t('Italic'), keys: [[MOD_KEY, 'I']] },
+      { label: t('Insert link'), keys: [[MOD_KEY, 'K']] },
+      { label: t('Add table row or column'), keys: [[MOD_KEY, ALT_KEY, '←↑→↓']] },
+      { label: t('Move table row or column'), keys: [[MOD_KEY, ALT_KEY, 'Shift', '←↑→↓']] },
     ],
   },
   {
-    title: 'Notes board',
+    title: t('Notes board'),
     items: [
-      { label: 'Select a note (or click its top bar)', keys: [['Esc']] },
-      { label: 'Move the selected note', keys: [['←↑→↓']] },
-      { label: 'Move it further', keys: [['Shift', '←↑→↓']] },
-      { label: 'Resize the selected note', keys: [[MOD_KEY, '←↑→↓']] },
-      { label: 'Zoom', keys: [['Scroll'], [MOD_KEY, 'Scroll']] },
-      { label: 'Pan', keys: [['Shift', 'Scroll']] },
+      { label: t('Select a note (or click its top bar)'), keys: [['Esc']] },
+      { label: t('Move the selected note'), keys: [['←↑→↓']] },
+      { label: t('Move it further'), keys: [['Shift', '←↑→↓']] },
+      { label: t('Resize the selected note'), keys: [[MOD_KEY, '←↑→↓']] },
+      { label: t('Zoom'), keys: [['Scroll'], [MOD_KEY, 'Scroll']] },
+      { label: t('Pan'), keys: [['Shift', 'Scroll']] },
     ],
   },
   {
-    title: 'Dialogs and menus',
-    items: [{ label: 'Close', keys: [['Esc']] }],
+    title: t('Dialogs and menus'),
+    items: [{ label: t('Close'), keys: [['Esc']] }],
   },
 ];
 
@@ -163,19 +164,19 @@ export function ShortcutsPanel({ autoFocus = false }: { autoFocus?: boolean }) {
           ref={searchRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search shortcuts"
-          aria-label="Search shortcuts"
+          placeholder={t('Search shortcuts')}
+          aria-label={t('Search shortcuts')}
         />
       </label>
 
       {general.length > 0 && (
         <section className="kb-group" aria-labelledby="kb-general">
           <div className="kb-group-head">
-            <h4 id="kb-general">General</h4>
-            <span className="muted small">Click the keys to change them</span>
+            <h4 id="kb-general">{t('General')}</h4>
+            <span className="muted small">{t('Click the keys to change them')}</span>
             {customized && (
               <button type="button" className="link-btn" onClick={resetHotkeys}>
-                Reset all
+                {t('Reset all')}
               </button>
             )}
           </div>
@@ -215,11 +216,11 @@ export function ShortcutsPanel({ autoFocus = false }: { autoFocus?: boolean }) {
                 >
                   <span id={`kb-${action}-value`} aria-live="polite">
                     {isRecording ? (
-                      'Press keys…'
+                      t('Press keys…')
                     ) : hotkey ? (
                       <Keys combos={[hotkeyParts(hotkey)]} />
                     ) : (
-                      <span className="muted">Off</span>
+                      <span className="muted">{t('Off')}</span>
                     )}
                   </span>
                 </button>
@@ -252,7 +253,7 @@ export function ShortcutsPanel({ autoFocus = false }: { autoFocus?: boolean }) {
 
 export function KeyboardShortcutsDialog({ onClose }: { onClose: () => void }) {
   return (
-    <Modal title="Keyboard shortcuts" onClose={onClose} className="modal-shortcuts">
+    <Modal title={t('Keyboard shortcuts')} onClose={onClose} className="modal-shortcuts">
       <ShortcutsPanel autoFocus />
     </Modal>
   );

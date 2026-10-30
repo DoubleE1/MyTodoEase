@@ -9,6 +9,7 @@ import { NoteEditor } from './NoteEditor';
 import { Popover } from './Popover';
 import { Toasts } from './Toasts';
 import { TooltipLayer } from './TooltipLayer';
+import { t } from '../i18n';
 
 /**
  * One sticky note in its own desktop window (opened with "Open in its own window"), like Windows Sticky Notes:
@@ -31,7 +32,7 @@ export function NoteWindow({ noteId }: { noteId: string }) {
   }, [gone]);
 
   useEffect(() => {
-    document.title = note ? noteTitle(note) : 'Sticky note';
+    document.title = note ? noteTitle(note) : t('Sticky note');
   }, [note]);
 
   if (!note) return <div className="note-window" />;
@@ -51,7 +52,7 @@ export function NoteWindow({ noteId }: { noteId: string }) {
     <div className="note-window">
       <article className="note-card note-card-window" data-color={note.color}>
         <header className="note-head note-window-drag">
-          <button type="button" className="note-btn" data-tooltip="New note" aria-label="New note" onClick={() => void newNote()}>
+          <button type="button" className="note-btn" data-tooltip={t('New note')} aria-label={t('New note')} onClick={() => void newNote()}>
             <Plus size={16} />
           </button>
           <span className="spacer" />
@@ -61,8 +62,8 @@ export function NoteWindow({ noteId }: { noteId: string }) {
               <button
                 type="button"
                 className={`note-btn ${open ? 'is-open' : ''}`}
-                data-tooltip="More"
-                aria-label="More note actions"
+                data-tooltip={t('More')}
+                aria-label={t('More note actions')}
                 aria-haspopup="menu"
                 aria-expanded={open}
                 onClick={onClick}
@@ -72,12 +73,12 @@ export function NoteWindow({ noteId }: { noteId: string }) {
             )}
           >
             {(close) => (
-              <div className="note-menu" role="menu" aria-label="Note actions">
+              <div className="note-menu" role="menu" aria-label={t('Note actions')}>
                 <div className="note-menu-label">
                   <Palette size={14} />
-                  <span>Colour</span>
+                  <span>{t('Colour')}</span>
                 </div>
-                <div className="note-colors" role="radiogroup" aria-label="Note colour">
+                <div className="note-colors" role="radiogroup" aria-label={t('Note colour')}>
                   {NOTE_COLORS.map((color) => (
                     <button
                       key={color}
@@ -106,7 +107,7 @@ export function NoteWindow({ noteId }: { noteId: string }) {
                   }}
                 >
                   <AppWindow size={14} />
-                  <span>Open TodoEase</span>
+                  <span>{t('Open TodoEase')}</span>
                 </button>
                 <button
                   type="button"
@@ -119,7 +120,7 @@ export function NoteWindow({ noteId }: { noteId: string }) {
                   }}
                 >
                   <Archive size={14} />
-                  <span>Archive</span>
+                  <span>{t('Archive')}</span>
                 </button>
                 <button
                   type="button"
@@ -127,16 +128,16 @@ export function NoteWindow({ noteId }: { noteId: string }) {
                   className="note-menu-item is-danger"
                   onClick={() => {
                     close();
-                    if (window.confirm('Delete this note? This cannot be undone.')) noteMut.remove.mutate(note.id);
+                    if (window.confirm(t('Delete this note? This cannot be undone.'))) noteMut.remove.mutate(note.id);
                   }}
                 >
                   <Trash2 size={14} />
-                  <span>Delete</span>
+                  <span>{t('Delete')}</span>
                 </button>
               </div>
             )}
           </Popover>
-          <button type="button" className="note-btn" data-tooltip="Close" aria-label="Close note window" onClick={closeWindow}>
+          <button type="button" className="note-btn" data-tooltip={t('Close')} aria-label={t('Close note window')} onClick={closeWindow}>
             <X size={16} />
           </button>
         </header>

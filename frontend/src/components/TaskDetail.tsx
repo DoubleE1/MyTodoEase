@@ -15,6 +15,7 @@ import { MarkdownText } from './MarkdownText';
 import { DuePicker, LabelPicker, PriorityPicker, ProjectIcon, ProjectPicker } from './Pickers';
 import { TaskEditor, taskToInput } from './TaskEditor';
 import { TaskItem } from './TaskItem';
+import { datePattern, t } from '../i18n';
 
 interface TaskDetailProps {
   taskId: string;
@@ -103,7 +104,7 @@ export function TaskDetail({
       const moved = subtasks.filter((s) => !s.isCompleted);
       // One action for undo (Ctrl+Z or the toast): the copy, the moved sub-tasks and the completion.
       const { result: copy, entry } = await asOneUndo(
-        `continued ${task.content.length > 40 ? `“${task.content.slice(0, 40)}…”` : `“${task.content}”`} tomorrow`,
+        t('continued “{task}” tomorrow', { task: task.content.length > 40 ? `${task.content.slice(0, 40)}…` : task.content }),
         async () => {
           const created = await taskMut.create.mutateAsync({ ...input, dueDate: nextDate });
           for (const sub of moved) {
@@ -129,14 +130,14 @@ export function TaskDetail({
         },
       );
       // Same group as the "Task completed" toast, so this one (with the full undo) replaces it.
-      showToast(`Continues on ${format(parseISO(nextDate), 'EEE d MMM')}. Today's part is marked done.`, 'success', {
+      showToast(t("Continues on {date}. Today's part is marked done.", { date: format(parseISO(nextDate), datePattern('weekdayDayMonth')) }), 'success', {
         group: 'task-completed',
         duration: 6000,
         action: {
-          label: 'Undo',
+          label: t('Undo'),
           run: () =>
             void runUndo(entry)
-              .then(() => showToast('Undone: the task is back on its original day.', 'info', { group: 'task-completed' }))
+              .then(() => showToast(t('Undone: the task is back on its original day.'), 'info', { group: 'task-completed' }))
               .catch(() => {
                 // The mutation hooks already showed the error.
               }),
@@ -155,7 +156,7 @@ export function TaskDetail({
       <div className="detail-header">
         <span className="breadcrumb">
           <ProjectIcon project={project} />
-          <span>{project?.name ?? 'Project'}</span>
+          <span>{project?.name ?? t('Project')}</span>
           {parent && (
             <>
               <ChevronRight size={14} />
@@ -170,24 +171,24 @@ export function TaskDetail({
           <button
             type="button"
             className="btn detail-continue"
-            data-tooltip="Mark today's part done and schedule the same task for the next day"
+            data-tooltip={t("Mark today's part done and schedule the same task for the next day")}
             onClick={() => void continueTomorrow()}
             disabled={continuing}
           >
             <CalendarPlus size={14} />
-            <span>{continuing ? 'Moving…' : 'Continue tomorrow'}</span>
+            <span>{continuing ? t('Moving…') : t('Continue tomorrow')}</span>
           </button>
         )}
         <button
           type="button"
           className="icon-btn"
-          data-tooltip="Delete task"
-          aria-label="Delete task"
+          data-tooltip={t('Delete task')}
+          aria-label={t('Delete task')}
           onClick={() => onDeleteTask(task)}
         >
           <Trash2 size={16} />
         </button>
-        <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
+        <button type="button" className="icon-btn" aria-label={t('Close')} onClick={onClose}>
           <X size={18} />
         </button>
       </div>
@@ -200,7 +201,7 @@ export function TaskDetail({
               className={`task-check ${task.isCompleted ? 'is-checked' : ''}`}
               style={{ borderColor: priority.hex, color: priority.hex }}
               onClick={toggleComplete}
-              aria-label={task.isCompleted ? 'Reopen task' : 'Complete task'}
+              aria-label={task.isCompleted ? t('Reopen task') : t('Complete task')}
             >
               <Check size={12} strokeWidth={3} className="task-check-icon" />
             </button>
@@ -242,7 +243,7 @@ export function TaskDetail({
                     }}
                   />
                 ) : (
-                  <p className="detail-description muted">Add a description</p>
+                  <p className="detail-description muted">{t('Add a description')}</p>
                 )}
               </div>
             )}
@@ -250,7 +251,7 @@ export function TaskDetail({
 
           {!task.parentId && (
             <>
-              <h3 className="detail-subheading">Sub-tasks</h3>
+              <h3 className="detail-subheading">{t('Sub-tasks')}</h3>
               <AnimatedList className="task-list">
                 {subtasks.map((sub) => (
                   <TaskItem
@@ -274,12 +275,12 @@ export function TaskDetail({
                   keepOpenAfterSubmit
                   onSubmit={(input) => taskMut.create.mutateAsync(input)}
                   onCancel={() => setAddingSubtask(false)}
-                  placeholder="Sub-task name"
+                  placeholder={t('Sub-task name')}
                 />
               ) : (
                 <button type="button" className="add-task-btn" onClick={() => setAddingSubtask(true)}>
                   <Plus size={16} />
-                  <span>Add sub-task</span>
+                  <span>{t('Add sub-task')}</span>
                 </button>
               )}
             </>
@@ -288,7 +289,7 @@ export function TaskDetail({
 
         <aside className="detail-side">
           <div className="field">
-            <span>Project</span>
+            <span>{t('Project')}</span>
             <ProjectPicker
               projects={projects}
               sections={sections}
@@ -298,18 +299,18 @@ export function TaskDetail({
             />
           </div>
           <div className="field">
-            <span>Due date</span>
+            <span>{t('Due date')}</span>
             <DuePicker
               value={{ dueDate: task.dueDate, dueTime: task.dueTime, recurrence: task.recurrence }}
               onChange={(v) => patch(v)}
             />
           </div>
           <div className="field">
-            <span>Priority</span>
+            <span>{t('Priority')}</span>
             <PriorityPicker value={task.priority} onChange={(p) => patch({ priority: p })} />
           </div>
           <div className="field">
-            <span>Labels</span>
+            <span>{t('Labels')}</span>
             <LabelPicker
               labels={labels}
               selected={task.labelIds}
@@ -318,8 +319,8 @@ export function TaskDetail({
             />
           </div>
           <p className="muted small">
-            Created {format(parseISO(task.createdAt), 'd MMM yyyy')}
-            {task.completedAt && <> · Completed {format(parseISO(task.completedAt), 'd MMM yyyy')}</>}
+            {t('Created {date}', { date: format(parseISO(task.createdAt), datePattern('dayMonthYear')) })}
+            {task.completedAt && <> · {t('Completed {date}', { date: format(parseISO(task.completedAt), datePattern('dayMonthYear')) })}</>}
           </p>
         </aside>
       </div>

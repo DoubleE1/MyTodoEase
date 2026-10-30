@@ -1,5 +1,6 @@
 import { recordEvent } from './achievements';
 import { dismissToastGroup, showToast } from './toast';
+import { t } from '../i18n';
 
 /**
  * One-step undo (Ctrl+Z by default): every task change records how to reverse itself here, replacing the
@@ -58,7 +59,7 @@ export async function undoLast(): Promise<void> {
   const entry = current;
   current = null;
   if (!entry) {
-    showToast('Nothing to undo.', 'info', { group: 'undo' });
+    showToast(t('Nothing to undo.'), 'info', { group: 'undo' });
     return;
   }
   // The "Task completed · Undo" toast is for the same action; it has done its job.
@@ -66,9 +67,9 @@ export async function undoLast(): Promise<void> {
   try {
     await runQuietly(entry);
     recordEvent('undo');
-    showToast(`Undone: ${entry.label}.`, 'info', { group: 'undo' });
+    showToast(t('Undone: {what}.', { what: entry.label }), 'info', { group: 'undo' });
   } catch (error) {
-    showToast(error instanceof Error ? error.message : 'Could not undo that.', 'error', { group: 'undo' });
+    showToast(error instanceof Error ? error.message : t('Could not undo that.'), 'error', { group: 'undo' });
   }
 }
 

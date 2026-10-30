@@ -22,6 +22,7 @@ import { NoteEditor } from './NoteEditor';
 import { NoteToTasksDialog } from './NoteToTasksDialog';
 import { COLOR_LABELS, canPopOutNotes, editedLabel, popOutNote } from '../lib/notes';
 import { Popover } from './Popover';
+import { t } from '../i18n';
 
 const SAVE_DELAY_MS = 500;
 const NOTE_WIDTH = 320;
@@ -585,9 +586,9 @@ export function NotesView({
   const remove = async (note: Note) => {
     if (note.text.trim()) {
       const ok = await confirm({
-        title: 'Delete this note?',
-        message: 'The note is removed for good. Tasks already created from it stay.',
-        confirmLabel: 'Delete',
+        title: t('Delete this note?'),
+        message: t('The note is removed for good. Tasks already created from it stay.'),
+        confirmLabel: t('Delete'),
       });
       if (!ok) return;
     }
@@ -607,7 +608,7 @@ export function NotesView({
     <div className="view view-notes">
       <header className="view-header notes-header">
         <div>
-          <h1>Notes</h1>
+          <h1>{t('Notes')}</h1>
           <p className="muted small">
             Drag the board to move around, scroll to zoom, double-click to add a note. Turn a note into tasks
             when you are ready.
@@ -617,18 +618,18 @@ export function NotesView({
           {archived.length > 0 && (
             <button type="button" className={`btn ${showArchived ? 'is-active' : ''}`} onClick={() => setShowArchived((v) => !v)}>
               <Archive size={14} />
-              <span>{showArchived ? 'Hide archived' : `Archived (${archived.length})`}</span>
+              <span>{showArchived ? t('Hide archived') : `Archived (${archived.length})`}</span>
             </button>
           )}
           <button type="button" className="btn btn-primary" onClick={() => void addNote()} disabled={mut.create.isPending}>
             <Plus size={14} />
-            <span>New note</span>
+            <span>{t('New note')}</span>
           </button>
         </div>
       </header>
 
       {notesQuery.isLoading ? (
-        <div className="loading">Loading…</div>
+        <div className="loading">{t('Loading…')}</div>
       ) : (
         <div
           ref={canvasRef}
@@ -687,41 +688,41 @@ export function NotesView({
           {active.length === 0 && (
             <div className="notes-empty">
               <StickyNote size={40} />
-              <p>No notes yet.</p>
+              <p>{t('No notes yet.')}</p>
               <p className="muted small">
                 A note can be a shopping list, meeting scribbles or a thought. Lists and sentences can become tasks later.
               </p>
               <button type="button" className="btn btn-primary" onClick={() => void addNote()}>
                 <Plus size={14} />
-                <span>New note</span>
+                <span>{t('New note')}</span>
               </button>
             </div>
           )}
 
-          <div className="notes-zoombar" role="toolbar" aria-label="Zoom">
-            <button type="button" className="icon-btn" data-tooltip="Zoom out" aria-label="Zoom out" onClick={() => zoomFromCenter(1 / 1.2)}>
+          <div className="notes-zoombar" role="toolbar" aria-label={t('Zoom')}>
+            <button type="button" className="icon-btn" data-tooltip={t('Zoom out')} aria-label={t('Zoom out')} onClick={() => zoomFromCenter(1 / 1.2)}>
               <ZoomOut size={16} />
             </button>
             <button
               type="button"
               className="notes-zoom-level"
-              data-tooltip="Back to 100%"
-              aria-label="Zoom level; reset to 100%"
+              data-tooltip={t('Back to 100%')}
+              aria-label={t('Zoom level; reset to 100%')}
               onClick={() => zoomFromCenter(1 / view.current.z)}
             >
               <span ref={zoomLabelRef}>100%</span>
             </button>
-            <button type="button" className="icon-btn" data-tooltip="Zoom in" aria-label="Zoom in" onClick={() => zoomFromCenter(1.2)}>
+            <button type="button" className="icon-btn" data-tooltip={t('Zoom in')} aria-label={t('Zoom in')} onClick={() => zoomFromCenter(1.2)}>
               <ZoomIn size={16} />
             </button>
-            <button type="button" className="icon-btn" data-tooltip="Show all notes" aria-label="Show all notes" onClick={fitAll}>
+            <button type="button" className="icon-btn" data-tooltip={t('Show all notes')} aria-label={t('Show all notes')} onClick={fitAll}>
               <Maximize size={15} />
             </button>
           </div>
 
           {showArchived && archived.length > 0 && (
-            <section className="notes-archived" aria-label="Archived notes">
-              <h2 className="notes-archived-title">Archived</h2>
+            <section className="notes-archived" aria-label={t('Archived notes')}>
+              <h2 className="notes-archived-title">{t('Archived')}</h2>
               <div className="notes-grid">
                 {archived.map((note) => (
                   <article key={note.id} className="note-card is-archived" data-color={note.color}>
@@ -738,7 +739,7 @@ export function NotesView({
                           type="button"
                           className="note-task-link"
                           onClick={() => onOpenTask(note.taskIds[0])}
-                          data-tooltip="Open the first task made from this note"
+                          data-tooltip={t('Open the first task made from this note')}
                         >
                           <ListTodo size={13} />
                           <span>
@@ -750,8 +751,8 @@ export function NotesView({
                       <button
                         type="button"
                         className="note-btn"
-                        data-tooltip="Put back on the board"
-                        aria-label="Restore note"
+                        data-tooltip={t('Put back on the board')}
+                        aria-label={t('Restore note')}
                         onClick={() => save(note, { isArchived: false, order: topOrder + 1 })}
                       >
                         <ArchiveRestore size={15} />
@@ -759,8 +760,8 @@ export function NotesView({
                       <button
                         type="button"
                         className="note-btn"
-                        data-tooltip="Delete note"
-                        aria-label="Delete note"
+                        data-tooltip={t('Delete note')}
+                        aria-label={t('Delete note')}
                         onClick={() => void remove(note)}
                       >
                         <Trash2 size={15} />
@@ -924,13 +925,13 @@ function NoteCard({
       }}
     >
       {/* Header bar: drag the note by it (like the top bar of Windows Sticky Notes); it holds the note's buttons. */}
-      <header className="note-head" data-tooltip={movable ? 'Drag to move' : undefined}>
+      <header className="note-head" data-tooltip={movable ? t('Drag to move') : undefined}>
         {movable && (
           <button
             type="button"
             className="note-grip"
-            aria-label="Move note (drag, or arrow keys); Ctrl+arrow keys resize it"
-            data-tooltip="Drag to move, or use the arrow keys. Ctrl+arrow keys resize."
+            aria-label={t('Move note (drag, or arrow keys); Ctrl+arrow keys resize it')}
+            data-tooltip={t('Drag to move, or use the arrow keys. Ctrl+arrow keys resize.')}
           >
             <Grip size={14} />
           </button>
@@ -942,8 +943,8 @@ function NoteCard({
             <button
               type="button"
               className={`note-btn ${open ? 'is-open' : ''}`}
-              data-tooltip="More"
-              aria-label="More note actions"
+              data-tooltip={t('More')}
+              aria-label={t('More note actions')}
               aria-haspopup="menu"
               aria-expanded={open}
               onClick={onClick}
@@ -953,12 +954,12 @@ function NoteCard({
           )}
         >
           {(close) => (
-            <div className="note-menu" role="menu" aria-label="Note actions">
+            <div className="note-menu" role="menu" aria-label={t('Note actions')}>
               <div className="note-menu-label">
                 <Palette size={14} />
-                <span>Colour</span>
+                <span>{t('Colour')}</span>
               </div>
-              <div className="note-colors" role="radiogroup" aria-label="Note colour">
+              <div className="note-colors" role="radiogroup" aria-label={t('Note colour')}>
                 {NOTE_COLORS.map((color) => (
                   <button
                     key={color}
@@ -989,7 +990,7 @@ function NoteCard({
                   }}
                 >
                   <PictureInPicture2 size={14} />
-                  <span>Open in its own window</span>
+                  <span>{t('Open in its own window')}</span>
                 </button>
               )}
               <button
@@ -1003,7 +1004,7 @@ function NoteCard({
                 }}
               >
                 <Archive size={14} />
-                <span>Archive</span>
+                <span>{t('Archive')}</span>
               </button>
               <button
                 type="button"
@@ -1015,7 +1016,7 @@ function NoteCard({
                 }}
               >
                 <Trash2 size={14} />
-                <span>Delete</span>
+                <span>{t('Delete')}</span>
               </button>
             </div>
           )}
@@ -1061,7 +1062,7 @@ function NoteCard({
         <button
           type="button"
           className="note-convert"
-          data-tooltip="Suggest tasks from this note; you review them before anything is created"
+          data-tooltip={t('Suggest tasks from this note; you review them before anything is created')}
           disabled={!text.trim()}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
@@ -1070,7 +1071,7 @@ function NoteCard({
           }}
         >
           <ListTodo size={14} />
-          <span>Turn into tasks</span>
+          <span>{t('Turn into tasks')}</span>
         </button>
       </footer>
       {/* Invisible strips along the border: drag any edge or corner to resize, as with a window. */}

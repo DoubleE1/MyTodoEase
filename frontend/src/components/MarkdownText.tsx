@@ -2,6 +2,7 @@ import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 import { toggleTaskOnLine } from '../lib/markdownTasks';
+import { t } from '../i18n';
 
 /**
  * Task descriptions as Markdown (GitHub flavour: lists, task lists, tables, strikethrough, autolinks). A single
@@ -66,7 +67,7 @@ export function MarkdownText({
             <input
               {...props}
               className="md-check"
-              aria-label="Tick checklist item"
+              aria-label={t('Tick checklist item')}
               // Ticking a box must not open the description editor around it.
               onClick={(event) => event.stopPropagation()}
               onKeyDown={(event) => event.stopPropagation()}

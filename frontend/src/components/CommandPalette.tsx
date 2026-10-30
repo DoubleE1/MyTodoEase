@@ -27,6 +27,7 @@ import { motionReduced } from '../lib/motion';
 import { recordEvent } from '../lib/achievements';
 import { isOverdue, sortForAgenda, type View } from '../lib/views';
 import { ProjectIcon } from './Pickers';
+import { t } from '../i18n';
 
 /**
  * Search and command palette (Ctrl+K by default): find tasks, projects, labels and notes, jump to a page, or run
@@ -38,11 +39,11 @@ type ItemType = 'task' | 'project' | 'label' | 'note' | 'page' | 'action';
 type TabId = 'all' | 'task' | 'project' | 'label' | 'note';
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'task', label: 'Tasks' },
-  { id: 'project', label: 'Projects' },
-  { id: 'label', label: 'Labels' },
-  { id: 'note', label: 'Notes' },
+  { id: 'all', label: t('All') },
+  { id: 'task', label: t('Tasks') },
+  { id: 'project', label: t('Projects') },
+  { id: 'label', label: t('Labels') },
+  { id: 'note', label: t('Notes') },
 ];
 
 interface Item {
@@ -104,8 +105,8 @@ function rank<T>(items: T[], query: string, text: (item: T) => [string, string?]
     .map((r) => r.item);
 }
 
-const openCount = (n: number) => (n === 0 ? 'No open tasks' : n === 1 ? '1 open task' : `${n} open tasks`);
-const noteTitle = (note: Note) => note.text.trim().split('\n')[0]?.slice(0, 80) || 'Empty note';
+const openCount = (n: number) => (n === 0 ? t('No open tasks') : n === 1 ? t('1 open task') : t('{n} open tasks', { n }));
+const noteTitle = (note: Note) => note.text.trim().split('\n')[0]?.slice(0, 80) || t('Empty note');
 
 /** Matches the modal-out animation in styles.css. */
 const CLOSE_MS = 140;
@@ -228,50 +229,50 @@ export function CommandPalette({
       type: 'note',
       icon: <StickyNote size={16} />,
       title: noteTitle(note),
-      detail: <span>Note</span>,
+      detail: <span>{t('Note')}</span>,
       run: pick(`note:${note.id}`, () => onSelectView({ kind: 'notes' })),
     });
 
     const pages: Item[] = (
       [
-        ['inbox', 'Inbox', <Inbox size={16} />],
-        ['today', 'Today', <CalendarDays size={16} />],
-        ['upcoming', 'Upcoming', <CalendarRange size={16} />],
-        ['calendar', 'Calendar', <CalendarDays size={16} />],
-        ['notes', 'Notes', <StickyNote size={16} />],
-        ['insights', 'Insights', <ChartColumn size={16} />],
-        ['completed', 'Completed', <CircleCheck size={16} />],
-        ['achievements', 'Achievements', <Trophy size={16} />],
+        ['inbox', t('Inbox'), <Inbox size={16} />],
+        ['today', t('Today'), <CalendarDays size={16} />],
+        ['upcoming', t('Upcoming'), <CalendarRange size={16} />],
+        ['calendar', t('Calendar'), <CalendarDays size={16} />],
+        ['notes', t('Notes'), <StickyNote size={16} />],
+        ['insights', t('Insights'), <ChartColumn size={16} />],
+        ['completed', t('Completed'), <CircleCheck size={16} />],
+        ['achievements', t('Achievements'), <Trophy size={16} />],
       ] as const
     ).map(([kind, title, icon]) => ({
       key: `page:${kind}`,
       type: 'page',
       icon,
       title,
-      detail: <span>Go to page</span>,
+      detail: <span>{t('Go to page')}</span>,
       run: pick(`page:${kind}`, () => onSelectView({ kind } as View)),
     }));
 
     const actions: Item[] = [
-      { key: 'action:add-task', type: 'action', icon: <Plus size={16} />, title: 'Add task', hotkey: 'quickAdd', run: () => close(() => onAddTask()) },
-      { key: 'action:add-project', type: 'action', icon: <FolderPlus size={16} />, title: 'New project', run: () => close(onAddProject) },
-      { key: 'action:add-label', type: 'action', icon: <Tags size={16} />, title: 'New label', run: () => close(onAddLabel) },
-      { key: 'action:theme', type: 'action', icon: <Sun size={16} />, title: 'Switch light / dark theme', run: () => close(onToggleTheme) },
+      { key: 'action:add-task', type: 'action', icon: <Plus size={16} />, title: t('Add task'), hotkey: 'quickAdd', run: () => close(() => onAddTask()) },
+      { key: 'action:add-project', type: 'action', icon: <FolderPlus size={16} />, title: t('New project'), run: () => close(onAddProject) },
+      { key: 'action:add-label', type: 'action', icon: <Tags size={16} />, title: t('New label'), run: () => close(onAddLabel) },
+      { key: 'action:theme', type: 'action', icon: <Sun size={16} />, title: t('Switch light / dark theme'), run: () => close(onToggleTheme) },
       ...(onCompact
-        ? [{ key: 'action:mini', type: 'action' as const, icon: <Minimize2 size={16} />, title: 'Switch to mini mode', run: () => close(onCompact) }]
+        ? [{ key: 'action:mini', type: 'action' as const, icon: <Minimize2 size={16} />, title: t('Switch to mini mode'), run: () => close(onCompact) }]
         : []),
-      { key: 'action:shortcuts', type: 'action', icon: <Keyboard size={16} />, title: 'Keyboard shortcuts', hotkey: 'shortcuts', run: () => close(onOpenShortcuts) },
-      { key: 'action:settings', type: 'action', icon: <Settings size={16} />, title: 'Open Settings', hotkey: 'settings', run: () => close(onOpenSettings) },
+      { key: 'action:shortcuts', type: 'action', icon: <Keyboard size={16} />, title: t('Keyboard shortcuts'), hotkey: 'shortcuts', run: () => close(onOpenShortcuts) },
+      { key: 'action:settings', type: 'action', icon: <Settings size={16} />, title: t('Open Settings'), hotkey: 'settings', run: () => close(onOpenSettings) },
     ];
 
     const noteList = notes.data ?? [];
     const limit = tab === 'all' ? 5 : 50;
 
     if (!q) {
-      if (tab === 'task') return [{ title: 'Tasks', items: sortForAgenda(tasks).slice(0, limit).map(taskItem) }];
-      if (tab === 'project') return [{ title: 'Projects', items: projects.map(projectItem) }];
-      if (tab === 'label') return [{ title: 'Labels', items: labels.map(labelItem) }];
-      if (tab === 'note') return [{ title: 'Notes', items: noteList.slice(0, limit).map(noteItem) }];
+      if (tab === 'task') return [{ title: t('Tasks'), items: sortForAgenda(tasks).slice(0, limit).map(taskItem) }];
+      if (tab === 'project') return [{ title: t('Projects'), items: projects.map(projectItem) }];
+      if (tab === 'label') return [{ title: t('Labels'), items: labels.map(labelItem) }];
+      if (tab === 'note') return [{ title: t('Notes'), items: noteList.slice(0, limit).map(noteItem) }];
 
       // Overdue first, then due today: the same things the Today page would nag about.
       const attention = sortForAgenda(tasks.filter((t) => isOverdue(t, today) || t.dueDate === today)).slice(0, 3);
@@ -286,10 +287,10 @@ export function CommandPalette({
         .map((k) => everything.get(k))
         .filter((item): item is Item => item !== undefined);
       return [
-        { title: 'Needs attention', items: attention.map(taskItem) },
-        { title: 'Recent', items: recents },
-        { title: 'Go to', items: pages },
-        { title: 'Actions', items: actions },
+        { title: t('Needs attention'), items: attention.map(taskItem) },
+        { title: t('Recent'), items: recents },
+        { title: t('Go to'), items: pages },
+        { title: t('Actions'), items: actions },
       ];
     }
 
@@ -298,10 +299,10 @@ export function CommandPalette({
     const foundLabels = rank(labels, q, (l) => [l.name]).slice(0, limit).map(labelItem);
     const foundNotes = rank(noteList, q, (n) => [noteTitle(n), n.text]).slice(0, limit).map(noteItem);
     const byType: Record<Exclude<TabId, 'all'>, Section> = {
-      task: { title: 'Tasks', items: foundTasks },
-      project: { title: 'Projects', items: foundProjects },
-      label: { title: 'Labels', items: foundLabels },
-      note: { title: 'Notes', items: foundNotes },
+      task: { title: t('Tasks'), items: foundTasks },
+      project: { title: t('Projects'), items: foundProjects },
+      label: { title: t('Labels'), items: foundLabels },
+      note: { title: t('Notes'), items: foundNotes },
     };
     // Always offer to capture what was typed, and the full search page for tasks.
     const typedActions: Item[] = [
@@ -309,25 +310,25 @@ export function CommandPalette({
         key: 'action:add-typed',
         type: 'action',
         icon: <Plus size={16} />,
-        title: `Add task “${q}”`,
+        title: t('Add task “{text}”', { text: q }),
         run: () => close(() => onAddTask(q)),
       },
       {
         key: 'action:show-all',
         type: 'action',
         icon: <Search size={16} />,
-        title: `Show all tasks matching “${q}”`,
+        title: t('Show all tasks matching “{text}”', { text: q }),
         run: () => close(() => onShowAllResults(q)),
       },
     ];
-    if (tab !== 'all') return [byType[tab], ...(tab === 'task' ? [{ title: 'Actions', items: typedActions }] : [])];
+    if (tab !== 'all') return [byType[tab], ...(tab === 'task' ? [{ title: t('Actions'), items: typedActions }] : [])];
     return [
       byType.task,
       byType.project,
       byType.label,
       byType.note,
-      { title: 'Pages', items: rank(pages, q, (p) => [p.title]) },
-      { title: 'Actions', items: [...rank(actions, q, (a) => [a.title]), ...typedActions] },
+      { title: t('Pages'), items: rank(pages, q, (p) => [p.title]) },
+      { title: t('Actions'), items: [...rank(actions, q, (a) => [a.title]), ...typedActions] },
     ];
     // close/pick are recreated each render but only read stable props; recomputing on data changes is enough.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -369,7 +370,7 @@ export function CommandPalette({
   };
 
   let index = -1;
-  const emptyText = q ? `Nothing matches “${q}”.` : tab === 'note' ? 'No notes yet.' : 'Nothing here yet.';
+  const emptyText = q ? t('Nothing matches “{text}”.', { text: q }) : tab === 'note' ? t('No notes yet.') : t('Nothing here yet.');
 
   return (
     <div
@@ -378,14 +379,14 @@ export function CommandPalette({
         if (event.target === event.currentTarget) close();
       }}
     >
-      <div className="modal palette" role="dialog" aria-modal="true" aria-label="Search" onKeyDown={onKeyDown}>
+      <div className="modal palette" role="dialog" aria-modal="true" aria-label={t('Search')} onKeyDown={onKeyDown}>
         <div className="palette-search">
           <Search size={16} aria-hidden="true" />
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search tasks, projects, labels and notes"
+            placeholder={t('Search tasks, projects, labels and notes')}
             role="combobox"
             aria-expanded="true"
             aria-controls="palette-list"
@@ -393,12 +394,12 @@ export function CommandPalette({
             aria-autocomplete="list"
             spellCheck={false}
           />
-          <button type="button" className="icon-btn" aria-label="Close search" onClick={() => close()}>
+          <button type="button" className="icon-btn" aria-label={t('Close search')} onClick={() => close()}>
             <X size={16} />
           </button>
         </div>
 
-        <div className="palette-tabs" role="tablist" aria-label="Result type">
+        <div className="palette-tabs" role="tablist" aria-label={t('Result type')}>
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -417,7 +418,7 @@ export function CommandPalette({
           ))}
         </div>
 
-        <div className="palette-list" id="palette-list" role="listbox" aria-label="Results" ref={listRef}>
+        <div className="palette-list" id="palette-list" role="listbox" aria-label={t('Results')} ref={listRef}>
           {visible.length === 0 && <p className="palette-empty muted">{emptyText}</p>}
           {visible.map((section) => (
             <div key={section.title} role="group" aria-label={section.title} className="palette-section">
@@ -458,17 +459,17 @@ export function CommandPalette({
 
         <div className="palette-footer muted small" aria-hidden="true">
           <span>
-            Open <kbd>↵</kbd>
+            {t('Open')} <kbd>↵</kbd>
           </span>
           <span>
-            Move <kbd>↑</kbd>
+            {t('Move')} <kbd>↑</kbd>
             <kbd>↓</kbd>
           </span>
           <span>
-            Change type <kbd>Tab</kbd>
+            {t('Change type')} <kbd>Tab</kbd>
           </span>
           <span className="palette-footer-end">
-            Close <kbd>Esc</kbd>
+            {t('Close')} <kbd>Esc</kbd>
           </span>
         </div>
       </div>

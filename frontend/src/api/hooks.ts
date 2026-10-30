@@ -4,6 +4,7 @@ import { api, getDataMode } from './client';
 import type { LabelInput, Note, NoteInput, ProjectInput, ReorderItem, SectionInput, Task, TaskInput } from './types';
 import { showToast } from '../lib/toast';
 import { asOneUndo, recordIrreversible, recordUndo, runUndo } from '../lib/undo';
+import { t } from '../i18n';
 
 export const queryKeys = {
   projects: ['projects'] as const,
@@ -101,7 +102,7 @@ export const useCompletions = (from: string, to: string) =>
   useQuery({ queryKey: [...queryKeys.completions, from, to], queryFn: () => api.stats.completions(from, to) });
 
 const onError = (error: unknown) => {
-  showToast(error instanceof Error ? error.message : 'Something went wrong.', 'error');
+  showToast(error instanceof Error ? error.message : t('Something went wrong.'), 'error');
 };
 
 /** A task as a full write request (the API replaces every field on update). */
@@ -154,11 +155,11 @@ function describeUpdate(before: Task, input: TaskInput): string {
     (input.dueDate ?? null) !== before.dueDate ||
     (input.dueTime ?? null) !== before.dueTime ||
     (input.startDate != null && (input.startDate || null) !== (before.startDate ?? null));
-  if (dateChanged) return `rescheduled ${quoted(before)}`;
-  if (input.content !== before.content) return `renamed ${quoted(before)}`;
-  if ((input.priority ?? before.priority) !== before.priority) return `changed the priority of ${quoted(before)}`;
-  if (input.projectId !== before.projectId || (input.sectionId ?? null) !== before.sectionId) return `moved ${quoted(before)}`;
-  return `edited ${quoted(before)}`;
+  if (dateChanged) return t('rescheduled {task}', { task: quoted(before) });
+  if (input.content !== before.content) return t('renamed {task}', { task: quoted(before) });
+  if ((input.priority ?? before.priority) !== before.priority) return t('changed the priority of {task}', { task: quoted(before) });
+  if (input.projectId !== before.projectId || (input.sectionId ?? null) !== before.sectionId) return t('moved {task}', { task: quoted(before) });
+  return t('edited {task}', { task: quoted(before) });
 }
 
 export function useTaskMutations() {
@@ -182,7 +183,7 @@ export function useTaskMutations() {
     onSuccess: (task) => {
       changed(task.id);
       recordUndo({
-        label: `added ${quoted(task)}`,
+        label: t('added {task}', { task: quoted(task) }),
         run: async () => {
           await api.tasks.remove(task.id);
           changed(task.id);
@@ -240,11 +241,11 @@ export function useTaskMutations() {
       const target = context?.target;
       if (!target) return;
       if (target.isCompleted) {
-        recordIrreversible(`deleted ${quoted(target)}`, 'Deleting a completed task cannot be undone.');
+        recordIrreversible(t('deleted {task}', { task: quoted(target) }), t('Deleting a completed task cannot be undone.'));
         return;
       }
       recordUndo({
-        label: `deleted ${quoted(target)}`,
+        label: t('deleted {task}', { task: quoted(target) }),
         // Recreated with the same details; new ids, and the parent goes first so sub-tasks can hang under it.
         run: async () => {
           const ids = new Map<string, string>();
@@ -285,11 +286,11 @@ export function useTaskMutations() {
       if (!before) return;
       // The open subtasks that were closed along with it, so Undo can bring them back too.
       const closedChildren = (context?.previous ?? []).filter((t) => t.parentId === id && !t.isCompleted);
-      const entry = recordUndo({ label: `completed ${quoted(before)}`, run: () => undoComplete(before, closedChildren) });
-      showToast(before.recurrence === 'none' ? 'Task completed' : 'Done for now; moved to the next date', 'success', {
+      const entry = recordUndo({ label: t('completed {task}', { task: quoted(before) }), run: () => undoComplete(before, closedChildren) });
+      showToast(before.recurrence === 'none' ? t('Task completed') : t('Done for now; moved to the next date'), 'success', {
         group: 'task-completed',
         duration: 5000,
-        action: { label: 'Undo', run: () => void runUndo(entry).catch(onError) },
+        action: { label: t('Undo'), run: () => void runUndo(entry).catch(onError) },
       });
     },
     onSettled: invalidateTasks,
@@ -314,7 +315,7 @@ export function useTaskMutations() {
     onSuccess: (task) => {
       changed(task.id);
       recordUndo({
-        label: `reopened ${quoted(task)}`,
+        label: t('reopened {task}', { task: quoted(task) }),
         run: async () => {
           await api.tasks.complete(task.id);
           changed(task.id);
@@ -351,7 +352,7 @@ export function useTaskMutations() {
       const before = context?.before ?? [];
       if (before.length === 0) return;
       recordUndo({
-        label: before.length === 1 ? `moved ${quoted(before[0])}` : 'moved tasks',
+        label: before.length === 1 ? t('moved {task}', { task: quoted(before[0]) }) : t('moved tasks'),
         run: async () => {
           await api.tasks.reorder(
             before.map((t) => ({ id: t.id, order: t.order, sectionId: t.sectionId ?? '', parentId: t.parentId ?? '' })),

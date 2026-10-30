@@ -5,6 +5,7 @@ import type { CompletionItem, Task } from '../api/types';
 import { toDateStr, todayStr } from '../lib/dates';
 import { completionsPerDay, currentStreak } from '../lib/stats';
 import type { View } from '../lib/views';
+import { datePattern, t } from '../i18n';
 
 interface DashboardProps {
   tasks: Task[];
@@ -26,22 +27,22 @@ interface Stats {
 
 function greeting(now: Date): string {
   const hour = now.getHours();
-  if (hour < 5) return 'Burning the midnight oil';
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  if (hour < 21) return 'Good evening';
-  return 'Winding down';
+  if (hour < 5) return t('Burning the midnight oil');
+  if (hour < 12) return t('Good morning');
+  if (hour < 17) return t('Good afternoon');
+  if (hour < 21) return t('Good evening');
+  return t('Winding down');
 }
 
 /** One playful line that reflects where the day stands. */
 function statusLine(s: Stats): string {
   if (s.overdue > 0 && s.dueToday === 0 && s.doneToday === 0) return 'A few stragglers from earlier days. Clear them and start fresh.';
-  if (s.dueToday === 0 && s.doneToday === 0) return 'Nothing on the plate today. Enjoy the calm, or plan ahead.';
-  if (s.dueToday === 0) return s.doneToday === 1 ? 'Done and dusted. Nice one!' : `All ${s.doneToday} done. Take a bow.`;
-  if (s.progress >= 0.75) return 'Almost there. One last push.';
-  if (s.progress >= 0.5) return 'Over halfway. Keep the momentum.';
-  if (s.doneToday > 0) return 'Good start. Keep chipping away.';
-  return s.dueToday === 1 ? 'Just one thing today. Easy win.' : `${s.dueToday} to go. You have got this.`;
+  if (s.dueToday === 0 && s.doneToday === 0) return t('Nothing on the plate today. Enjoy the calm, or plan ahead.');
+  if (s.dueToday === 0) return s.doneToday === 1 ? t('Done and dusted. Nice one!') : t('All {n} done. Take a bow.', { n: s.doneToday });
+  if (s.progress >= 0.75) return t('Almost there. One last push.');
+  if (s.progress >= 0.5) return t('Over halfway. Keep the momentum.');
+  if (s.doneToday > 0) return t('Good start. Keep chipping away.');
+  return s.dueToday === 1 ? t('Just one thing today. Easy win.') : t('{n} to go. You have got this.', { n: s.dueToday });
 }
 
 function computeStats(tasks: Task[], completions: CompletionItem[], now: Date): Stats {
@@ -58,7 +59,7 @@ function computeStats(tasks: Task[], completions: CompletionItem[], now: Date): 
   const week = Array.from({ length: 7 }, (_, i) => {
     const date = addDays(subDays(todayStart, 6), i);
     const key = toDateStr(date);
-    return { date: key, label: format(date, 'EEE d MMM'), count: perDay.get(key) ?? 0 };
+    return { date: key, label: format(date, datePattern('weekdayDayMonth')), count: perDay.get(key) ?? 0 };
   });
   const weekTotal = week.reduce((n, d) => n + d.count, 0);
 
@@ -82,10 +83,10 @@ export function Dashboard({ tasks, completions, active, onSelectView }: Dashboar
   return (
     <section
       className={`dashboard ${active ? 'is-active' : ''} ${interactive ? '' : 'is-static'}`}
-      aria-label={interactive ? 'Overview. Open insights' : 'Overview'}
+      aria-label={interactive ? t('Overview. Open insights') : t('Overview')}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
-      data-tooltip={interactive ? 'Open insights' : undefined}
+      data-tooltip={interactive ? t('Open insights') : undefined}
       onClick={interactive ? openInsights : undefined}
       onKeyDown={
         interactive
@@ -102,7 +103,7 @@ export function Dashboard({ tasks, completions, active, onSelectView }: Dashboar
         <div
           className={`ring ${total > 0 && stats.dueToday === 0 ? 'is-complete' : ''}`}
           role="img"
-          aria-label={total === 0 ? 'Nothing due today' : `${stats.doneToday} of ${total} done today, ${percent} percent`}
+          aria-label={total === 0 ? t('Nothing due today') : t('{done} of {total} done today, {percent} percent', { done: stats.doneToday, total, percent })}
         >
           <svg viewBox="0 0 48 48" width="48" height="48">
             <defs>
@@ -131,7 +132,7 @@ export function Dashboard({ tasks, completions, active, onSelectView }: Dashboar
           </div>
           <div className="dashboard-status">{statusLine(stats)}</div>
           <div className="muted small">
-            {total === 0 ? 'No tasks due today' : `${stats.doneToday} of ${total} done today`}
+            {total === 0 ? t('No tasks due today') : t('{done} of {total} done today', { done: stats.doneToday, total })}
           </div>
         </div>
       </div>
@@ -150,14 +151,14 @@ export function Dashboard({ tasks, completions, active, onSelectView }: Dashboar
         </div>
         <div className="week-summary">
           <strong>{stats.weekTotal}</strong>
-          <span className="muted small">this week</span>
+          <span className="muted small">{t('this week')}</span>
         </div>
       </div>
 
       <div className="dashboard-chips">
-        <span className={`stat-chip ${stats.streak > 0 ? 'is-hot' : ''}`} data-tooltip="Days in a row with at least one task completed">
+        <span className={`stat-chip ${stats.streak > 0 ? 'is-hot' : ''}`} data-tooltip={t('Days in a row with at least one task completed')}>
           <Flame size={13} />
-          {stats.streak > 0 ? `${stats.streak}-day streak` : 'No streak yet'}
+          {stats.streak > 0 ? t('{n}-day streak', { n: stats.streak }) : t('No streak yet')}
         </span>
         {stats.overdue > 0 &&
           (interactive ? (
@@ -168,7 +169,7 @@ export function Dashboard({ tasks, completions, active, onSelectView }: Dashboar
                 e.stopPropagation();
                 onSelectView({ kind: 'today' });
               }}
-              data-tooltip="Show overdue tasks"
+              data-tooltip={t('Show overdue tasks')}
             >
               <AlertCircle size={13} />
               {stats.overdue} overdue

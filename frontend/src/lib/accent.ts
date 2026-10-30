@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 /**
  * User-chosen accent (primary) color. The stylesheet ships the default violet palette; when the
  * user picks another color we derive the whole family from it (hover/text shades, tinted active
@@ -9,16 +10,16 @@ export const ACCENT_KEY = 'mytodoease.accent';
 export const DEFAULT_ACCENT = '#6d5dfc';
 
 export const ACCENT_PRESETS: { hex: string; label: string }[] = [
-  { hex: DEFAULT_ACCENT, label: 'Violet (default)' },
-  { hex: '#3b82f6', label: 'Blue' },
-  { hex: '#0ea5e9', label: 'Sky' },
-  { hex: '#0d9488', label: 'Teal' },
-  { hex: '#16a34a', label: 'Green' },
-  { hex: '#ca8a04', label: 'Gold' },
-  { hex: '#ea580c', label: 'Orange' },
-  { hex: '#e11d48', label: 'Rose' },
-  { hex: '#db2777', label: 'Pink' },
-  { hex: '#64748b', label: 'Slate' },
+  { hex: DEFAULT_ACCENT, label: t('Violet (default)') },
+  { hex: '#3b82f6', label: t('Blue') },
+  { hex: '#0ea5e9', label: t('Sky') },
+  { hex: '#0d9488', label: t('Teal') },
+  { hex: '#16a34a', label: t('Green') },
+  { hex: '#ca8a04', label: t('Gold') },
+  { hex: '#ea580c', label: t('Orange') },
+  { hex: '#e11d48', label: t('Rose') },
+  { hex: '#db2777', label: t('Pink') },
+  { hex: '#64748b', label: t('Slate') },
 ];
 
 export function readStoredAccent(): string {

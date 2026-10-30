@@ -8,11 +8,12 @@ import { showToast } from '../lib/toast';
 import type { ConfirmOptions } from './Dialogs';
 import { Popover } from './Popover';
 import { useCloudUser } from './SessionGate';
+import { t } from '../i18n';
 
 const THEMES: { value: ThemePreference; label: string; icon: React.ReactNode }[] = [
-  { value: 'light', label: 'Light', icon: <Sun size={14} /> },
-  { value: 'dark', label: 'Dark', icon: <Moon size={14} /> },
-  { value: 'system', label: 'System', icon: <Monitor size={14} /> },
+  { value: 'light', label: t('Light'), icon: <Sun size={14} /> },
+  { value: 'dark', label: t('Dark'), icon: <Moon size={14} /> },
+  { value: 'system', label: t('System'), icon: <Monitor size={14} /> },
 ];
 
 /** Shortcut shown next to Settings (handled in App). */
@@ -49,7 +50,7 @@ export function ProfileMenu({
     } catch (error) {
       const code = (error as { code?: string }).code ?? '';
       if (error instanceof SignInCancelled || code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return;
-      showToast(error instanceof Error ? error.message : 'Could not switch account.', 'error');
+      showToast(error instanceof Error ? error.message : t('Could not switch account.'), 'error');
     } finally {
       setBusy(null);
     }
@@ -57,25 +58,25 @@ export function ProfileMenu({
 
   const signOut = async () => {
     const ok = await confirm({
-      title: 'Sign out?',
+      title: t('Sign out?'),
       message: IS_WEB_APP
-        ? 'You can sign in again any time; your tasks stay in your account.'
+        ? t('You can sign in again any time; your tasks stay in your account.')
         : 'This PC goes back to the tasks stored locally on this computer. Your cloud tasks stay in your Google account.',
-      confirmLabel: 'Sign out',
+      confirmLabel: t('Sign out'),
     });
     if (!ok) return;
     setBusy('signout');
     try {
       await signOutOfCloud();
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Could not sign out.', 'error');
+      showToast(error instanceof Error ? error.message : t('Could not sign out.'), 'error');
     } finally {
       setBusy(null);
     }
   };
 
-  const name = user ? (user.displayName ?? user.email ?? 'Account') : 'This PC';
-  const where = user ? 'Cloud' : 'Local';
+  const name = user ? (user.displayName ?? user.email ?? t('Account')) : t('This PC');
+  const where = user ? t('Cloud') : t('Local');
   const avatar = user ? (
     user.photoURL ? (
       <img className="account-btn-avatar" src={user.photoURL} alt="" referrerPolicy="no-referrer" />
@@ -118,9 +119,9 @@ export function ProfileMenu({
       {(close) => (
         <div className="account-menu" role="menu">
           <div className="account-menu-identity">
-            <strong>{user?.email ?? 'This PC'}</strong>
+            <strong>{user?.email ?? t('This PC')}</strong>
             <span className="muted small">
-              {user ? 'Synced through your Google account' : 'Tasks are stored on this computer'}
+              {user ? t('Synced through your Google account') : t('Tasks are stored on this computer')}
             </span>
           </div>
           <button
@@ -133,12 +134,12 @@ export function ProfileMenu({
             }}
           >
             <Settings size={14} />
-            <span>Settings</span>
+            <span>{t('Settings')}</span>
             <kbd className="menu-item-kbd">{SETTINGS_SHORTCUT}</kbd>
           </button>
           {/* Theme: pick one; the menu stays open so the change can be seen. */}
-          <div className="menu-theme" role="group" aria-label="Theme">
-            <span className="menu-theme-label">Theme</span>
+          <div className="menu-theme" role="group" aria-label={t('Theme')}>
+            <span className="menu-theme-label">{t('Theme')}</span>
             <div className="menu-theme-options">
               {THEMES.map((t) => (
                 <button
@@ -169,7 +170,7 @@ export function ProfileMenu({
                 }}
               >
                 <UserRoundPen size={14} />
-                <span>{busy === 'switch' ? 'Waiting for Google…' : 'Switch Google account'}</span>
+                <span>{busy === 'switch' ? t('Waiting for Google…') : t('Switch Google account')}</span>
               </button>
               <button
                 type="button"
@@ -182,7 +183,7 @@ export function ProfileMenu({
                 }}
               >
                 <LogOut size={14} />
-                <span>Sign out</span>
+                <span>{t('Sign out')}</span>
               </button>
             </>
           )}

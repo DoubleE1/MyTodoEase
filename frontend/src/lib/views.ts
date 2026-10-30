@@ -1,5 +1,6 @@
 import type { Label, Project, Task } from '../api/types';
 import { compareDue, todayStr } from './dates';
+import { t } from '../i18n';
 
 export type View =
   | { kind: 'inbox' }
@@ -25,27 +26,27 @@ export function viewEquals(a: View, b: View): boolean {
 export function viewTitle(view: View, projects: Project[], labels: Label[]): string {
   switch (view.kind) {
     case 'inbox':
-      return 'Inbox';
+      return t('Inbox');
     case 'today':
-      return 'Today';
+      return t('Today');
     case 'upcoming':
-      return 'Upcoming';
+      return t('Upcoming');
     case 'calendar':
-      return 'Calendar';
+      return t('Calendar');
     case 'notes':
-      return 'Notes';
+      return t('Notes');
     case 'insights':
-      return 'Insights';
+      return t('Insights');
     case 'completed':
-      return 'Completed';
+      return t('Completed');
     case 'achievements':
-      return 'Achievements';
+      return t('Achievements');
     case 'project':
-      return projects.find((p) => p.id === view.projectId)?.name ?? 'Project';
+      return projects.find((p) => p.id === view.projectId)?.name ?? t('Project');
     case 'label':
-      return labels.find((l) => l.id === view.labelId)?.name ?? 'Label';
+      return labels.find((l) => l.id === view.labelId)?.name ?? t('Label');
     case 'search':
-      return `Search: ${view.query}`;
+      return t('Search: {query}', { query: view.query });
   }
 }
 

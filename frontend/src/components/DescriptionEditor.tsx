@@ -34,6 +34,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { createPortal } from 'react-dom';
 import { Popover } from './Popover';
 import { handleTableShortcut, TableControls } from './TableControls';
+import { t } from '../i18n';
 
 /**
  * The task description editor in the task detail. By default it is a rich-text editor: bold looks bold and a list
@@ -408,45 +409,45 @@ export default function DescriptionEditor({
   const listOn = on('bullet') || on('ordered') || on('task');
 
   const compactToolbar = (
-    <div className="desc-toolbar is-compact" role="toolbar" aria-label="Formatting">
+    <div className="desc-toolbar is-compact" role="toolbar" aria-label={t('Formatting')}>
       <span ref={compactLinkAnchor} className="desc-link-anchor">
         <Menu
-          label="Formatting"
+          label={t('Formatting')}
           icon={Ellipsis}
           hideChevron
           pressed={headingOn || listOn || on('bold') || on('italic') || on('strike') || on('link') || on('code') || on('codeBlock') || on('quote')}
           items={[
-            { label: 'Normal text', command: 'paragraph' },
-            { label: 'Heading 1', command: 'h1', icon: Heading, active: on('h1') },
-            { label: 'Heading 2', command: 'h2', icon: Heading, active: on('h2') },
-            { label: 'Heading 3', command: 'h3', icon: Heading, active: on('h3') },
+            { label: t('Normal text'), command: 'paragraph' },
+            { label: t('Heading 1'), command: 'h1', icon: Heading, active: on('h1') },
+            { label: t('Heading 2'), command: 'h2', icon: Heading, active: on('h2') },
+            { label: t('Heading 3'), command: 'h3', icon: Heading, active: on('h3') },
             { separator: true, label: 'lists' },
-            { label: 'Bulleted list', command: 'bullet', icon: List, active: on('bullet') },
-            { label: 'Numbered list', command: 'ordered', icon: ListOrdered, active: on('ordered') },
-            { label: 'Checklist', command: 'task', icon: ListChecks, active: on('task') },
+            { label: t('Bulleted list'), command: 'bullet', icon: List, active: on('bullet') },
+            { label: t('Numbered list'), command: 'ordered', icon: ListOrdered, active: on('ordered') },
+            { label: t('Checklist'), command: 'task', icon: ListChecks, active: on('task') },
             { separator: true, label: 'marks' },
-            { label: 'Bold (Ctrl+B)', command: 'bold', icon: Bold, active: on('bold') },
-            { label: 'Italic (Ctrl+I)', command: 'italic', icon: Italic, active: on('italic') },
-            { label: 'Strikethrough', command: 'strike', icon: Strikethrough, active: on('strike') },
-            { label: 'Link… (Ctrl+K)', icon: Link2, active: on('link'), onSelect: () => setLinkOpen(true) },
+            { label: t('Bold (Ctrl+B)'), command: 'bold', icon: Bold, active: on('bold') },
+            { label: t('Italic (Ctrl+I)'), command: 'italic', icon: Italic, active: on('italic') },
+            { label: t('Strikethrough'), command: 'strike', icon: Strikethrough, active: on('strike') },
+            { label: t('Link… (Ctrl+K)'), icon: Link2, active: on('link'), onSelect: () => setLinkOpen(true) },
             { separator: true, label: 'blocks' },
-            { label: 'Inline code', command: 'code', icon: Code, active: on('code') },
-            { label: 'Code block', command: 'codeBlock', icon: SquareCode, active: on('codeBlock') },
-            { label: 'Quote', command: 'quote', icon: Quote, active: on('quote') },
-            { label: 'Divider', command: 'divider', icon: Minus },
-            { label: 'Table', command: 'table', icon: Table },
+            { label: t('Inline code'), command: 'code', icon: Code, active: on('code') },
+            { label: t('Code block'), command: 'codeBlock', icon: SquareCode, active: on('codeBlock') },
+            { label: t('Quote'), command: 'quote', icon: Quote, active: on('quote') },
+            { label: t('Divider'), command: 'divider', icon: Minus },
+            { label: t('Table'), command: 'table', icon: Table },
             ...(on('table')
               ? [
                   { separator: true, label: 'table' },
-                  { label: 'Add row below', command: 'rowAfter' as const, icon: ArrowDownToLine },
-                  { label: 'Add column right', command: 'colAfter' as const, icon: ArrowRightToLine },
-                  { label: 'Delete row', command: 'deleteRow' as const, icon: Rows3, className: 'is-danger' },
-                  { label: 'Delete column', command: 'deleteCol' as const, icon: Columns3, className: 'is-danger' },
-                  { label: 'Delete table', command: 'deleteTable' as const, icon: Trash2, className: 'is-danger' },
+                  { label: t('Add row below'), command: 'rowAfter' as const, icon: ArrowDownToLine },
+                  { label: t('Add column right'), command: 'colAfter' as const, icon: ArrowRightToLine },
+                  { label: t('Delete row'), command: 'deleteRow' as const, icon: Rows3, className: 'is-danger' },
+                  { label: t('Delete column'), command: 'deleteCol' as const, icon: Columns3, className: 'is-danger' },
+                  { label: t('Delete table'), command: 'deleteTable' as const, icon: Trash2, className: 'is-danger' },
                 ]
               : []),
             { separator: true, label: 'mode' },
-            { label: rich ? 'Switch to Markdown (M↓)' : 'Switch to rich text', onSelect: switchMode },
+            { label: rich ? t('Switch to Markdown (M↓)') : t('Switch to rich text'), onSelect: switchMode },
           ]}
           onRun={run}
         />
@@ -466,33 +467,33 @@ export default function DescriptionEditor({
   );
 
   const fullToolbar = (
-    <div className="desc-toolbar" role="toolbar" aria-label="Formatting">
+    <div className="desc-toolbar" role="toolbar" aria-label={t('Formatting')}>
       <Menu
-        label="Text style"
+        label={t('Text style')}
         icon={Heading}
         pressed={headingOn}
         items={[
-          { label: 'Normal text', command: 'paragraph' },
-          { label: 'Heading 1', command: 'h1', className: 'desc-menu-h1', active: on('h1') },
-          { label: 'Heading 2', command: 'h2', className: 'desc-menu-h2', active: on('h2') },
-          { label: 'Heading 3', command: 'h3', className: 'desc-menu-h3', active: on('h3') },
+          { label: t('Normal text'), command: 'paragraph' },
+          { label: t('Heading 1'), command: 'h1', className: 'desc-menu-h1', active: on('h1') },
+          { label: t('Heading 2'), command: 'h2', className: 'desc-menu-h2', active: on('h2') },
+          { label: t('Heading 3'), command: 'h3', className: 'desc-menu-h3', active: on('h3') },
         ]}
         onRun={run}
       />
       <Menu
-        label="Lists"
+        label={t('Lists')}
         icon={on('ordered') ? ListOrdered : on('task') ? ListChecks : List}
         pressed={listOn}
         items={[
-          { label: 'Bulleted list', command: 'bullet', icon: List, active: on('bullet') },
-          { label: 'Numbered list', command: 'ordered', icon: ListOrdered, active: on('ordered') },
-          { label: 'Checklist', command: 'task', icon: ListChecks, active: on('task') },
+          { label: t('Bulleted list'), command: 'bullet', icon: List, active: on('bullet') },
+          { label: t('Numbered list'), command: 'ordered', icon: ListOrdered, active: on('ordered') },
+          { label: t('Checklist'), command: 'task', icon: ListChecks, active: on('task') },
         ]}
         onRun={run}
       />
-      <ToolButton label="Bold (Ctrl+B)" icon={Bold} pressed={on('bold')} onClick={() => run('bold')} />
-      <ToolButton label="Italic (Ctrl+I)" icon={Italic} pressed={on('italic')} onClick={() => run('italic')} />
-      <ToolButton label="Strikethrough" icon={Strikethrough} pressed={on('strike')} onClick={() => run('strike')} />
+      <ToolButton label={t('Bold (Ctrl+B)')} icon={Bold} pressed={on('bold')} onClick={() => run('bold')} />
+      <ToolButton label={t('Italic (Ctrl+I)')} icon={Italic} pressed={on('italic')} onClick={() => run('italic')} />
+      <ToolButton label={t('Strikethrough')} icon={Strikethrough} pressed={on('strike')} onClick={() => run('strike')} />
       <LinkButton
         pressed={on('link')}
         open={linkOpen}
@@ -501,32 +502,32 @@ export default function DescriptionEditor({
         onApply={applyLink}
       />
       <Menu
-        label="More formatting"
+        label={t('More formatting')}
         icon={Ellipsis}
         hideChevron
         pressed={on('code') || on('codeBlock') || on('quote')}
         items={[
-          { label: 'Inline code', command: 'code', icon: Code, active: on('code') },
-          { label: 'Code block', command: 'codeBlock', icon: SquareCode, active: on('codeBlock') },
-          { label: 'Quote', command: 'quote', icon: Quote, active: on('quote') },
-          { label: 'Divider', command: 'divider', icon: Minus },
-          { label: 'Table', command: 'table', icon: Table },
+          { label: t('Inline code'), command: 'code', icon: Code, active: on('code') },
+          { label: t('Code block'), command: 'codeBlock', icon: SquareCode, active: on('codeBlock') },
+          { label: t('Quote'), command: 'quote', icon: Quote, active: on('quote') },
+          { label: t('Divider'), command: 'divider', icon: Minus },
+          { label: t('Table'), command: 'table', icon: Table },
         ]}
         onRun={run}
       />
       {on('table') && (
         <Menu
-          label="Table"
+          label={t('Table')}
           icon={Table}
           pressed
           items={[
-            { label: 'Add row above', command: 'rowBefore', icon: ArrowUpToLine },
-            { label: 'Add row below', command: 'rowAfter', icon: ArrowDownToLine },
-            { label: 'Add column left', command: 'colBefore', icon: ArrowLeftToLine },
-            { label: 'Add column right', command: 'colAfter', icon: ArrowRightToLine },
-            { label: 'Delete row', command: 'deleteRow', icon: Rows3, className: 'is-danger' },
-            { label: 'Delete column', command: 'deleteCol', icon: Columns3, className: 'is-danger' },
-            { label: 'Delete table', command: 'deleteTable', icon: Trash2, className: 'is-danger' },
+            { label: t('Add row above'), command: 'rowBefore', icon: ArrowUpToLine },
+            { label: t('Add row below'), command: 'rowAfter', icon: ArrowDownToLine },
+            { label: t('Add column left'), command: 'colBefore', icon: ArrowLeftToLine },
+            { label: t('Add column right'), command: 'colAfter', icon: ArrowRightToLine },
+            { label: t('Delete row'), command: 'deleteRow', icon: Rows3, className: 'is-danger' },
+            { label: t('Delete column'), command: 'deleteCol', icon: Columns3, className: 'is-danger' },
+            { label: t('Delete table'), command: 'deleteTable', icon: Trash2, className: 'is-danger' },
           ]}
           onRun={run}
         />
@@ -536,7 +537,7 @@ export default function DescriptionEditor({
         type="button"
         className={`desc-mode-btn ${rich ? '' : 'is-pressed'}`}
         aria-pressed={!rich}
-        data-tooltip={rich ? 'Switch to Markdown (type the symbols yourself)' : 'Switch to rich text'}
+        data-tooltip={rich ? t('Switch to Markdown (type the symbols yourself)') : t('Switch to rich text')}
         onMouseDown={(e) => e.preventDefault()}
         onClick={switchMode}
       >
@@ -556,7 +557,7 @@ export default function DescriptionEditor({
         <textarea
           ref={textareaRef}
           className={`editor-description is-markdown ${compact || variant === 'note' ? '' : 'is-roomy'} ${variantClass}`}
-          placeholder="Markdown: **bold**, _italic_, - list, 1. list, - [ ] checklist, [link](https://…), `code`"
+          placeholder={t('Markdown: **bold**, _italic_, - list, 1. list, - [ ] checklist, [link](https://…), `code`')}
           value={markdown}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(event) => {
@@ -694,7 +695,7 @@ function LinkButton({
   const anchorRef = useRef<HTMLSpanElement>(null);
   return (
     <span ref={anchorRef} className="desc-link-anchor">
-      <ToolButton label="Link (Ctrl+K)" icon={Link2} pressed={pressed} onClick={() => onOpenChange(!open)} />
+      <ToolButton label={t('Link (Ctrl+K)')} icon={Link2} pressed={pressed} onClick={() => onOpenChange(!open)} />
       {open && (
         <LinkBox
           anchor={anchorRef.current}
@@ -756,13 +757,13 @@ function LinkBox({
       <input
         autoFocus
         type="url"
-        placeholder="Paste a link, e.g. https://…"
+        placeholder={t('Paste a link, e.g. https://…')}
         value={url}
         onChange={(e) => setUrl(e.target.value)}
-        aria-label="Link address"
+        aria-label={t('Link address')}
       />
       <button type="submit" className="btn btn-primary">
-        {initialUrl && !url.trim() ? 'Remove' : 'Apply'}
+        {initialUrl && !url.trim() ? t('Remove') : t('Apply')}
       </button>
     </form>
   );

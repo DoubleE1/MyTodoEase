@@ -7,6 +7,7 @@ import { describeDue } from '../lib/dates';
 import { motionReduced } from '../lib/motion';
 import { ProjectIcon } from './Pickers';
 import { markdownPreview } from '../lib/markdownPreview';
+import { datePattern, t } from '../i18n';
 
 export interface TaskItemProps {
   task: Task;
@@ -90,8 +91,8 @@ export function TaskItem({
             background: task.priority < 4 && !completed ? `${priority.hex}1a` : undefined,
           }}
           onClick={toggle}
-          aria-label={completed ? 'Reopen task' : 'Complete task'}
-          data-tooltip={completed ? 'Reopen' : 'Complete'}
+          aria-label={completed ? t('Reopen task') : t('Complete task')}
+          data-tooltip={completed ? t('Reopen') : t('Complete')}
         >
           <Check size={12} strokeWidth={3} className="task-check-icon" />
           {completing && celebrate && (
@@ -126,7 +127,7 @@ export function TaskItem({
                 <span className={`meta due tone-${due.tone}`}>
                   <Calendar size={12} />
                   {/* A multi-day task reads as a range ending on its due date. */}
-                  {task.startDate ? `${format(parseISO(task.startDate), 'd MMM')} – ${due.text}` : due.text}
+                  {task.startDate ? `${format(parseISO(task.startDate), datePattern('dayMonth'))} – ${due.text}` : due.text}
                   {task.recurrence !== 'none' && <Repeat size={11} />}
                 </span>
               )}
@@ -136,7 +137,9 @@ export function TaskItem({
                 </span>
               ))}
               {completed && task.completedAt && (
-                <span className="meta">Completed {format(parseISO(task.completedAt), 'd MMM, h:mm a')}</span>
+                <span className="meta">
+                  {t('Completed {date}', { date: `${format(parseISO(task.completedAt), datePattern('dayMonth'))} ${format(parseISO(task.completedAt), datePattern('time'))}` })}
+                </span>
               )}
               {showProject && project && (
                 <span className="meta project">
@@ -149,10 +152,10 @@ export function TaskItem({
         </div>
 
         <div className="task-actions">
-          <button type="button" className="icon-btn" data-tooltip="Edit" aria-label="Edit task" onClick={onOpen}>
+          <button type="button" className="icon-btn" data-tooltip={t('Edit')} aria-label={t('Edit task')} onClick={onOpen}>
             <Pencil size={15} />
           </button>
-          <button type="button" className="icon-btn" data-tooltip="Delete" aria-label="Delete task" onClick={onDelete}>
+          <button type="button" className="icon-btn" data-tooltip={t('Delete')} aria-label={t('Delete task')} onClick={onDelete}>
             <Trash2 size={15} />
           </button>
         </div>

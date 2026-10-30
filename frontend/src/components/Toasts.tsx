@@ -1,6 +1,7 @@
 import { CheckCircle2, X } from 'lucide-react';
 import { dismissToast, useToasts } from '../lib/toast';
 import { UpdateBanner } from './UpdateBanner';
+import { t as translate } from '../i18n';
 
 /** Transient messages, plus (in the mini window, which has no sidebar) the "Restart to update" banner. */
 export function Toasts({ updateBanner = false }: { updateBanner?: boolean }) {
@@ -32,7 +33,7 @@ function ToastList({ toasts }: { toasts: ReturnType<typeof useToasts> }) {
               {t.action.label}
             </button>
           )}
-          <button type="button" className="icon-btn" onClick={() => dismissToast(t.id)} aria-label="Dismiss">
+          <button type="button" className="icon-btn" onClick={() => dismissToast(t.id)} aria-label={translate('Dismiss')}>
             <X size={14} />
           </button>
         </div>
