@@ -41,8 +41,13 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     const SQUASH = 0.34;
     /** Turns per second at the disk's inner edge (radians); outer rings are slower by (inner / r) ^ 1.5. */
     const SPIN = 2.4;
-    /** How quickly the hole catches up with the pointer (per second): slow and heavy. */
-    const FOLLOW = 3.2;
+    /**
+     * The hole moves like a heavy mass on a spring towards the pointer: it speeds up and slows down smoothly
+     * (critically damped, so it never overshoots), and never faster than its top speed, so the disk is carried
+     * along instead of torn into straight streaks.
+     */
+    const SPRING = 10;
+    const DAMPING = 2 * Math.sqrt(SPRING);
     /** Share of the picture that fades each second (the length of the streaks). */
     const FADE = 9;
     /** Brightness levels, from the dim outer edge (0) to white (5). */
@@ -53,6 +58,9 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     let dark = true;
     let frame = 0;
     let lastFrame = 0;
+    let dpr = 1;
+    /** Where the hole was when the trails' picture was last moved along with it. */
+    let drawn = { x: 0, y: 0 };
 
     /** Horizon radius, and the disk's inner and outer edges (px). */
     let hole = 30;
@@ -61,6 +69,9 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     let home = { x: 0, y: 0 };
     let center = { x: 0, y: 0 };
     let target = { x: 0, y: 0 };
+    /** The hole's velocity (px per second), and its top speed (set with the size). */
+    let velocity = { x: 0, y: 0 };
+    let topSpeed = 240;
     /** Holding the mouse down: 0 to 1, easing towards `pullTarget`. */
     let pull = 0;
     let pullTarget = 0;
@@ -161,7 +172,7 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       const rect = canvas.getBoundingClientRect();
       width = rect.width;
       height = rect.height;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
       for (const [c, x] of [
         [canvas, ctx],
         [frontCanvas, fctx],
@@ -179,6 +190,10 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       home = restPoint();
       center = { ...home };
       target = { ...home };
+      velocity = { x: 0, y: 0 };
+      drawn = { ...center };
+      // Crossing about its own disk's width per second at most.
+      topSpeed = Math.max(140, outer * 0.8);
 
       const area = width * height;
       n = Math.round(Math.max(560, Math.min(1660, area / 800)));
@@ -207,9 +222,30 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     const front: Path2D[] = [];
 
     const step = (dt: number) => {
-      const follow = 1 - Math.exp(-FOLLOW * dt);
-      center.x += (target.x - center.x) * follow;
-      center.y += (target.y - center.y) * follow;
+      velocity.x += ((target.x - center.x) * SPRING - velocity.x * DAMPING) * dt;
+      velocity.y += ((target.y - center.y) * SPRING - velocity.y * DAMPING) * dt;
+      const speed = Math.hypot(velocity.x, velocity.y);
+      if (speed > topSpeed) {
+        velocity.x *= topSpeed / speed;
+        velocity.y *= topSpeed / speed;
+      }
+      center.x += velocity.x * dt;
+      center.y += velocity.y * dt;
+      // The trails travel with the hole, so moving it carries the disk's streaks along (they stay arcs) instead of
+      // smearing them into straight lines; only particles that lag behind leave a tail. Whole device pixels, so the
+      // picture never blurs.
+      const sx = Math.round((center.x - drawn.x) * dpr);
+      const sy = Math.round((center.y - drawn.y) * dpr);
+      if (sx || sy) {
+        shift(canvas, ctx, sx, sy);
+        shift(frontCanvas, fctx, sx, sy);
+        drawn.x += sx / dpr;
+        drawn.y += sy / dpr;
+        for (let i = 0; i < n; i++) {
+          px[i] += sx / dpr;
+          py[i] += sy / dpr;
+        }
+      }
       pull += (pullTarget - pull) * (1 - Math.exp(-5 * dt));
       kick *= Math.exp(-2.2 * dt);
       burst += (kick - burst) * (1 - Math.exp(-9 * dt));
@@ -220,8 +256,9 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       }
 
       for (let i = 0; i < n; i++) {
-        // Inner orbits follow the hole closely; outer ones trail behind, so a moving hole drags streams after it.
-        const lag = 1 - Math.exp(-(1.2 + 16 * (inner / r[i])) * dt);
+        // Each orbit is carried along with the hole: inner ones tightly, outer ones and the dust on its way in a
+        // little behind, so a moving hole draws a short comet tail rather than leaving its disk behind.
+        const lag = 1 - Math.exp(-(1.2 + 24 * (inner / r[i]) ** 0.8) * dt);
         ox[i] += (center.x - ox[i]) * lag;
         oy[i] += (center.y - oy[i]) * lag;
         // Holding the mouse down: everything falls in faster (the disk drains into the hole) and spins faster.
@@ -273,6 +310,15 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       c.fillStyle = `rgba(0,0,0,${1 - Math.exp(-FADE * dt)})`;
       c.fillRect(0, 0, width, height);
       c.globalCompositeOperation = 'source-over';
+    };
+
+    /** Move a layer's picture by (dx, dy) device pixels. */
+    const shift = (c: HTMLCanvasElement, x: CanvasRenderingContext2D, dx: number, dy: number) => {
+      x.save();
+      x.setTransform(1, 0, 0, 1, 0, 0);
+      x.globalCompositeOperation = 'copy';
+      x.drawImage(c, dx, dy);
+      x.restore();
     };
 
     const draw = (dt: number) => {
