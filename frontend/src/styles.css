@@ -7760,15 +7760,13 @@ body.is-resizing-span * {
 }
 
 /* ---- Desktop: the "New task" global shortcut's popup (#quick-add) ---- */
+/* As tall as its content; the shell sizes the window to it (QuickAddWindow reports the height). */
 .quick-add-window {
-  height: 100vh;
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 14px 16px;
   background: var(--bg);
-  border: 1px solid var(--border);
-  overflow: hidden;
 }
 
 /* The header is the window's drag area (the window has no frame). */

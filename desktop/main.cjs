@@ -18,7 +18,11 @@ try {
 // Bundled native pieces live under desktop/build in development and under resources/ when packaged.
 const resourcesDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, 'build');
 const APP_ICON = path.join(__dirname, 'build', 'icon.ico');
-const QUICK_ADD_SIZE = { width: 600, height: 440 };
+
+// One taskbar button for the whole app: every window (main, sticky notes) and the installer's Start menu and
+// pinned shortcuts share this ID (electron-builder's appId), so Windows stacks them under one TodoEase icon.
+if (process.platform === 'win32') app.setAppUserModelId('com.mytodoease.desktop');
+const QUICK_ADD_SIZE = { width: 600, height: 240 };
 
 // One TodoEase at a time: with "Start with Windows" it is often already running in the tray, so opening it
 // again just brings that window up. Development runs skip the lock so they can run beside the installed app.
@@ -191,6 +195,14 @@ function onScreen(bounds) {
 
 let win = null;
 
+// The app's own light/dark choice (sent by the page with the title bar colours), which can differ from Windows'.
+// New windows start in that colour, so a note or the quick-add box never flashes white while it loads.
+let appTheme = settings.appTheme === 'dark' || settings.appTheme === 'light' ? settings.appTheme : null;
+function windowBackground() {
+  const dark = appTheme ? appTheme === 'dark' : nativeTheme.shouldUseDarkColors;
+  return dark ? '#1f1f1f' : '#ffffff';
+}
+
 function createWindow({ show = true } = {}) {
   const compact = settings.compact;
   const minimum = compact ? COMPACT_MIN : NORMAL_MIN;
@@ -213,7 +225,7 @@ function createWindow({ show = true } = {}) {
       height: TITLE_BAR_HEIGHT,
     },
     // Match the page's dark/light background so there is no white flash before React paints.
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1f1f1f' : '#ffffff',
+    backgroundColor: windowBackground(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -275,6 +287,7 @@ function createWindow({ show = true } = {}) {
   });
   win.on('closed', () => {
     win = null;
+    closeHelpersIfAlone();
   });
 }
 
@@ -299,6 +312,68 @@ function rememberOpenNotes() {
   saveSettings();
 }
 
+/** A frameless note window, hidden until its page says the note is on screen ('note:ready'). */
+function makeNoteWindow(bounds, hash) {
+  const note = new BrowserWindow({
+    ...bounds,
+    minWidth: 220,
+    minHeight: 180,
+    frame: false,
+    show: false,
+    title: 'Sticky note',
+    icon: APP_ICON,
+    backgroundColor: windowBackground(),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  if (devServerUrl) note.loadURL(`${devServerUrl}#${hash}`);
+  else note.loadFile(path.join(__dirname, 'renderer', 'index.html'), { hash });
+  note.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const { protocol } = new URL(url);
+      if (protocol === 'https:' || protocol === 'http:' || protocol === 'mailto:') void shell.openExternal(url);
+    } catch {
+      // Not a valid URL: ignore it.
+    }
+    return { action: 'deny' };
+  });
+  return note;
+}
+
+/** Show a note window that has drawn its note; one made with the global shortcut also takes the focus. */
+function revealNoteWindow(note) {
+  if (note.isDestroyed() || note.isVisible()) return;
+  if (Date.now() - newNoteRequestedAt < 5000) bringToFront(note);
+  else note.show();
+}
+
+// A spare note window, loaded in the background (#note-spare) and handed the next note to open, so a new note
+// appears at once instead of after a page load. Kept only while the "New sticky note" shortcut is on.
+let spareNote = null;
+let spareNoteLoaded = false;
+
+function prepareSpareNote() {
+  if (spareNote || quitting || !settings.globalHotkeys.newNote) return;
+  const spare = makeNoteWindow({ ...NOTE_DEFAULT, x: 0, y: 0 }, 'note-spare');
+  spareNote = spare;
+  spareNoteLoaded = false;
+  spare.webContents.once('did-finish-load', () => {
+    if (spareNote === spare) spareNoteLoaded = true;
+  });
+  spare.on('closed', () => {
+    if (spareNote === spare) spareNote = null;
+  });
+}
+
+function dropSpareNote() {
+  const spare = spareNote;
+  spareNote = null;
+  if (spare && !spare.isDestroyed()) spare.destroy();
+}
+
 /** Open a sticky note in its own small frameless window (or bring it forward if it is already open). */
 function openNoteWindow(id) {
   if (typeof id !== 'string' || !/^[\w-]{1,64}$/.test(id)) return;
@@ -310,40 +385,21 @@ function openNoteWindow(id) {
     return;
   }
   const bounds = onScreen(settings.noteBounds?.[id]) ?? defaultNoteBounds();
-  const note = new BrowserWindow({
-    ...bounds,
-    minWidth: 220,
-    minHeight: 180,
-    frame: false,
-    show: false,
-    title: 'Sticky note',
-    icon: APP_ICON,
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1f1f1f' : '#ffffff',
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
+  let note;
+  if (spareNote && spareNoteLoaded && !spareNote.isDestroyed()) {
+    note = spareNote;
+    spareNote = null;
+    note.setBounds(bounds);
+    note.webContents.send('note:assign', id);
+    // Make the next spare once this one has settled.
+    setTimeout(prepareSpareNote, 1500);
+  } else {
+    note = makeNoteWindow(bounds, `note=${id}`);
+  }
   noteWindows.set(id, note);
   rememberOpenNotes();
-
-  if (devServerUrl) note.loadURL(`${devServerUrl}#note=${id}`);
-  else note.loadFile(path.join(__dirname, 'renderer', 'index.html'), { hash: `note=${id}` });
-  note.once('ready-to-show', () => {
-    // A note made with the global shortcut comes to the front even though another app had the focus.
-    if (Date.now() - newNoteRequestedAt < 5000) bringToFront(note);
-    else note.show();
-  });
-  note.webContents.setWindowOpenHandler(({ url }) => {
-    try {
-      const { protocol } = new URL(url);
-      if (protocol === 'https:' || protocol === 'http:' || protocol === 'mailto:') void shell.openExternal(url);
-    } catch {
-      // Not a valid URL: ignore it.
-    }
-    return { action: 'deny' };
-  });
+  // Normally the page reports 'note:ready'; this is only a fallback so a slow page never stays invisible.
+  setTimeout(() => revealNoteWindow(note), 2500);
 
   let saveTimer = null;
   const saveBounds = () => {
@@ -361,7 +417,18 @@ function openNoteWindow(id) {
     noteWindows.delete(id);
     // Closing a note forgets it; quitting the app keeps the list, so those notes come back next time.
     if (!quitting) rememberOpenNotes();
+    closeHelpersIfAlone();
   });
+}
+
+/**
+ * The spare note and the quick-add popup are hidden helpers; once the main window and every note are closed
+ * (background mode off), they go too so the app can quit.
+ */
+function closeHelpersIfAlone() {
+  if ((win && !win.isDestroyed()) || noteWindows.size > 0) return;
+  dropSpareNote();
+  if (quickAddWindow && !quickAddWindow.isDestroyed()) quickAddWindow.destroy();
 }
 
 /** Bring the main window up again, recreating it if it was closed while notes stayed open. */
@@ -661,6 +728,22 @@ ipcMain.handle('window:set-title-bar-theme', (_event, theme) => {
   if (win && typeof win.setTitleBarOverlay === 'function') {
     win.setTitleBarOverlay({ ...colors, height: TITLE_BAR_HEIGHT });
   }
+  const next = theme === 'dark' ? 'dark' : 'light';
+  if (next !== appTheme) {
+    appTheme = next;
+    settings.appTheme = next;
+    saveSettings();
+    // The windows waiting in the background take the new colour too.
+    for (const helper of [spareNote, quickAddWindow]) {
+      if (helper && !helper.isDestroyed()) helper.setBackgroundColor(windowBackground());
+    }
+  }
+});
+
+// A note window's page has its note on screen: show the window now (no blank frame first).
+ipcMain.on('note:ready', (event) => {
+  const note = BrowserWindow.fromWebContents(event.sender);
+  if (note && note !== spareNote) revealNoteWindow(note);
 });
 
 // ---------------------------------------------------------------------------------------------------------
@@ -676,6 +759,8 @@ let hotkeyErrors = {};
 let newNoteRequestedAt = 0;
 let pendingNewNote = false;
 let quickAddWindow = null;
+/** Last height the popup's content asked for; the first showing guesses. */
+let quickAddHeight = QUICK_ADD_SIZE.height;
 
 function updateTray() {
   if (!settings.keepInTray) {
@@ -703,12 +788,22 @@ function updateTray() {
 
 const HOTKEY_ACTIONS = { newTask: () => openQuickAdd(), newNote: () => requestNewNote() };
 
+// Dev aid: MYTODOEASE_DEV_HOTKEYS='{"newTask":"Control+Alt+F9"}' registers other keys for this run only (never saved),
+// so a development copy can be tried while the installed app holds the real shortcuts.
+const devHotkeys = (() => {
+  try {
+    return process.env.MYTODOEASE_DEV_HOTKEYS ? JSON.parse(process.env.MYTODOEASE_DEV_HOTKEYS) : {};
+  } catch {
+    return {};
+  }
+})();
+
 /** (Re)register every global shortcut; remembers which ones another app already holds. */
 function registerGlobalHotkeys() {
   globalShortcut.unregisterAll();
   hotkeyErrors = {};
   for (const [action, run] of Object.entries(HOTKEY_ACTIONS)) {
-    const accelerator = settings.globalHotkeys[action];
+    const accelerator = devHotkeys[action] ?? settings.globalHotkeys[action];
     if (!accelerator) continue;
     let ok = false;
     try {
@@ -724,17 +819,18 @@ function registerGlobalHotkeys() {
  * The quick-add popup: a small frameless window over everything, made on first use and then kept hidden
  * between uses so the shortcut opens it at once. It loads the app page with #quick-add.
  */
-function openQuickAdd() {
+function openQuickAdd({ show = true } = {}) {
   const cursor = screen.getCursorScreenPoint();
   const area = screen.getDisplayNearestPoint(cursor).workArea;
   const width = Math.min(QUICK_ADD_SIZE.width, area.width - 32);
   const bounds = {
     width,
-    height: QUICK_ADD_SIZE.height,
+    height: quickAddHeight,
     x: Math.round(area.x + (area.width - width) / 2),
     y: Math.round(area.y + area.height * 0.18),
   };
   if (quickAddWindow && !quickAddWindow.isDestroyed()) {
+    if (!show) return;
     quickAddWindow.setContentBounds(bounds);
     quickAddWindow.webContents.send('quick-add:shown');
     bringToFront(quickAddWindow);
@@ -747,7 +843,7 @@ function openQuickAdd() {
     frame: false,
     // Resizable on purpose: a frameless window that cannot be resized comes out smaller than asked on Windows.
     minWidth: 420,
-    minHeight: 300,
+    minHeight: 120,
     minimizable: false,
     maximizable: false,
     skipTaskbar: true,
@@ -755,7 +851,7 @@ function openQuickAdd() {
     show: false,
     title: 'New task',
     icon: APP_ICON,
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1f1f1f' : '#ffffff',
+    backgroundColor: windowBackground(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -764,7 +860,7 @@ function openQuickAdd() {
   });
   if (devServerUrl) quickAddWindow.loadURL(`${devServerUrl}#quick-add`);
   else quickAddWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'), { hash: 'quick-add' });
-  quickAddWindow.once('ready-to-show', () => bringToFront(quickAddWindow));
+  if (show) quickAddWindow.once('ready-to-show', () => bringToFront(quickAddWindow));
   // Clicking anywhere else puts it away, like a launcher.
   quickAddWindow.on('blur', () => quickAddWindow?.hide());
   quickAddWindow.on('closed', () => {
@@ -822,6 +918,8 @@ ipcMain.handle('desktop:set-prefs', (_event, patch) => {
       }
       registerGlobalHotkeys();
       updateTray();
+      if (settings.globalHotkeys.newNote) prepareSpareNote();
+      else dropSpareNote();
     }
     saveSettings();
   }
@@ -835,6 +933,13 @@ ipcMain.handle('desktop:set-tray-labels', (_event, labels) => {
   updateTray();
 });
 ipcMain.handle('quick-add:close', () => quickAddWindow?.hide());
+// The popup's page reports how tall its content is (taller while a date or label picker is open).
+ipcMain.handle('quick-add:resize', (_event, height) => {
+  if (!quickAddWindow || quickAddWindow.isDestroyed() || !Number.isFinite(height)) return;
+  quickAddHeight = Math.max(120, Math.min(720, Math.round(height)));
+  const [width] = quickAddWindow.getContentSize();
+  quickAddWindow.setContentSize(width, quickAddHeight);
+});
 ipcMain.handle('quick:take-pending-note', () => {
   const pending = pendingNewNote;
   pendingNewNote = false;
@@ -861,6 +966,11 @@ app.whenReady().then(async () => {
   createWindow({ show: !startHidden });
   updateTray();
   registerGlobalHotkeys();
+  // Load the shortcut windows in the background once the app has settled, so the first press is instant too.
+  setTimeout(() => {
+    if (settings.globalHotkeys.newTask) openQuickAdd({ show: false });
+    prepareSpareNote();
+  }, 4000);
   // Notes that were open in their own windows at the last quit come back.
   for (const id of Array.isArray(settings.openNotes) ? settings.openNotes : []) openNoteWindow(id);
   app.on('activate', () => {

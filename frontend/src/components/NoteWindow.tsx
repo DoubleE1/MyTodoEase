@@ -1,4 +1,5 @@
 import { AppWindow, Archive, Ellipsis, Palette, Plus, Trash2, X } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useNoteMutations, useNotes } from '../api/hooks';
 import { NOTE_COLORS } from '../api/types';
@@ -26,7 +27,7 @@ export function NoteWindow({ noteId }: { noteId: string }) {
   const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
 
   // Deleted or archived elsewhere: this window has nothing left to show.
-  const gone = notes.isSuccess && (!note || note.isArchived);
+  const gone = notes.isSuccess && !notes.isFetching && (!note || note.isArchived);
   useEffect(() => {
     if (gone) window.close();
   }, [gone]);
@@ -34,6 +35,12 @@ export function NoteWindow({ noteId }: { noteId: string }) {
   useEffect(() => {
     document.title = note ? noteTitle(note) : t('Sticky note');
   }, [note]);
+
+  // The shell keeps the window hidden until the note is drawn, so it never opens as a blank frame.
+  const shown = !!note;
+  useEffect(() => {
+    if (shown) requestAnimationFrame(() => window.mytodoease?.noteReady?.());
+  }, [shown]);
 
   if (!note) return <div className="note-window" />;
 
@@ -162,4 +169,27 @@ export function NoteWindow({ noteId }: { noteId: string }) {
       <TooltipLayer />
     </div>
   );
+}
+
+/**
+ * A note window loaded ahead of time (#note-spare): the page, theme and notes are ready, so when the shell
+ * hands it a note ('note:assign') it shows that note at once instead of loading from scratch.
+ */
+export function SpareNoteWindow() {
+  useTheme();
+  useNotes(); // warm the notes cache
+  const queryClient = useQueryClient();
+  const [noteId, setNoteId] = useState<string | null>(null);
+
+  useEffect(
+    () =>
+      window.mytodoease?.onNoteAssign?.((id) => {
+        window.history.replaceState(null, '', `#note=${id}`);
+        // The note was probably created a moment ago: fetch it before showing.
+        void queryClient.invalidateQueries({ queryKey: ['notes'] }).then(() => setNoteId(id));
+      }),
+    [queryClient],
+  );
+
+  return noteId ? <NoteWindow noteId={noteId} /> : <div className="note-window" />;
 }

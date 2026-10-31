@@ -55,6 +55,14 @@ contextBridge.exposeInMainWorld('mytodoease', {
     return () => ipcRenderer.removeListener('quick-add:shown', listener);
   },
   closeQuickAdd: () => ipcRenderer.invoke('quick-add:close'),
+  resizeQuickAdd: (height) => ipcRenderer.invoke('quick-add:resize', Number(height)),
+  // Note windows: the note is on screen (show the window now), and a spare window being handed its note.
+  noteReady: () => ipcRenderer.send('note:ready'),
+  onNoteAssign: (callback) => {
+    const listener = (_event, id) => callback(String(id));
+    ipcRenderer.on('note:assign', listener);
+    return () => ipcRenderer.removeListener('note:assign', listener);
+  },
   // The "new sticky note" shortcut asks the main window's page to make one; a request made before the page
   // was ready is handed over when it subscribes.
   onNewNoteRequest: (callback) => {

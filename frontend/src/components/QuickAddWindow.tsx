@@ -1,11 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Check } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLabelMutations, useLabels, useProjects, useSections, useTaskMutations } from '../api/hooks';
 import { useTheme } from '../lib/theme';
 import { TaskEditor } from './TaskEditor';
 import { TooltipLayer } from './TooltipLayer';
 import { t } from '../i18n';
+
+/** Window height while a picker is open, so the date picker fits below the box. */
+const PICKER_ROOM = 460;
 
 /**
  * Desktop: the "New task" global shortcut's popup (a small frameless window loaded with #quick-add). Type a
@@ -33,11 +36,36 @@ export function QuickAddWindow() {
     });
   }, [queryClient]);
 
+  // The window is as tall as the box, and taller while a picker (date, priority, labels) is open below it.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    let last = 0;
+    const fit = () => {
+      const pickerOpen = !!document.querySelector('.popover');
+      const wanted = Math.ceil(Math.max(root.offsetHeight, pickerOpen ? PICKER_ROOM : 0));
+      if (wanted === last) return;
+      last = wanted;
+      void window.mytodoease?.resizeQuickAdd?.(wanted);
+    };
+    fit();
+    const sizes = new ResizeObserver(fit);
+    sizes.observe(root);
+    // Pickers open in a portal on <body>.
+    const pickers = new MutationObserver(fit);
+    pickers.observe(document.body, { childList: true });
+    return () => {
+      sizes.disconnect();
+      pickers.disconnect();
+    };
+  }, []);
+
   const close = () => void window.mytodoease?.closeQuickAdd?.();
   const inbox = projects.data?.find((p) => p.isInbox);
 
   return (
-    <div className="quick-add-window">
+    <div ref={rootRef} className="quick-add-window">
       <header className="quick-add-head">
         <strong>{t('New task')}</strong>
         <span className="muted small">{t('Enter to add · Esc to close')}</span>
