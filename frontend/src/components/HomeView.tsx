@@ -87,17 +87,9 @@ export function HomeView({
 
   return (
     <div className="view view-home" data-bg={background}>
-      {/* The background effect (decoration only). "dots" is the Tasks pages' header art, shown by App via CSS. */}
+      {/* The background effect (decoration only). The "dots" ones are the Tasks pages' header art, shown via CSS. */}
       <div className="home-decor" aria-hidden="true">
         {background === 'field' && <AsciiField word="TodoEase" clearOf=".home-bar > *, .home-head p" className="home-field" />}
-        {background === 'orbs' && (
-          <>
-            <span className="home-orb home-orb-a" />
-            <span className="home-orb home-orb-b" />
-            <span className="home-dots home-dots-a" />
-            <span className="home-dots home-dots-b" />
-          </>
-        )}
       </div>
       {import.meta.env.DEV && <BackgroundSwitcher value={background} />}
 

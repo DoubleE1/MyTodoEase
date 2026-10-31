@@ -7875,143 +7875,18 @@ body.is-resizing-span * {
   height: 100%;
 }
 
-/* ---- Background option "orbs": two soft floating orbs and dot clusters ---- */
-.home-orb {
-  position: absolute;
-  border-radius: 50%;
-  overflow: hidden;
-  will-change: transform;
-}
-
-/* A soft light that drifts across each orb (the second animation layer). */
-.home-orb::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, rgba(160, 140, 255, 0.18), transparent 50%);
-  opacity: 0.4;
-}
-
-/* Sizes follow the window, so the page keeps its look from a laptop to a wide monitor. */
-.home-orb-a {
-  --size: clamp(280px, 30vw, 520px);
-  width: var(--size);
-  height: var(--size);
-  top: calc(var(--size) * -0.42);
-  right: calc(var(--size) * -0.3);
-  background: radial-gradient(circle at 30% 70%, rgba(124, 108, 255, 0.14), rgba(124, 108, 255, 0.04) 60%, transparent 72%);
-}
-
-.home-orb-b {
-  --size: clamp(760px, 85vw, 1500px);
-  width: var(--size);
-  height: var(--size);
-  bottom: calc(var(--size) * -0.66);
-  left: calc(var(--size) * -0.16);
-  background: radial-gradient(circle at 60% 30%, rgba(124, 108, 255, 0.1), rgba(124, 108, 255, 0.03) 55%, transparent 70%);
-}
-
-/* Motion: the orbs float slowly and their light breathes; off with Reduce motion (OS or Settings). */
-@media (prefers-reduced-motion: no-preference) {
-  :root:not([data-reduce-motion='true']) .home-orb-a {
-    animation: home-orb-float-a 18s ease-in-out infinite alternate;
-  }
-  :root:not([data-reduce-motion='true']) .home-orb-b {
-    animation: home-orb-float-b 26s ease-in-out infinite alternate;
-  }
-  :root:not([data-reduce-motion='true']) .home-orb::after {
-    animation: home-orb-light 9s ease-in-out infinite alternate;
-  }
-  :root:not([data-reduce-motion='true']) .home-dots {
-    animation: home-dots-twinkle 6s ease-in-out infinite alternate;
-  }
-}
-
-@keyframes home-orb-float-a {
-  from {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  to {
-    transform: translate3d(-28px, 22px, 0) scale(1.06);
-  }
-}
-
-@keyframes home-orb-float-b {
-  from {
-    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
-  }
-  to {
-    transform: translate3d(40px, -26px, 0) rotate(14deg) scale(1.03);
-  }
-}
-
-@keyframes home-orb-light {
-  from {
-    opacity: 0.25;
-    transform: translate3d(-4%, 3%, 0);
-  }
-  to {
-    opacity: 0.9;
-    transform: translate3d(5%, -4%, 0);
-  }
-}
-
-@keyframes home-dots-twinkle {
-  from {
-    opacity: 0.35;
-  }
-  to {
-    opacity: 0.75;
-  }
-}
-
-/* Dark: deep purple planets with a lit rim. */
-:root[data-theme='dark'] .home-orb-a {
-  background:
-    radial-gradient(circle at 25% 80%, rgba(140, 110, 255, 0.42), rgba(80, 50, 200, 0.2) 38%, rgba(40, 25, 110, 0.1) 60%, transparent 71%);
-}
-
-:root[data-theme='dark'] .home-orb-b {
-  background:
-    radial-gradient(circle at 55% 18%, rgba(130, 100, 255, 0.38), rgba(70, 45, 190, 0.2) 30%, rgba(30, 20, 80, 0.16) 55%, transparent 70%);
-}
-
-/* The lit rim of the dark planets. */
-:root[data-theme='dark'] .home-orb::after {
-  background: radial-gradient(circle at 35% 25%, rgba(185, 160, 255, 0.35), transparent 48%);
-}
-
-:root[data-theme='dark'] .home-orb {
-  box-shadow:
-    inset 0 22px 50px -24px rgba(170, 140, 255, 0.55),
-    0 -12px 70px -20px rgba(110, 80, 255, 0.35);
-}
-
-.home-dots {
-  position: absolute;
-  width: 120px;
-  height: 120px;
-  background-image: radial-gradient(circle, color-mix(in srgb, var(--accent) 35%, transparent) 1.2px, transparent 1.6px);
-  background-size: 16px 16px;
-  -webkit-mask-image: radial-gradient(circle, #000 35%, transparent 72%);
-  mask-image: radial-gradient(circle, #000 35%, transparent 72%);
-  opacity: 0.6;
-}
-
-.home-dots-a {
-  top: 46%;
-  right: 12px;
-}
-
-.home-dots-b {
-  bottom: 40px;
-  left: 12px;
-}
-
 /* ---- Background option "dots": the Tasks pages' header art (dot grid with a breathing halo) ---- */
 .app.is-home:has(.view-home[data-bg='dots']) .main-art {
   display: block;
+}
+
+/* ---- Background option "dots-full": the same art over the whole page, fading only at the very bottom ---- */
+.app.is-home:has(.view-home[data-bg='dots-full']) .main-art {
+  display: block;
+  height: auto;
+  bottom: 0;
+  -webkit-mask-image: linear-gradient(to bottom, #000 80%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 80%, transparent 100%);
 }
 
 /* ---- Dev-only background switcher (bottom right; beats the page's own stacking rule for its children) ---- */
