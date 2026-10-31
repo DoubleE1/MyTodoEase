@@ -709,4 +709,9 @@ export const ja: Record<string, string> = {
   "Todo": "Todo",
   "Tasks, projects, calendar and sticky notes.": "タスク、プロジェクト、カレンダー、付箋。",
   "Organize your tasks, notes and finances, all in one place.": "タスク、メモ、お金をひとつの場所で整理。",
+  // Home: the line wave background word.
+  "Change the background word": "背景の文字を変更",
+  "Click to change the word": "クリックして文字を変更",
+  "Background word": "背景の文字",
+  "Type a word, then press Enter": "文字を入力して Enter",
 };

@@ -1,12 +1,13 @@
 import { ArrowRight, BookOpen, CalendarDays, CircleCheckBig, Clock3, Wallet } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { Note, Task } from '../api/types';
 import { todayStr } from '../lib/dates';
-import { HOME_BACKGROUNDS, setHomeBackground, useHomeBackground, type HomeBackground } from '../lib/homeBackground';
+import { HOME_BACKGROUNDS, LINE_WORD_MAX, setHomeBackground, setLineWord, useHomeBackground, useLineWord, type HomeBackground } from '../lib/homeBackground';
 import type { ThemePreference } from '../lib/theme';
 import type { View } from '../lib/views';
 import { ProfileMenu } from './AccountMenu';
 import { AsciiField } from './AsciiField';
+import { LineField, type WordBox } from './LineField';
 import type { ConfirmOptions } from './Dialogs';
 import { Wordmark } from './Logo';
 import { t } from '../i18n';
@@ -48,6 +49,14 @@ export function HomeView({
   onSetTheme: (preference: ThemePreference) => void;
 }) {
   const background = useHomeBackground();
+  // The line wave's word: click it to change it; the lines follow while typing.
+  const lineWord = useLineWord();
+  const [wordBox, setWordBox] = useState<WordBox | null>(null);
+  const [draft, setDraft] = useState<string | null>(null);
+  const finishWord = (save: boolean) => {
+    if (save && draft !== null) setLineWord(draft);
+    setDraft(null);
+  };
   const today = todayStr();
   const dueToday = tasks.filter((task) => task.dueDate === today).length;
   const overdue = tasks.filter((task) => task.dueDate !== null && task.dueDate < today).length;
@@ -94,7 +103,41 @@ export function HomeView({
       <div className="home-decor" aria-hidden="true">
         {background === 'field' && <AsciiField word="TodoEase" clearOf={HOME_CLEAR} className="home-field" />}
         {background === 'field-todoease' && <AsciiField word="TodoEase" variant="todoease" clearOf={HOME_CLEAR} className="home-field" />}
+        {background === 'lines' && <LineField word={draft ?? lineWord} below=".home-grid" className="home-field" onWordBox={setWordBox} />}
       </div>
+      {background === 'lines' &&
+        wordBox &&
+        (draft === null ? (
+          <button
+            type="button"
+            className="home-word-edit"
+            style={{ left: wordBox.left, top: wordBox.top, width: wordBox.width, height: wordBox.height }}
+            aria-label={t('Change the background word')}
+            data-tooltip={t('Click to change the word')}
+            onClick={() => setDraft(lineWord)}
+          />
+        ) : (
+          <input
+            className="home-word-input"
+            style={{ left: wordBox.left + wordBox.width / 2, top: wordBox.top + wordBox.height / 2 }}
+            value={draft}
+            maxLength={LINE_WORD_MAX}
+            autoFocus
+            spellCheck={false}
+            aria-label={t('Background word')}
+            placeholder={t('Type a word, then press Enter')}
+            onChange={(e) => setDraft(e.target.value)}
+            onFocus={(e) => e.target.select()}
+            onBlur={() => finishWord(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') finishWord(true);
+              if (e.key === 'Escape') {
+                e.stopPropagation();
+                finishWord(false);
+              }
+            }}
+          />
+        ))}
       {import.meta.env.DEV && <BackgroundSwitcher value={background} />}
 
       <div className="home-page">

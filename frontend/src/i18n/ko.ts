@@ -709,4 +709,9 @@ export const ko: Record<string, string> = {
   "Todo": "할 일",
   "Tasks, projects, calendar and sticky notes.": "작업, 프로젝트, 캘린더, 스티커 메모.",
   "Organize your tasks, notes and finances, all in one place.": "할 일, 노트, 지출을 한곳에서 정리하세요.",
+  // Home: the line wave background word.
+  "Change the background word": "배경 글자 바꾸기",
+  "Click to change the word": "클릭해서 글자 바꾸기",
+  "Background word": "배경 글자",
+  "Type a word, then press Enter": "글자를 입력하고 Enter를 누르세요",
 };
