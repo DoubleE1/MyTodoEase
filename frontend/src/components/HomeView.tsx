@@ -5,7 +5,6 @@ import { todayStr } from '../lib/dates';
 import type { ThemePreference } from '../lib/theme';
 import type { View } from '../lib/views';
 import { ProfileMenu } from './AccountMenu';
-import { greeting } from './Dashboard';
 import type { ConfirmOptions } from './Dialogs';
 import { Wordmark } from './Logo';
 import { t } from '../i18n';
@@ -93,6 +92,7 @@ export function HomeView({
         <span className="home-dots home-dots-b" />
       </div>
 
+      <div className="home-page">
       {/* No feature sidebar here: just the logo and the profile menu (Settings, theme, account). */}
       <div className="home-bar">
         <Wordmark size={28} />
@@ -107,9 +107,7 @@ export function HomeView({
       </div>
 
       <header className="home-head">
-        <h1>
-          {greeting(new Date())} <span aria-hidden="true">👋</span>
-        </h1>
+        <h1 className="sr-only">{t('Home')}</h1>
         <p>{t('Organize your tasks, notes and finances, all in one place.')}</p>
       </header>
 
@@ -128,6 +126,7 @@ export function HomeView({
           </li>
         ))}
       </ul>
+      </div>
     </div>
   );
 }

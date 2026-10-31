@@ -7870,45 +7870,109 @@ body.is-resizing-span * {
 .home-orb {
   position: absolute;
   border-radius: 50%;
+  overflow: hidden;
+  will-change: transform;
 }
 
-/* Light: pale lavender discs at the top-right and bottom-left corners. */
+/* A soft light that drifts across each orb (the second animation layer). */
+.home-orb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(160, 140, 255, 0.18), transparent 50%);
+  opacity: 0.4;
+}
+
+/* Sizes follow the window, so the page keeps its look from a laptop to a wide monitor. */
 .home-orb-a {
-  width: 420px;
-  height: 420px;
-  top: -160px;
-  right: -140px;
+  --size: clamp(280px, 30vw, 520px);
+  width: var(--size);
+  height: var(--size);
+  top: calc(var(--size) * -0.42);
+  right: calc(var(--size) * -0.3);
   background: radial-gradient(circle at 30% 70%, rgba(124, 108, 255, 0.14), rgba(124, 108, 255, 0.04) 60%, transparent 72%);
 }
 
 .home-orb-b {
-  width: 900px;
-  height: 900px;
-  bottom: -560px;
-  left: -260px;
+  --size: clamp(760px, 85vw, 1500px);
+  width: var(--size);
+  height: var(--size);
+  bottom: calc(var(--size) * -0.66);
+  left: calc(var(--size) * -0.16);
   background: radial-gradient(circle at 60% 30%, rgba(124, 108, 255, 0.1), rgba(124, 108, 255, 0.03) 55%, transparent 70%);
+}
+
+/* Motion: the orbs float slowly and their light breathes; off with Reduce motion (OS or Settings). */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduce-motion='true']) .home-orb-a {
+    animation: home-orb-float-a 18s ease-in-out infinite alternate;
+  }
+  :root:not([data-reduce-motion='true']) .home-orb-b {
+    animation: home-orb-float-b 26s ease-in-out infinite alternate;
+  }
+  :root:not([data-reduce-motion='true']) .home-orb::after {
+    animation: home-orb-light 9s ease-in-out infinite alternate;
+  }
+  :root:not([data-reduce-motion='true']) .home-dots {
+    animation: home-dots-twinkle 6s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes home-orb-float-a {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-28px, 22px, 0) scale(1.06);
+  }
+}
+
+@keyframes home-orb-float-b {
+  from {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  to {
+    transform: translate3d(40px, -26px, 0) rotate(14deg) scale(1.03);
+  }
+}
+
+@keyframes home-orb-light {
+  from {
+    opacity: 0.25;
+    transform: translate3d(-4%, 3%, 0);
+  }
+  to {
+    opacity: 0.9;
+    transform: translate3d(5%, -4%, 0);
+  }
+}
+
+@keyframes home-dots-twinkle {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 0.75;
+  }
 }
 
 /* Dark: deep purple planets with a lit rim. */
 :root[data-theme='dark'] .home-orb-a {
-  width: 360px;
-  height: 360px;
-  top: -170px;
-  right: -110px;
   background:
     radial-gradient(circle at 25% 80%, rgba(140, 110, 255, 0.42), rgba(80, 50, 200, 0.2) 38%, rgba(40, 25, 110, 0.1) 60%, transparent 71%);
 }
 
 :root[data-theme='dark'] .home-orb-b {
-  width: 1100px;
-  height: 1100px;
-  bottom: -760px;
-  left: -160px;
   background:
     radial-gradient(circle at 55% 18%, rgba(130, 100, 255, 0.38), rgba(70, 45, 190, 0.2) 30%, rgba(30, 20, 80, 0.16) 55%, transparent 70%);
 }
 
 /* The lit rim of the dark planets. */
+:root[data-theme='dark'] .home-orb::after {
+  background: radial-gradient(circle at 35% 25%, rgba(185, 160, 255, 0.35), transparent 48%);
+}
+
 :root[data-theme='dark'] .home-orb {
   box-shadow:
     inset 0 22px 50px -24px rgba(170, 140, 255, 0.55),
@@ -7934,6 +7998,24 @@ body.is-resizing-span * {
 .home-dots-b {
   bottom: 40px;
   left: 12px;
+}
+
+/* ---- Page content: centred and capped so wide monitors do not stretch it ---- */
+.home-page {
+  max-width: 1160px;
+  margin: 0 auto;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ---- Top bar ---- */
@@ -7962,20 +8044,13 @@ body.is-resizing-span * {
 
 /* ---- Greeting ---- */
 .home-head {
-  margin-bottom: 40px;
-}
-
-.home-head h1 {
-  margin: 0;
-  font-size: 34px;
-  font-weight: 750;
-  letter-spacing: -0.02em;
+  margin-bottom: 28px;
 }
 
 .home-head p {
-  margin: 10px 0 0;
+  margin: 0;
   color: var(--home-text-2);
-  font-size: 16px;
+  font-size: 17px;
 }
 
 /* ---- Module cards ---- */
@@ -7984,11 +8059,11 @@ body.is-resizing-span * {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 214px));
-  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(12px, 1.6vw, 22px);
 }
 
-@container (max-width: 520px) {
+@container (max-width: 600px) {
   .home-grid {
     grid-template-columns: 1fr;
   }
@@ -7999,7 +8074,7 @@ body.is-resizing-span * {
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 272px;
+  min-height: 252px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -8128,7 +8203,7 @@ body.is-resizing-span * {
 }
 
 .home-card-desc {
-  margin-top: 8px;
+  margin: 8px 0 16px;
   color: var(--home-text-2);
   font-size: 13.5px;
   line-height: 1.55;
@@ -8162,9 +8237,6 @@ body.is-resizing-span * {
 @media (max-width: 640px) {
   .view.view-home {
     padding: 24px 16px 32px;
-  }
-  .home-head h1 {
-    font-size: 28px;
   }
   .home-card {
     min-height: 0;
