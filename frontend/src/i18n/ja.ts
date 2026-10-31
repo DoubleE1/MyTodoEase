@@ -787,4 +787,12 @@ export const ja: Record<string, string> = {
   // Shop: Show more card.
   "Show more": "もっと見る",
   "{n} more skins": "ほかに {n} 個のスキン",
+  // Shop: skin preview dialog.
+  "{n} of {total}": "{total} 個中 {n} 個目",
+  "Previous skin": "前のスキン",
+  "Next skin": "次のスキン",
+  "No effect: the Home page stays calm.": "エフェクトなし：ホームは静かなままです。",
+  "Click the preview and the light follows the pointer; click again and it signs the word.": "プレビューをクリックすると光がポインターを追い、もう一度クリックすると文字をサインします。",
+  "Move the pointer over the preview.": "プレビューの上でポインターを動かしてください。",
+  "A sketch: this skin is still being made.": "スケッチです：このスキンは制作中です。",
 };

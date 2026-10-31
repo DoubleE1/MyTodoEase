@@ -28,7 +28,8 @@ Newest first. Each release is a GitHub release with the Windows installer; todoe
 - Shop: skins grouped by what they change (Background, Tab, Dashboard and Calendar effects, Sticky notes, Insights,
   Profile, Bundles), each with a small preview, its rarity and price, and how many points to go. Buttons at the top
   jump to a section. A section with more than 5 skins ends in a Show more card that opens a page with only that
-  section (Back returns to where you were).
+  section (Back returns to where you were). Clicking a skin opens a large preview: background effects run for real
+  under the pointer, other skins show their sketch enlarged; the arrows or ← → step through the section.
 
 ### Fixed
 - Notes board: a note dragged or resized quickly now keeps up with the mouse instead of stopping halfway.

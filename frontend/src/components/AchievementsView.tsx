@@ -1,6 +1,6 @@
 import { format, parseISO } from 'date-fns';
 import { ChevronLeft, ChevronRight, Lock, Trophy } from 'lucide-react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   CATEGORY_TITLES,
   SHOP_CATEGORIES,
@@ -14,6 +14,11 @@ import {
   type ShopTierId,
 } from '../lib/achievements';
 import { motionReduced } from '../lib/motion';
+import { AsciiField } from './AsciiField';
+import { ChromaTrail } from './ChromaTrail';
+import { Modal } from './Dialogs';
+import { DotTrail } from './DotTrail';
+import { LineField } from './LineField';
 import { useAchievements } from '../lib/useAchievements';
 import { datePattern, t } from '../i18n';
 
@@ -162,8 +167,14 @@ function Shop({ points, section, onOpenSection }: { points: number; section?: Sh
     else document.getElementById(`shop-${id}`)?.scrollIntoView({ behavior: motionReduced() ? 'auto' : 'smooth', block: 'start' });
   };
   const shown = section ? SHOP_CATEGORIES.filter((c) => c.id === section) : SHOP_CATEGORIES;
+  // The skin in the preview dialog (clicking a card); its arrows step through the skin's section.
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const previewItem = SHOP_ITEMS.find((item) => item.id === previewId);
   return (
     <section className="shop" aria-label={t('Skin shop preview')}>
+      {previewItem && (
+        <SkinPreviewDialog item={previewItem} points={points} onStep={setPreviewId} onClose={() => setPreviewId(null)} />
+      )}
       {!section && (
         <p className="settings-help">
           {t('Skins for your avatar, pet, borders, sticky notes, background and Insights are on the way. Points you earn now are kept for them. All 50 achievements buy one or two skins.')}
@@ -214,7 +225,7 @@ function Shop({ points, section, onOpenSection }: { points: number; section?: Sh
             )}
             <ul className="shop-grid">
               {(more ? items.slice(0, SECTION_PREVIEW) : items).map((item) => (
-                <ShopCard key={item.id} item={item} points={points} />
+                <ShopCard key={item.id} item={item} points={points} onOpen={() => setPreviewId(item.id)} />
               ))}
               {more > 0 && (
                 <li className="shop-more">
@@ -235,30 +246,21 @@ function Shop({ points, section, onOpenSection }: { points: number; section?: Sh
   );
 }
 
-function ShopCard({ item, points }: { item: ShopItem; points: number }) {
+function ShopCard({ item, points, onOpen }: { item: ShopItem; points: number; onOpen: () => void }) {
   const tier = item.tier ? SHOP_TIERS[item.tier] : null;
-  const short = tier ? Math.max(0, tier.price - points) : 0;
   return (
     <li className={`shop-item ${item.tier ? `tier-${item.tier}` : 'is-included'}`}>
       <ShopPreview item={item} />
       <div className="shop-item-body">
         <div className="shop-item-head">
-          <span className="shop-item-name">{item.name}</span>
+          {/* The name's button covers the whole card (styles.css, .shop-item-open), so a click anywhere opens the preview. */}
+          <button type="button" className="shop-item-name shop-item-open" onClick={onOpen} aria-haspopup="dialog">
+            {item.name}
+          </button>
           <span className="shop-item-tier">{tier ? tier.name : t('Included')}</span>
         </div>
         <span className="muted small shop-item-desc">{item.description}</span>
-        {tier ? (
-          <div className="shop-item-foot">
-            <span className="shop-item-price">{t('{n} points', { n: tier.price.toLocaleString() })}</span>
-            <span className="muted small">
-              {short === 0 ? t('Enough points') : t('{n} to go', { n: short.toLocaleString() })}
-            </span>
-          </div>
-        ) : (
-          <div className="shop-item-foot">
-            <span className="muted small">{t('Everyone has this one.')}</span>
-          </div>
-        )}
+        <ShopPrice item={item} points={points} />
         {tier && (
           <button type="button" className="btn" disabled>
             {t('Coming soon')}
@@ -266,6 +268,103 @@ function ShopCard({ item, points }: { item: ShopItem; points: number }) {
         )}
       </div>
     </li>
+  );
+}
+
+function ShopPrice({ item, points }: { item: ShopItem; points: number }) {
+  const tier = item.tier ? SHOP_TIERS[item.tier] : null;
+  const short = tier ? Math.max(0, tier.price - points) : 0;
+  return tier ? (
+    <div className="shop-item-foot">
+      <span className="shop-item-price">{t('{n} points', { n: tier.price.toLocaleString() })}</span>
+      <span className="muted small">{short === 0 ? t('Enough points') : t('{n} to go', { n: short.toLocaleString() })}</span>
+    </div>
+  ) : (
+    <div className="shop-item-foot">
+      <span className="muted small">{t('Everyone has this one.')}</span>
+    </div>
+  );
+}
+
+/**
+ * A skin, large. Background effects run for real (the Home page's own effects, inside the stage); the other skins
+ * are not made yet, so they show their sketch enlarged. The arrows (or ← →) step through the skin's section.
+ */
+function SkinPreviewDialog({ item, points, onStep, onClose }: { item: ShopItem; points: number; onStep: (id: string) => void; onClose: () => void }) {
+  const siblings = SHOP_ITEMS.filter((other) => other.category === item.category);
+  const index = siblings.findIndex((other) => other.id === item.id);
+  const category = SHOP_CATEGORIES.find((c) => c.id === item.category);
+  const tier = item.tier ? SHOP_TIERS[item.tier] : null;
+  const step = (by: number) => onStep(siblings[(index + by + siblings.length) % siblings.length].id);
+  const latestStep = useRef(step);
+  latestStep.current = step;
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      if ((event.target as HTMLElement | null)?.closest('input, textarea, [contenteditable="true"]')) return;
+      event.preventDefault();
+      latestStep.current(event.key === 'ArrowLeft' ? -1 : 1);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const live: Partial<Record<string, ReactNode>> = {
+    'bg-dots': <DotTrail className="home-field" />,
+    'bg-field': <AsciiField word="TodoEase" className="home-field" />,
+    'bg-lines': <LineField word="TodoEase" className="home-field" />,
+    'bg-chroma': <ChromaTrail word="TodoEase" className="home-field" />,
+  };
+  const hint =
+    item.id === 'bg-plain'
+      ? t('No effect: the Home page stays calm.')
+      : item.id === 'bg-chroma'
+        ? t('Click the preview and the light follows the pointer; click again and it signs the word.')
+        : item.category === 'background'
+          ? t('Move the pointer over the preview.')
+          : t('A sketch: this skin is still being made.');
+
+  return (
+    <Modal title={item.name} onClose={onClose} wide className="modal-skin-preview">
+      <div className="skin-stage" data-preview={item.id}>
+        {item.category === 'background' ? (
+          <div className="skin-stage-live" key={item.id}>
+            {live[item.id]}
+          </div>
+        ) : (
+          <div className="skin-stage-sketch">
+            <ShopPreview item={item} />
+          </div>
+        )}
+        {siblings.length > 1 && (
+          <>
+            <button type="button" className="skin-stage-step is-prev" onClick={() => step(-1)} aria-label={t('Previous skin')}>
+              <ChevronLeft size={20} />
+            </button>
+            <button type="button" className="skin-stage-step is-next" onClick={() => step(1)} aria-label={t('Next skin')}>
+              <ChevronRight size={20} />
+            </button>
+          </>
+        )}
+      </div>
+      <p className="muted small skin-stage-hint">{hint}</p>
+      <div className="skin-detail">
+        <div className="skin-detail-head">
+          <span className={`shop-item-tier ${item.tier ? `tier-${item.tier}` : 'is-included'}`}>{tier ? tier.name : t('Included')}</span>
+          <span className="muted small">
+            {category?.name} · {t('{n} of {total}', { n: index + 1, total: siblings.length })}
+          </span>
+        </div>
+        <p className="skin-detail-desc">{item.description}</p>
+        <ShopPrice item={item} points={points} />
+        {tier && (
+          <button type="button" className="btn" disabled>
+            {t('Coming soon')}
+          </button>
+        )}
+      </div>
+    </Modal>
   );
 }
 

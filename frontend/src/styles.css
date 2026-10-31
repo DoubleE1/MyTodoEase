@@ -7803,6 +7803,148 @@ body.is-resizing-span * {
   outline: 2px solid var(--accent);
 }
 
+/* The card opens its preview: the name's button stretches over the whole card. */
+.shop-item {
+  position: relative;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.shop-item-open {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.shop-item-open::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.shop-item-open:focus-visible {
+  outline: none;
+}
+
+.shop-item:has(.shop-item-open:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--tier) 22%, transparent);
+}
+
+.shop-item:has(.shop-item-open:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---- Skin preview dialog ---- */
+.modal-skin-preview {
+  max-width: 760px;
+}
+
+.skin-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 340px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-sidebar);
+}
+
+/* The dot trail lights dots of this 14px grid (DotTrail draws on the same grid). */
+.skin-stage[data-preview='bg-dots'] {
+  background: radial-gradient(circle at center, var(--dot-color) 1.1px, transparent 1.8px) 0 0 / 14px 14px, var(--bg-sidebar);
+}
+
+.skin-stage-live {
+  position: absolute;
+  inset: 0;
+}
+
+/* The card's sketch, drawn at card size and scaled up so its proportions stay the same. */
+.skin-stage-sketch .shop-preview {
+  width: 230px;
+  height: 120px;
+  border: 0;
+  background-color: transparent;
+  transform: scale(2.4);
+}
+
+.skin-stage-step {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.skin-stage-step:hover {
+  background: var(--bg-hover);
+}
+
+.skin-stage-step:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.skin-stage-step.is-prev {
+  left: 10px;
+}
+
+.skin-stage-step.is-next {
+  right: 10px;
+}
+
+.skin-stage-hint {
+  margin: 8px 0 0;
+  text-align: center;
+}
+
+.skin-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.skin-detail-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.skin-detail .shop-item-tier.is-included {
+  color: var(--text-muted);
+}
+
+.skin-detail-desc {
+  margin: 0;
+}
+
+.skin-detail .btn {
+  align-self: flex-start;
+}
+
+.skin-detail .shop-item-foot {
+  justify-content: flex-start;
+  gap: 12px;
+}
+
 /* The last card of a section that has more skins than the whole-shop page shows. */
 .shop-more {
   display: flex;

@@ -787,4 +787,12 @@ export const zhCN: Record<string, string> = {
   // Shop: Show more card.
   "Show more": "显示更多",
   "{n} more skins": "还有 {n} 款皮肤",
+  // Shop: skin preview dialog.
+  "{n} of {total}": "第 {n} 个，共 {total} 个",
+  "Previous skin": "上一个皮肤",
+  "Next skin": "下一个皮肤",
+  "No effect: the Home page stays calm.": "没有效果：首页保持安静。",
+  "Click the preview and the light follows the pointer; click again and it signs the word.": "点击预览，光线会跟随鼠标；再点一次，它会写出文字。",
+  "Move the pointer over the preview.": "将鼠标移到预览上。",
+  "A sketch: this skin is still being made.": "示意图：这个皮肤还在制作中。",
 };

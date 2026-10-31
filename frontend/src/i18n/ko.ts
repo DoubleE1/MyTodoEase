@@ -787,4 +787,12 @@ export const ko: Record<string, string> = {
   // Shop: Show more card.
   "Show more": "더 보기",
   "{n} more skins": "스킨 {n}개 더",
+  // Shop: skin preview dialog.
+  "{n} of {total}": "{total}개 중 {n}번째",
+  "Previous skin": "이전 스킨",
+  "Next skin": "다음 스킨",
+  "No effect: the Home page stays calm.": "효과 없음: 홈 페이지가 조용하게 유지돼요.",
+  "Click the preview and the light follows the pointer; click again and it signs the word.": "미리보기를 클릭하면 빛이 포인터를 따라가고, 다시 클릭하면 단어를 사인해요.",
+  "Move the pointer over the preview.": "미리보기 위로 포인터를 움직여 보세요.",
+  "A sketch: this skin is still being made.": "스케치예요: 이 스킨은 아직 만드는 중이에요.",
 };
