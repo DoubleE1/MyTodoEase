@@ -5,6 +5,7 @@ import { todayStr } from '../lib/dates';
 import type { ThemePreference } from '../lib/theme';
 import type { View } from '../lib/views';
 import { ProfileMenu } from './AccountMenu';
+import { AsciiField } from './AsciiField';
 import type { ConfirmOptions } from './Dialogs';
 import { Wordmark } from './Logo';
 import { t } from '../i18n';
@@ -84,12 +85,9 @@ export function HomeView({
 
   return (
     <div className="view view-home">
-      {/* Soft orbs and dot clusters behind the page; decoration only. */}
+      {/* A moving field of characters behind the page; decoration only. */}
       <div className="home-decor" aria-hidden="true">
-        <span className="home-orb home-orb-a" />
-        <span className="home-orb home-orb-b" />
-        <span className="home-dots home-dots-a" />
-        <span className="home-dots home-dots-b" />
+        <AsciiField word="TodoEase" clearOf=".home-bar > *, .home-head p" className="home-field" />
       </div>
 
       <div className="home-page">
