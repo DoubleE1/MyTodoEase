@@ -13,7 +13,9 @@ Newest first. Each release is a GitHub release with the Windows installer; todoe
 - Desktop app runs in the background (Settings > Desktop app): Start with Windows (opens in the tray at sign-in),
   closing the window keeps TodoEase in the notification area, and shortcuts that work in any app: Ctrl+Alt+T opens
   a small New task box, Ctrl+Alt+N opens a new sticky note. Both shortcuts can be changed or turned off.
-- Turn into tasks understands more date phrases ("next Friday at 3pm", "end of the month", "in 2 weeks").
+- Turn into tasks and quick add understand more date phrases ("next Friday at 3pm", "end of the month", "in 2 weeks")
+  and times of day: morning 9:00, noon 12:00, afternoon 2:00 PM, evening 6:00 PM, tonight 8:00 PM, midnight 11:59 PM
+  ("tomorrow morning", "next weekend afternoon", "by midnight"). "Morning routine" or "game night" stay titles.
 
 ### Docs
 - Project map (`docs/PROJECT_MAP.md`), this changelog, and a mobile app plan (`docs/MOBILE_PLAN.md`).

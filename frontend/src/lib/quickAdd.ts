@@ -33,10 +33,29 @@ const WEEKDAYS: Record<string, 0 | 1 | 2 | 3 | 4 | 5 | 6> = {
 
 const MONTHS = 'jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec';
 
+/** The hour each time-of-day word stands for. Midnight is the end of that day: tasks are deadlines. */
+const PARTS_OF_DAY: Record<string, string> = {
+  morning: '09:00',
+  noon: '12:00',
+  midday: '12:00',
+  lunchtime: '12:00',
+  afternoon: '14:00',
+  evening: '18:00',
+  tonight: '20:00',
+  night: '20:00',
+  midnight: '23:59',
+};
+
+const LONE_PART_OF_DAY = /^(?:this\s+|the\s+)?(?:morning|afternoon|evening|night|noon|midday)$/i;
+
+/** Words a bare "morning" / "afternoon" / "evening" / "night" may follow: "tomorrow morning", "sat night", "3 nov evening". */
+const DATE_WORDS = `today|tod|tomorrow|tmrw?|weekend|sun(?:day)?|mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|\\d{1,2}(?:st|nd|rd|th)?|(?:${MONTHS})[a-z]*`;
+
 /**
  * Todoist-style quick add. Recognised tokens are removed from the content:
  *   p1..p4, #project, @label, today / tomorrow / monday / next week / in 3 days / 2026-10-20 / 20 oct,
- *   at 3pm / 15:00, every day / weekday / week / month / year / every monday, end of the month / week.
+ *   at 3pm / 15:00, morning / afternoon / evening / tonight / midnight, every day / weekday / week / month / year /
+ *   every monday, end of the month / week.
  * Any date phrase these miss ("the day after tomorrow", "Dec 3 at 10:30") is read by chrono-node.
  */
 export function parseQuickAdd(input: string, ctx: Context): QuickAddResult {
@@ -112,6 +131,19 @@ export function parseQuickAdd(input: string, ctx: Context): QuickAddResult {
       result.dueTime = `${pad(Number(m[1]))}:${m[2]}`;
     });
   }
+  // Time of day in words, with a set hour: "tomorrow morning", "friday afternoon", "tonight", "by midnight".
+  // A bare "morning" or "night" counts only right after a date word, so "morning routine" or "game night" stay
+  // titles. "this morning" / "tonight" also mean today; a "morning" whose hour has passed means tomorrow.
+  const partOfDay = { found: false, today: false };
+  const onPartOfDay = (m: RegExpMatchArray) => {
+    const word = m[1].toLowerCase();
+    result.dueTime = PARTS_OF_DAY[word];
+    partOfDay.found = true;
+    partOfDay.today = word === 'tonight' || /^\s*this\s/i.test(m[0]);
+  };
+  if (!result.dueTime) take(/\s(?:(?:at|by|in the|this)\s+)(morning|noon|midday|lunchtime|afternoon|evening|night|midnight)(?=\s)/i, onPartOfDay);
+  if (!result.dueTime) take(/\s(tonight|midnight|noon)(?=\s)/i, onPartOfDay);
+  if (!result.dueTime) take(new RegExp(`(?<=\\s(?:${DATE_WORDS}))\\s+(morning|afternoon|evening|night)(?=\\s)`, 'i'), onPartOfDay);
 
   // Dates
   take(/\s(today|tod)(?=\s)/i, () => { result.dueDate = format(today, DATE_FORMAT); });
@@ -151,9 +183,11 @@ export function parseQuickAdd(input: string, ctx: Context): QuickAddResult {
   });
 
   // Whatever date phrase is left: chrono-node (English). Very short or number-only matches are ignored, so
-  // "2 tasks" or "may" in "may be" never become dates.
+  // "2 tasks" or "may" in "may be" never become dates, and so is a lone time of day ("morning routine", "game night").
   if (!result.dueDate) {
-    const found = chronoParse(text, now, { forwardDate: true }).find((r) => /[a-z]/i.test(r.text) && r.text.trim().length > 3);
+    const found = chronoParse(text, now, { forwardDate: true }).find(
+      (r) => /[a-z]/i.test(r.text) && r.text.trim().length > 3 && !LONE_PART_OF_DAY.test(r.text.trim()),
+    );
     if (found) {
       const when = found.start.date();
       result.dueDate = format(when, DATE_FORMAT);
@@ -162,8 +196,11 @@ export function parseQuickAdd(input: string, ctx: Context): QuickAddResult {
     }
   }
 
-  // A time without a date means today.
-  if (result.dueTime && !result.dueDate) result.dueDate = format(today, DATE_FORMAT);
+  // A time without a date means today (a passed "morning" or "afternoon" means tomorrow).
+  if (result.dueTime && !result.dueDate) {
+    const passed = partOfDay.found && !partOfDay.today && result.dueTime <= format(now, 'HH:mm');
+    result.dueDate = format(passed ? addDays(today, 1) : today, DATE_FORMAT);
+  }
 
   result.content = text.replace(/\s+/g, ' ').trim();
   return result;
