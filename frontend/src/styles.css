@@ -7797,7 +7797,7 @@ body.is-resizing-span * {
   gap: 4px;
 }
 
-/* ---- Home: the TodoEase logo opens a page with one card per feature ---- */
+/* ---- Home: the TodoEase logo opens a page with one card per module ---- */
 .brand-home {
   display: flex;
   border: 0;
@@ -7814,98 +7814,258 @@ body.is-resizing-span * {
   background: var(--bg-hover);
 }
 
-/* Home is a plain page: no dotted header art and no glass panel (both belong to the feature pages). */
+/* Home has its own plain background with soft orbs; the feature pages' dotted header art and glass panel are off. */
 .app.is-home .main {
-  background: var(--bg);
+  --home-bg: #fafafa;
+  --home-card: rgba(255, 255, 255, 0.78);
+  --home-text-2: #686870;
+  background: var(--home-bg);
+}
+
+:root[data-theme='dark'] .app.is-home .main {
+  --home-bg: #15131c;
+  --home-card: rgba(32, 30, 40, 0.72);
+  --home-text-2: #b5b5bd;
 }
 
 .app.is-home .main-art {
   display: none;
 }
 
+/* The page fills the whole area edge to edge, so the orbs are not cut off by the feature pages' padding. */
+.app.is-home .main {
+  padding: 0;
+}
+
 .view.view-home {
+  position: relative;
+  min-height: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 28px 40px 48px;
   background: none;
   border: 0;
   border-radius: 0;
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-}
-
-.view-home {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 28px 32px 48px;
-  /* The grid follows the page area, which the sidebar and detail panel narrow, not the whole window. */
+  overflow: hidden;
+  /* The grid follows the page area, not the whole window. */
   container-type: inline-size;
 }
 
+.view-home > :not(.home-decor) {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- Background decoration ---- */
+.home-decor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.home-orb {
+  position: absolute;
+  border-radius: 50%;
+}
+
+/* Light: pale lavender discs at the top-right and bottom-left corners. */
+.home-orb-a {
+  width: 420px;
+  height: 420px;
+  top: -160px;
+  right: -140px;
+  background: radial-gradient(circle at 30% 70%, rgba(124, 108, 255, 0.14), rgba(124, 108, 255, 0.04) 60%, transparent 72%);
+}
+
+.home-orb-b {
+  width: 900px;
+  height: 900px;
+  bottom: -560px;
+  left: -260px;
+  background: radial-gradient(circle at 60% 30%, rgba(124, 108, 255, 0.1), rgba(124, 108, 255, 0.03) 55%, transparent 70%);
+}
+
+/* Dark: deep purple planets with a lit rim. */
+:root[data-theme='dark'] .home-orb-a {
+  width: 360px;
+  height: 360px;
+  top: -170px;
+  right: -110px;
+  background:
+    radial-gradient(circle at 25% 80%, rgba(140, 110, 255, 0.42), rgba(80, 50, 200, 0.2) 38%, rgba(40, 25, 110, 0.1) 60%, transparent 71%);
+}
+
+:root[data-theme='dark'] .home-orb-b {
+  width: 1100px;
+  height: 1100px;
+  bottom: -760px;
+  left: -160px;
+  background:
+    radial-gradient(circle at 55% 18%, rgba(130, 100, 255, 0.38), rgba(70, 45, 190, 0.2) 30%, rgba(30, 20, 80, 0.16) 55%, transparent 70%);
+}
+
+/* The lit rim of the dark planets. */
+:root[data-theme='dark'] .home-orb {
+  box-shadow:
+    inset 0 22px 50px -24px rgba(170, 140, 255, 0.55),
+    0 -12px 70px -20px rgba(110, 80, 255, 0.35);
+}
+
+.home-dots {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--accent) 35%, transparent) 1.2px, transparent 1.6px);
+  background-size: 16px 16px;
+  -webkit-mask-image: radial-gradient(circle, #000 35%, transparent 72%);
+  mask-image: radial-gradient(circle, #000 35%, transparent 72%);
+  opacity: 0.6;
+}
+
+.home-dots-a {
+  top: 46%;
+  right: 12px;
+}
+
+.home-dots-b {
+  bottom: 40px;
+  left: 12px;
+}
+
+/* ---- Top bar ---- */
 .home-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 48px;
+  margin-bottom: 44px;
 }
 
-/* The profile button is made for the sidebar footer; on Home it sizes to its content. */
+/* The profile button is made for the sidebar footer; on Home it is a pill. */
 .home-bar .profile-btn {
   width: auto;
   flex: 0 0 auto;
+  padding: 7px 14px 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--home-card) 80%, transparent);
 }
 
+.home-bar .profile-btn:hover,
+.home-bar .profile-btn.is-active {
+  background: var(--bg-hover);
+}
+
+/* ---- Greeting ---- */
+.home-head {
+  margin-bottom: 40px;
+}
+
+.home-head h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.home-head p {
+  margin: 10px 0 0;
+  color: var(--home-text-2);
+  font-size: 16px;
+}
+
+/* ---- Module cards ---- */
 .home-grid {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 214px));
   gap: 16px;
 }
 
-@container (max-width: 640px) {
+@container (max-width: 520px) {
   .home-grid {
     grid-template-columns: 1fr;
   }
 }
 
 .home-card {
+  --tone-soft: color-mix(in srgb, var(--tone) 14%, transparent);
+  position: relative;
   width: 100%;
   height: 100%;
-  min-height: 190px;
+  min-height: 272px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
-  padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  /* A faint wash of the feature's colour from the top-left corner. */
+  padding: 22px 20px 20px;
+  border: 1px solid color-mix(in srgb, var(--tone) 14%, var(--border));
+  border-radius: 18px;
   background:
-    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--tone) 14%, transparent), transparent 60%),
-    var(--bg);
+    radial-gradient(130% 70% at 0% 0%, color-mix(in srgb, var(--tone) 7%, transparent), transparent 60%),
+    var(--home-card);
   color: var(--text);
   font: inherit;
   text-align: left;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
   transition:
-    transform var(--dur, 160ms) var(--ease-out, ease-out),
-    border-color var(--dur, 160ms) var(--ease-out, ease-out),
-    box-shadow var(--dur, 160ms) var(--ease-out, ease-out);
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
 }
 
-button.home-card {
+/* A thin glass highlight across the top-left. */
+.home-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 40%);
+}
+
+.home-card > * {
+  position: relative;
+}
+
+/* The live module stands out: a stronger edge and a soft coloured shadow (a glow in the dark theme). */
+.home-card.is-live {
   cursor: pointer;
+  border-color: color-mix(in srgb, var(--tone) 28%, var(--border));
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--tone) 16%, transparent);
 }
 
-button.home-card:hover {
-  transform: translateY(-2px);
+:root[data-theme='dark'] .home-card.is-live {
+  border-color: color-mix(in srgb, var(--tone) 70%, transparent);
+  background:
+    radial-gradient(120% 80% at 10% 0%, color-mix(in srgb, var(--tone) 45%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--tone) 22%, #1a1726), #1a1726);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--tone) 25%, transparent),
+    0 18px 50px color-mix(in srgb, var(--tone) 30%, transparent);
+}
+
+:root[data-theme='dark'] .home-card.is-soon {
+  border-color: color-mix(in srgb, var(--tone) 30%, transparent);
+  background:
+    radial-gradient(120% 80% at 10% 0%, color-mix(in srgb, var(--tone) 22%, transparent), transparent 70%),
+    var(--home-card);
+}
+
+.home-card.is-live:hover {
+  transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--tone) 55%, var(--border));
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--tone) 18%, transparent);
+  box-shadow: 0 22px 48px color-mix(in srgb, var(--tone) 22%, transparent);
 }
 
-button.home-card:focus-visible {
+.home-card.is-live:focus-visible {
   outline: 2px solid var(--tone);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
 .home-card-top {
@@ -7913,74 +8073,98 @@ button.home-card:focus-visible {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  margin-bottom: 14px;
+  margin-bottom: 22px;
 }
 
 .home-card-icon {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--tone) 18%, transparent);
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--tone-soft);
   color: var(--tone);
+}
+
+:root[data-theme='dark'] .home-card.is-live .home-card-icon {
+  background: var(--tone);
+  color: #fff;
+}
+
+:root[data-theme='dark'] .home-card.is-soon .home-card-icon {
+  background: color-mix(in srgb, var(--tone) 28%, transparent);
+  color: color-mix(in srgb, var(--tone) 80%, #fff);
 }
 
 .home-card-arrow {
-  color: var(--text-faint);
-  transition: transform var(--dur, 160ms) var(--ease-out, ease-out), color var(--dur, 160ms);
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tone) 10%, transparent);
+  color: color-mix(in srgb, var(--tone) 70%, var(--text-muted));
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    color 180ms ease;
 }
 
-button.home-card:hover .home-card-arrow {
-  color: var(--tone);
+.home-card.is-soon .home-card-arrow {
+  background: color-mix(in srgb, var(--text-muted) 10%, transparent);
+  color: var(--text-muted);
+}
+
+.home-card.is-live:hover .home-card-arrow {
   transform: translateX(3px);
+  background: var(--tone-soft);
+  color: var(--tone);
 }
 
 .home-card-title {
-  font-size: 18px;
-  font-weight: 650;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .home-card-desc {
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.45;
+  margin-top: 8px;
+  color: var(--home-text-2);
+  font-size: 13.5px;
+  line-height: 1.55;
 }
 
-.home-card-stat {
+/* The status pill at the bottom: live counts, or "Coming soon". */
+.home-card-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   margin-top: auto;
-  padding-top: 12px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--tone);
-}
-
-.home-card-badge {
-  padding: 3px 9px;
+  padding: 7px 12px;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  font-size: 11px;
+  background: var(--tone-soft);
+  color: var(--tone);
+  font-size: 12.5px;
   font-weight: 600;
 }
 
-.home-card.is-soon {
-  border-style: dashed;
-  background: transparent;
+.home-card.is-soon .home-card-pill {
+  background: color-mix(in srgb, var(--tone) 8%, transparent);
+  color: color-mix(in srgb, var(--tone) 75%, var(--text-muted));
+  font-weight: 500;
 }
 
-.home-card.is-soon .home-card-icon {
-  filter: saturate(0.6);
-  opacity: 0.75;
-}
-
-.home-card.is-soon .home-card-title {
-  color: var(--text-muted);
+:root[data-theme='dark'] .home-card.is-live .home-card-pill {
+  background: color-mix(in srgb, var(--tone) 30%, transparent);
+  color: color-mix(in srgb, var(--tone) 45%, #fff);
 }
 
 @media (max-width: 640px) {
-  .view-home {
-    padding: 32px 16px;
+  .view.view-home {
+    padding: 24px 16px 32px;
+  }
+  .home-head h1 {
+    font-size: 28px;
   }
   .home-card {
     min-height: 0;
@@ -7988,8 +8172,8 @@ button.home-card:hover .home-card-arrow {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  button.home-card:hover,
-  button.home-card:hover .home-card-arrow {
+  .home-card.is-live:hover,
+  .home-card.is-live:hover .home-card-arrow {
     transform: none;
   }
 }

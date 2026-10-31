@@ -25,7 +25,7 @@ interface Stats {
   streak: number;
 }
 
-function greeting(now: Date): string {
+export function greeting(now: Date): string {
   const hour = now.getHours();
   if (hour < 5) return t('Burning the midnight oil');
   if (hour < 12) return t('Good morning');

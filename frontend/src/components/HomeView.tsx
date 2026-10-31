@@ -1,10 +1,11 @@
-import { ArrowRight, BookOpen, CircleCheckBig, Wallet } from 'lucide-react';
+import { ArrowRight, BookOpen, CalendarDays, CircleCheckBig, Clock3, Wallet } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { Note, Task } from '../api/types';
 import { todayStr } from '../lib/dates';
 import type { ThemePreference } from '../lib/theme';
 import type { View } from '../lib/views';
 import { ProfileMenu } from './AccountMenu';
+import { greeting } from './Dashboard';
 import type { ConfirmOptions } from './Dialogs';
 import { Wordmark } from './Logo';
 import { t } from '../i18n';
@@ -14,7 +15,7 @@ interface Feature {
   title: string;
   description: string;
   icon: ReactNode;
-  /** Card tint, as a CSS colour. */
+  /** Card colour, as a CSS colour. */
   tone: string;
   /** One live line (counts); absent while the feature is not built yet. */
   stat?: string;
@@ -61,8 +62,8 @@ export function HomeView({
       id: 'todo',
       title: t('Todo'),
       description: t('Tasks, projects, calendar and sticky notes.'),
-      icon: <CircleCheckBig size={22} />,
-      tone: '#7b6cff',
+      icon: <CircleCheckBig size={24} />,
+      tone: '#7160ff',
       stat: `${taskLine} · ${noteLine}`,
       open: () => onSelectView({ kind: 'today' }),
     },
@@ -70,23 +71,31 @@ export function HomeView({
       id: 'notebook',
       title: t('Notebook'),
       description: t('Pages and folders for longer writing.'),
-      icon: <BookOpen size={22} />,
-      tone: '#2fb8a6',
+      icon: <BookOpen size={24} />,
+      tone: '#3fb8a3',
     },
     {
       id: 'wallet',
       title: t('Wallet'),
       description: t('Track spending and stay on budget.'),
-      icon: <Wallet size={22} />,
-      tone: '#4caf6e',
+      icon: <Wallet size={24} />,
+      tone: '#f0a23a',
     },
   ];
 
   return (
     <div className="view view-home">
+      {/* Soft orbs and dot clusters behind the page; decoration only. */}
+      <div className="home-decor" aria-hidden="true">
+        <span className="home-orb home-orb-a" />
+        <span className="home-orb home-orb-b" />
+        <span className="home-dots home-dots-a" />
+        <span className="home-dots home-dots-b" />
+      </div>
+
       {/* No feature sidebar here: just the logo and the profile menu (Settings, theme, account). */}
       <div className="home-bar">
-        <Wordmark size={26} />
+        <Wordmark size={28} />
         <ProfileMenu
           confirm={confirm}
           rail={false}
@@ -96,11 +105,19 @@ export function HomeView({
           onSetTheme={onSetTheme}
         />
       </div>
+
+      <header className="home-head">
+        <h1>
+          {greeting(new Date())} <span aria-hidden="true">👋</span>
+        </h1>
+        <p>{t('Organize your tasks, notes and finances, all in one place.')}</p>
+      </header>
+
       <ul className="home-grid" aria-label={t('Features')}>
         {features.map((feature) => (
           <li key={feature.id} style={{ '--tone': feature.tone } as React.CSSProperties}>
             {feature.open ? (
-              <button type="button" className="home-card" onClick={feature.open}>
+              <button type="button" className="home-card is-live" onClick={feature.open}>
                 <FeatureBody feature={feature} />
               </button>
             ) : (
@@ -122,15 +139,16 @@ function FeatureBody({ feature }: { feature: Feature }) {
         <span className="home-card-icon" aria-hidden="true">
           {feature.icon}
         </span>
-        {feature.open ? (
-          <ArrowRight size={18} className="home-card-arrow" aria-hidden="true" />
-        ) : (
-          <span className="home-card-badge">{t('Coming soon')}</span>
-        )}
+        <span className="home-card-arrow" aria-hidden="true">
+          <ArrowRight size={16} />
+        </span>
       </span>
       <span className="home-card-title">{feature.title}</span>
       <span className="home-card-desc">{feature.description}</span>
-      {feature.stat && <span className="home-card-stat">{feature.stat}</span>}
+      <span className="home-card-pill">
+        {feature.open ? <CalendarDays size={14} aria-hidden="true" /> : <Clock3 size={14} aria-hidden="true" />}
+        <span>{feature.stat ?? t('Coming soon')}</span>
+      </span>
     </>
   );
 }

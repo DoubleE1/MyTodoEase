@@ -708,4 +708,5 @@ export const zhCN: Record<string, string> = {
   "{n} notes": "{n} 张便签",
   "Todo": "待办",
   "Tasks, projects, calendar and sticky notes.": "任务、项目、日历和便签。",
+  "Organize your tasks, notes and finances, all in one place.": "在一个地方整理你的任务、笔记和财务。",
 };

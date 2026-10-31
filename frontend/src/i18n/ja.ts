@@ -708,4 +708,5 @@ export const ja: Record<string, string> = {
   "{n} notes": "付箋 {n} 枚",
   "Todo": "Todo",
   "Tasks, projects, calendar and sticky notes.": "タスク、プロジェクト、カレンダー、付箋。",
+  "Organize your tasks, notes and finances, all in one place.": "タスク、メモ、お金をひとつの場所で整理。",
 };

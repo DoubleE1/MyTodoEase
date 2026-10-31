@@ -708,4 +708,5 @@ export const ko: Record<string, string> = {
   "{n} notes": "메모 {n}개",
   "Todo": "할 일",
   "Tasks, projects, calendar and sticky notes.": "작업, 프로젝트, 캘린더, 스티커 메모.",
+  "Organize your tasks, notes and finances, all in one place.": "할 일, 노트, 지출을 한곳에서 정리하세요.",
 };
