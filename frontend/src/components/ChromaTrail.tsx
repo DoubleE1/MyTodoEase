@@ -48,9 +48,16 @@ export function ChromaTrail({ className, word = 'TodoEase', below }: { className
     /** Frame pace while only the resting orb drifts (no trail): slow and cheap. */
     const DRIFT_MS = 33;
 
-    /** A point of the trail. `start` begins a new stroke (no line from the point before); `life` in ms. */
-    type Point = { x: number; y: number; at: number; life: number; start?: boolean; written?: boolean };
+    /**
+     * A point of the trail: `stroke` numbers the stroke it belongs to (no line joins two strokes, even once a
+     * stroke's first points have faded), `life` is in ms.
+     */
+    type Point = { x: number; y: number; at: number; life: number; stroke: number; written?: boolean };
     let points: Point[] = [];
+    let strokeId = 0;
+    /** Signatures cut short by a click, and when: they fade out over CUT_FADE_MS instead of lingering. */
+    const cut = new Map<number, number>();
+    const CUT_FADE_MS = 500;
     let width = 0;
     let height = 0;
     let dark = true;
@@ -185,7 +192,8 @@ export function ChromaTrail({ className, word = 'TodoEase', below }: { className
           head = { ...stroke[0] };
           pen.lifted = false;
           pen.along = 0;
-          points.push({ ...head, at: now, life: pen.life, start: true, written: true });
+          strokeId += 1;
+          points.push({ ...head, at: now, life: pen.life, stroke: strokeId, written: true });
         } else {
           head = { x: head.x + (dx / d) * move, y: head.y + (dy / d) * move };
         }
@@ -194,7 +202,7 @@ export function ChromaTrail({ className, word = 'TodoEase', below }: { className
       pen.along += PEN_SPEED * dt;
       const p = pointOn(stroke, pen.along);
       head = { x: p.x, y: p.y };
-      points.push({ x: p.x, y: p.y, at: now, life: pen.life, written: true });
+      points.push({ x: p.x, y: p.y, at: now, life: pen.life, stroke: strokeId, written: true });
       if (points.length > 2400) points.shift();
       if (p.done) {
         pen.lifted = true;
@@ -221,7 +229,7 @@ export function ChromaTrail({ className, word = 'TodoEase', below }: { className
         let d = STEP - carry;
         while (d <= length) {
           const f = d / length;
-          even.push({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, at: a.at + (b.at - a.at) * f, life: a.life });
+          even.push({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, at: a.at + (b.at - a.at) * f, life: a.life, stroke: a.stroke });
           d += STEP;
         }
         carry = length - (d - STEP);
@@ -236,11 +244,14 @@ export function ChromaTrail({ className, word = 'TodoEase', below }: { className
           y += even[j].y;
           n++;
         }
-        return { x: x / n, y: y / n, at: p.at, life: p.life };
+        return { x: x / n, y: y / n, at: p.at, life: p.life, stroke: p.stroke };
       });
     };
 
     const drawStroke = (stroke: Point[], now: number) => {
+      const cutAt = cut.get(stroke[0].stroke);
+      const fade = cutAt === undefined ? 1 : Math.min(1, 1 - (now - cutAt) / CUT_FADE_MS);
+      if (fade <= 0) return;
       const path = smoothPath(stroke);
       const width = stroke[0].written ? RADIUS * WRITE_WIDTH : RADIUS;
       // Across the path (where the colours split to either side), eased along it, so through a sharp turn the
@@ -273,7 +284,7 @@ export function ChromaTrail({ className, word = 'TodoEase', below }: { className
         const radius = width * (0.45 + 0.55 * life);
         const split = 1.5 + 6 * (1 - life) ** 1.5;
         // In the light theme the thinner written line needs more ink to read.
-        ctx.globalAlpha = (dark ? 0.2 : stroke[0].written ? 0.16 : 0.08) * Math.min(1, 0.2 + life * 1.1);
+        ctx.globalAlpha = (dark ? 0.2 : stroke[0].written ? 0.16 : 0.08) * Math.min(1, 0.2 + life * 1.1) * fade;
         sprites.forEach((sprite, channel) => {
           const shift = (channel - 1) * split;
           ctx.drawImage(sprite, p.x + nx * shift - radius, p.y + ny * shift - radius, radius * 2, radius * 2);
@@ -309,17 +320,18 @@ export function ChromaTrail({ className, word = 'TodoEase', below }: { className
 
     const draw = (now: number) => {
       ctx.clearRect(0, 0, width, height);
-      points = points.filter((p) => now - p.at < p.life);
+      points = points.filter((p) => now - p.at < p.life && now - (cut.get(p.stroke) ?? now) < CUT_FADE_MS);
+      if (!points.length) cut.clear();
       ctx.save();
       ctx.globalCompositeOperation = dark ? 'lighter' : 'source-over';
-      // Strokes are runs of points between `start` marks (pen lifts, or the pointer taking over).
+      // Strokes are runs of points with the same number (pen lifts, or the pointer taking over, start a new one).
       let stroke: Point[] = [];
       const flush = () => {
         if (stroke.length >= 2) drawStroke(stroke, now);
         stroke = [];
       };
       for (const p of points) {
-        if (p.start) flush();
+        if (stroke.length && p.stroke !== stroke[0].stroke) flush();
         stroke.push(p);
       }
       flush();
@@ -343,7 +355,7 @@ export function ChromaTrail({ className, word = 'TodoEase', below }: { className
         const last = points[points.length - 1];
         // Points closer than 1.5px add nothing.
         if (!last || Math.hypot(head.x - last.x, head.y - last.y) > 1.5) {
-          points.push({ x: head.x, y: head.y, at: now, life: LIFE_MS });
+          points.push({ x: head.x, y: head.y, at: now, life: LIFE_MS, stroke: strokeId });
           if (points.length > 2400) points.shift();
         }
         chasing = Math.hypot(target.x - head.x, target.y - head.y) > 0.5;
@@ -366,9 +378,16 @@ export function ChromaTrail({ className, word = 'TodoEase', below }: { className
       if (!frame) frame = requestAnimationFrame(loop);
     };
 
+    /** Fade out what is left of the signature (the mode is changing). */
+    const cutSignature = () => {
+      const now = performance.now();
+      for (const p of points) if (p.written && !cut.has(p.stroke)) cut.set(p.stroke, now);
+    };
+
     /** Sign the word, from wherever the light is now. */
     const startWriting = () => {
       if (motionReduced()) return;
+      cutSignature();
       following = false;
       pen = newPen();
       target = null;
@@ -384,16 +403,20 @@ export function ChromaTrail({ className, word = 'TodoEase', below }: { className
     theme.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
     let pointerId = -1;
-    /** Follow the pointer to (clientX, clientY): a new stroke, gliding from wherever the light was. */
-    const follow = (clientX: number, clientY: number, id: number, fresh: boolean) => {
+    /**
+     * Follow the pointer to (clientX, clientY). A different pointer (touch after mouse) starts a new stroke that
+     * glides from wherever the light was; `jump` (the click that starts following) starts it right at the pointer.
+     */
+    const follow = (clientX: number, clientY: number, id: number, jump: boolean) => {
       const rect = canvas.getBoundingClientRect();
       const x = clientX - rect.left;
       const y = clientY - rect.top;
       const now = performance.now();
-      if (fresh || id !== pointerId || !head) {
+      if (jump || id !== pointerId || !head) {
         pointerId = id;
-        head = head ?? { x, y };
-        points.push({ ...head, at: now, life: LIFE_MS, start: true });
+        head = jump || !head ? { x, y } : head;
+        strokeId += 1;
+        points.push({ ...head, at: now, life: LIFE_MS, stroke: strokeId });
       }
       target = { x, y };
       orbTarget = 1;
@@ -416,7 +439,8 @@ export function ChromaTrail({ className, word = 'TodoEase', below }: { className
       }
       following = true;
       pen = null;
-      follow(event.clientX, event.clientY, pointerId, true);
+      cutSignature();
+      follow(event.clientX, event.clientY, event instanceof PointerEvent ? event.pointerId : pointerId, true);
     };
     // Following, and the pointer left the page (or a finger lifted): the orb fades until it is back.
     const onGone = (event?: PointerEvent) => {
