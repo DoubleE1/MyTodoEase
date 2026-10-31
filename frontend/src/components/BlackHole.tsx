@@ -19,13 +19,18 @@ import { motionReduced } from '../lib/motion';
  */
 export function BlackHole({ className, below }: { className?: string; below?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // The near half of the disk is drawn on a layer of its own over the hole, so its streaks keep their tails as they
+  // cross it (the hole is painted afresh every frame on the layer below).
+  const frontRef = useRef<HTMLCanvasElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    const frontCanvas = frontRef.current;
     const glow = glowRef.current;
     const ctx = canvas?.getContext('2d');
-    if (!canvas || !glow || !ctx) return;
+    const fctx = frontCanvas?.getContext('2d');
+    if (!canvas || !frontCanvas || !glow || !ctx || !fctx) return;
 
     /** The disk's tilt (radians, rising to the right) and how flat it looks (height over width). */
     const TILT = -0.22;
@@ -107,8 +112,8 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       }
       const ang = Math.atan2(dy[j] - center.y, dx[j] - center.x);
       // A small sideways push, so the dust spirals in rather than dropping straight.
-      vx[j] = -Math.sin(ang) * 12;
-      vy[j] = Math.cos(ang) * 12;
+      vx[j] = -Math.sin(ang) * 40;
+      vy[j] = Math.cos(ang) * 40;
       qx[j] = dx[j];
       qy[j] = dy[j];
     };
@@ -134,13 +139,20 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       width = rect.width;
       height = rect.height;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.max(1, Math.round(width * dpr));
-      canvas.height = Math.max(1, Math.round(height * dpr));
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      for (const [c, x] of [
+        [canvas, ctx],
+        [frontCanvas, fctx],
+      ] as const) {
+        c.width = Math.max(1, Math.round(width * dpr));
+        c.height = Math.max(1, Math.round(height * dpr));
+        x.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
 
-      hole = Math.max(18, Math.min(60, Math.min(width, height * 2) * 0.062));
-      inner = hole * 1.45;
-      outer = Math.min(hole * 5.5, width * 0.42);
+      // The disk's size follows the space; the hole is small inside it, so most of the disk is light.
+      const scale = Math.max(18, Math.min(60, Math.min(width, height * 2) * 0.062));
+      hole = scale * 0.6;
+      inner = hole * 1.55;
+      outer = Math.min(scale * 5.5, width * 0.42);
       home = restPoint();
       center = { ...home };
       target = { ...home };
@@ -170,6 +182,7 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       const size = outer * 3.2;
       glow.style.width = glow.style.height = `${size}px`;
       ctx.clearRect(0, 0, width, height);
+      fctx.clearRect(0, 0, width, height);
     };
 
     // One path per brightness level, behind and in front of the hole, so a frame is twelve strokes.
@@ -210,10 +223,8 @@ export function BlackHole({ className, below }: { className?: string; below?: st
         // drift through them).
         const band = 0.55 + 0.45 * Math.sin((r[i] / hole) * 4.2) ** 2;
         const level = Math.max(0, Math.min(LEVELS - 1, Math.floor((0.25 + t ** 1.2) * shine[i] * band * LEVELS + toward)));
-        // The near half passes in front of the hole, except where it would cross the black centre (it reads as noise
-        // there; the rim stays clean).
-        const overHole = Math.hypot(p.x - center.x, p.y - center.y) < hole * 1.05;
-        const path = sin > 0 && !overHole ? front[level] : back[level];
+        // The near half passes in front of the hole (across its lower part), so the disk reads as orbiting round it.
+        const path = sin > 0 ? front[level] : back[level];
         path.moveTo(px[i], py[i]);
         path.lineTo(p.x, p.y);
         px[i] = p.x;
@@ -224,16 +235,19 @@ export function BlackHole({ className, below }: { className?: string; below?: st
         const ex = center.x - dx[j];
         const ey = center.y - dy[j];
         const d = Math.hypot(ex, ey) || 1;
-        // Reaching the disk, the dust joins it (and comes back elsewhere): left to circle, it would settle into a
-        // round ring of its own.
-        if (d < outer * 0.55) {
+        // Reaching the disk (its flattened, tilted shape, not a circle round it) or the hole, the dust joins it and
+        // comes back elsewhere.
+        const lx = -ex * Math.cos(TILT) - ey * Math.sin(TILT);
+        const ly = (ex * Math.sin(TILT) - ey * Math.cos(TILT)) / SQUASH;
+        if (Math.hypot(lx, ly) < outer * 0.9 || d < hole * 1.1) {
           spawnDust(j);
           continue;
         }
-        // Gravity (softened so nothing slingshots), a sideways swirl, and drag.
+        // Gravity (softened so nothing slingshots) and drag. The sideways push it starts with makes it spiral; the
+        // drag takes that away, so it always falls in instead of settling into a ring.
         const g = (2.2e5 * (1 + pull * 4)) / (d * d + 2500) + 6;
-        vx[j] += ((ex / d) * g - (ey / d) * g * 0.45) * dt * 6;
-        vy[j] += ((ey / d) * g + (ex / d) * g * 0.45) * dt * 6;
+        vx[j] += (ex / d) * g * dt * 6;
+        vy[j] += (ey / d) * g * dt * 6;
         const drag = Math.exp(-0.9 * dt);
         vx[j] *= drag;
         vy[j] *= drag;
@@ -254,27 +268,32 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       }
     };
 
-    const strokeAll = (paths: Path2D[]) => {
+    const strokeAll = (c: CanvasRenderingContext2D, paths: Path2D[]) => {
+      c.lineCap = 'round';
+      c.globalCompositeOperation = dark ? 'lighter' : 'source-over';
       for (let l = 0; l < LEVELS; l++) {
-        ctx.strokeStyle = colours[l];
-        ctx.lineWidth = 0.8 + l * 0.22;
-        ctx.stroke(paths[l]);
+        c.strokeStyle = colours[l];
+        c.lineWidth = 0.8 + l * 0.22;
+        c.stroke(paths[l]);
       }
+      c.globalCompositeOperation = 'source-over';
+    };
+
+    /** Fade what is there (keeping the canvas see-through, so the page shows behind in both themes). */
+    const fade = (c: CanvasRenderingContext2D, dt: number) => {
+      c.globalCompositeOperation = 'destination-out';
+      c.fillStyle = `rgba(0,0,0,${1 - Math.exp(-FADE * dt)})`;
+      c.fillRect(0, 0, width, height);
+      c.globalCompositeOperation = 'source-over';
     };
 
     const draw = (dt: number) => {
-      // Fade what is there (keeping the canvas see-through, so the page shows behind in both themes).
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillStyle = `rgba(0,0,0,${1 - Math.exp(-FADE * dt)})`;
-      ctx.fillRect(0, 0, width, height);
-
-      ctx.lineCap = 'round';
-      ctx.globalCompositeOperation = dark ? 'lighter' : 'source-over';
-      strokeAll(back);
+      fade(ctx, dt);
+      fade(fctx, dt);
+      strokeAll(ctx, back);
 
       // The hole, with a thin bright rim of bent light.
       const h = hole * (1 - pull * 0.12);
-      ctx.globalCompositeOperation = 'source-over';
       ctx.fillStyle = dark ? '#05030a' : '#0c0816';
       ctx.beginPath();
       ctx.arc(center.x, center.y, h, 0, Math.PI * 2);
@@ -289,9 +308,7 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       ctx.stroke();
       ctx.restore();
 
-      ctx.globalCompositeOperation = dark ? 'lighter' : 'source-over';
-      strokeAll(front);
-      ctx.globalCompositeOperation = 'source-over';
+      strokeAll(fctx, front);
 
       const size = outer * 3.2;
       glow.style.transform = `translate(${center.x - size / 2}px, ${center.y - size / 2}px) scale(${1 + burst * 0.4})`;
@@ -330,6 +347,7 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     const theme = new MutationObserver(() => {
       readTheme();
       ctx.clearRect(0, 0, width, height);
+      fctx.clearRect(0, 0, width, height);
       if (motionReduced()) start();
     });
     theme.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -394,6 +412,7 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     <div className={`blackhole ${className ?? ''}`} aria-hidden="true">
       <div ref={glowRef} className="blackhole-glow" />
       <canvas ref={canvasRef} className="blackhole-canvas" />
+      <canvas ref={frontRef} className="blackhole-canvas" />
     </div>
   );
 }
