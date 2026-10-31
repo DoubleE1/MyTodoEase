@@ -695,4 +695,18 @@ export const ko: Record<string, string> = {
   "Turned off in Windows Settings > Apps > Startup. Turn it on there.": "Windows 설정 > 앱 > 시작 프로그램에서 꺼져 있어요. 거기서 켜 주세요.",
   "e.g. Call mum tomorrow 3pm #Home": "예: Call mum tomorrow 3pm #Home",
   "Delete the selected note": "선택한 메모 삭제",
+  // Home: one card per feature.
+  "1 note": "메모 1개",
+  "Features": "기능",
+  "Home": "홈",
+  "Notebook": "노트북",
+  "Pages and folders for longer writing.": "긴 글을 페이지와 폴더로 정리해요.",
+  "Track spending and stay on budget.": "지출을 기록하고 예산을 지켜요.",
+  "Wallet": "지갑",
+  "{due} due today": "오늘 마감 {due}개",
+  "{due} due today · {late} overdue": "오늘 마감 {due}개 · 지난 마감 {late}개",
+  "{greeting}, {name}": "{greeting}, {name}님",
+  "{n} notes": "메모 {n}개",
+  "Todo": "할 일",
+  "Tasks, projects, calendar and sticky notes.": "작업, 프로젝트, 캘린더, 스티커 메모.",
 };

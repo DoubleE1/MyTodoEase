@@ -5,6 +5,8 @@ Newest first. Each release is a GitHub release with the Windows installer; todoe
 ## Unreleased
 
 ### Added
+- Home: click the TodoEase logo for a page with one card per module: Todo (tasks, projects, calendar, sticky notes)
+  with today's counts, and Notebook and Wallet (coming soon). Also in search as "Home".
 - Board view: any task page can switch between List and Board; columns follow Group by, and dragging a card to
   another column changes that field.
 - "When I get things done" heatmap in Insights: completions by weekday and hour, with your best slot.

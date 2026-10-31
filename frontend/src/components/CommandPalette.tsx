@@ -14,6 +14,7 @@ import {
   Sun,
   Tag,
   Tags,
+  House,
   ShoppingBag,
   Trophy,
   X,
@@ -236,6 +237,7 @@ export function CommandPalette({
 
     const pages: Item[] = (
       [
+        ['home', t('Home'), <House size={16} />],
         ['inbox', t('Inbox'), <Inbox size={16} />],
         ['today', t('Today'), <CalendarDays size={16} />],
         ['upcoming', t('Upcoming'), <CalendarRange size={16} />],

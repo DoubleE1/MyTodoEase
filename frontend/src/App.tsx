@@ -9,6 +9,7 @@ import {
   useCompletions,
   useLabelMutations,
   useLabels,
+  useNotes,
   useProjectMutations,
   useProjects,
   useSectionMutations,
@@ -32,6 +33,7 @@ import { TooltipLayer } from './components/TooltipLayer';
 // share of the bundle and most sessions never open all three, so the first paint ships without them.
 const CalendarView = lazy(() => import('./components/CalendarView').then((m) => ({ default: m.CalendarView })));
 const AchievementsView = lazy(() => import('./components/AchievementsView').then((m) => ({ default: m.AchievementsView })));
+const HomeView = lazy(() => import('./components/HomeView').then((m) => ({ default: m.HomeView })));
 const ShopView = lazy(() => import('./components/AchievementsView').then((m) => ({ default: m.ShopView })));
 const InsightsView = lazy(() => import('./components/InsightsView').then((m) => ({ default: m.InsightsView })));
 const NotesView = lazy(() => import('./components/NotesView').then((m) => ({ default: m.NotesView })));
@@ -97,6 +99,8 @@ export default function App() {
   const theme = useTheme();
   const windowMode = useWindowMode();
 
+  // Home shows a count of notes; fetched only while it is open.
+  const notes = useNotes(view.kind === 'home');
   const completed = useCompletedTasks(view.kind === 'completed' || view.kind === 'calendar' || openTaskId !== null);
   // Sidebar dashboard: recent completion history (long enough for any realistic streak).
   const recentCompletions = useCompletions(toDateStr(subDays(new Date(), 400)), todayStr());
@@ -440,6 +444,8 @@ export default function App() {
   return (
     <div className={`app ${shellClass}`}>
       {titleBar}
+      {/* Home sits above the features, so the Tasks sidebar is not shown there. */}
+      {effectiveView.kind !== 'home' && (
       <Sidebar
         view={effectiveView}
         onSelectView={(next) => {
@@ -465,6 +471,7 @@ export default function App() {
         confirm={confirm}
         onCompact={() => void windowMode.setCompact(true)}
       />
+      )}
 
       <main className="main" ref={mainRef}>
         <div className="main-art" aria-hidden="true">
@@ -502,6 +509,21 @@ export default function App() {
         ) : effectiveView.kind === 'achievements' ? (
           <Suspense fallback={<div className="loading">Loading…</div>}>
             <AchievementsView />
+          </Suspense>
+        ) : effectiveView.kind === 'home' ? (
+          <Suspense fallback={<div className="loading">Loading…</div>}>
+            <HomeView
+              tasks={tasks.data ?? []}
+              notes={notes.data ?? []}
+              onSelectView={(next) => {
+                setSearch('');
+                setView(next);
+              }}
+              confirm={confirm}
+              onOpenSettings={() => setDialog({ kind: 'settings' })}
+              themePreference={theme.preference}
+              onSetTheme={theme.setPreference}
+            />
           </Suspense>
         ) : effectiveView.kind === 'shop' ? (
           <Suspense fallback={<div className="loading">Loading…</div>}>

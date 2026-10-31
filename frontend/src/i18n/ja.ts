@@ -695,4 +695,18 @@ export const ja: Record<string, string> = {
   "Turned off in Windows Settings > Apps > Startup. Turn it on there.": "Windows の設定 > アプリ > スタートアップ でオフになっています。そこでオンにしてください。",
   "e.g. Call mum tomorrow 3pm #Home": "例：Call mum tomorrow 3pm #Home",
   "Delete the selected note": "選択した付箋を削除",
+  // Home: one card per feature.
+  "1 note": "付箋 1 枚",
+  "Features": "機能",
+  "Home": "ホーム",
+  "Notebook": "ノートブック",
+  "Pages and folders for longer writing.": "長めの文章をページとフォルダーで整理。",
+  "Track spending and stay on budget.": "支出を記録して予算内に。",
+  "Wallet": "ウォレット",
+  "{due} due today": "今日が期限 {due} 件",
+  "{due} due today · {late} overdue": "今日が期限 {due} 件 · 期限切れ {late} 件",
+  "{greeting}, {name}": "{greeting}、{name}さん",
+  "{n} notes": "付箋 {n} 枚",
+  "Todo": "Todo",
+  "Tasks, projects, calendar and sticky notes.": "タスク、プロジェクト、カレンダー、付箋。",
 };

@@ -695,4 +695,18 @@ export const zhCN: Record<string, string> = {
   "Turned off in Windows Settings > Apps > Startup. Turn it on there.": "已在 Windows 设置 > 应用 > 启动 中关闭。请在那里打开。",
   "e.g. Call mum tomorrow 3pm #Home": "例如：Call mum tomorrow 3pm #Home",
   "Delete the selected note": "删除选中的便签",
+  // Home: one card per feature.
+  "1 note": "1 张便签",
+  "Features": "功能",
+  "Home": "首页",
+  "Notebook": "笔记本",
+  "Pages and folders for longer writing.": "用页面和文件夹整理较长的内容。",
+  "Track spending and stay on budget.": "记录支出，控制预算。",
+  "Wallet": "钱包",
+  "{due} due today": "今天到期 {due} 项",
+  "{due} due today · {late} overdue": "今天到期 {due} 项 · 逾期 {late} 项",
+  "{greeting}, {name}": "{greeting}，{name}",
+  "{n} notes": "{n} 张便签",
+  "Todo": "待办",
+  "Tasks, projects, calendar and sticky notes.": "任务、项目、日历和便签。",
 };

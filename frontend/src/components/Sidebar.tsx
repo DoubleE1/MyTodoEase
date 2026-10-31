@@ -378,9 +378,17 @@ export function Sidebar({
       </button>
       <aside className={`sidebar is-${mode}`} aria-label={t('Sidebar')}>
         <div className="sidebar-top">
-          <div className="brand">
+          {/* The logo opens Home, the page with a card for each feature. */}
+          <button
+            type="button"
+            className={`brand brand-home ${isActive({ kind: 'home' }) ? 'is-active' : ''}`}
+            onClick={() => onSelectView({ kind: 'home' })}
+            aria-label={t('Home')}
+            data-tooltip={rail ? t('Home') : undefined}
+            data-tooltip-side="right"
+          >
             <Wordmark size={26} />
-          </div>
+          </button>
           {/* New task and search, as plain rows like the nav below (search opens the command palette). */}
           <nav className="sidebar-actions" aria-label={t('Add and search')}>
             <NavItem

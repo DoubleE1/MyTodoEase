@@ -3,6 +3,7 @@ import { compareDue, todayStr } from './dates';
 import { t } from '../i18n';
 
 export type View =
+  | { kind: 'home' }
   | { kind: 'inbox' }
   | { kind: 'today' }
   | { kind: 'upcoming' }
@@ -26,6 +27,8 @@ export function viewEquals(a: View, b: View): boolean {
 
 export function viewTitle(view: View, projects: Project[], labels: Label[]): string {
   switch (view.kind) {
+    case 'home':
+      return t('Home');
     case 'inbox':
       return t('Inbox');
     case 'today':
