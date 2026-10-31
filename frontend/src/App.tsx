@@ -527,7 +527,7 @@ export default function App() {
           </Suspense>
         ) : effectiveView.kind === 'shop' ? (
           <Suspense fallback={<div className="loading">Loading…</div>}>
-            <ShopView />
+            <ShopView section={effectiveView.section} onOpenSection={(section) => setView(section ? { kind: 'shop', section } : { kind: 'shop' })} />
           </Suspense>
         ) : effectiveView.kind === 'insights' ? (
           <Suspense fallback={<div className="loading">Loading…</div>}>

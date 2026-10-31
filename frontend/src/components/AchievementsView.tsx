@@ -1,6 +1,6 @@
 import { format, parseISO } from 'date-fns';
-import { Lock, Trophy } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { ChevronLeft, ChevronRight, Lock, Trophy } from 'lucide-react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import {
   CATEGORY_TITLES,
   SHOP_CATEGORIES,
@@ -67,18 +67,35 @@ export function AchievementsView() {
  * A preview of the skin shop. Skins are not on sale yet (the "Skin change" task); it shows the tiers and what
  * the points will buy.
  */
-export function ShopView() {
+export function ShopView({ section, onOpenSection }: { section?: ShopCategoryId; onOpenSection: (section: ShopCategoryId | null) => void }) {
   const { points, ready } = useAchievements();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const lastSection = useRef<ShopCategoryId | undefined>(undefined);
+  const category = SHOP_CATEGORIES.find((c) => c.id === section);
+
+  // A section page starts at its top; going back to the whole shop returns to the section you came from.
+  useEffect(() => {
+    if (section) rootRef.current?.scrollIntoView({ block: 'start' });
+    else if (lastSection.current) document.getElementById(`shop-${lastSection.current}`)?.scrollIntoView({ block: 'start' });
+    lastSection.current = section;
+  }, [section]);
+
   return (
-    <div className="view view-achievements">
+    <div className="view view-achievements" ref={rootRef}>
       <header className="view-header">
+        {category && (
+          <button type="button" className="shop-back" onClick={() => onOpenSection(null)}>
+            <ChevronLeft size={15} aria-hidden="true" />
+            {t('Shop')}
+          </button>
+        )}
         <div className="view-header-row">
-          <h1>{t('Shop')}</h1>
+          <h1>{category ? category.name : t('Shop')}</h1>
         </div>
         <PointsSummary points={points}>{t('points to spend')}</PointsSummary>
         {!ready && <p className="muted small">{t('Counting your history…')}</p>}
       </header>
-      <Shop points={points} />
+      <Shop points={points} section={category?.id} onOpenSection={onOpenSection} />
     </div>
   );
 }
@@ -135,18 +152,32 @@ function AchievementCard({ state }: { state: AchievementState }) {
   );
 }
 
-function Shop({ points }: { points: number }) {
-  // Jump to a section (the page scrolls inside the main pane).
-  const jump = (id: string) =>
-    document.getElementById(`shop-${id}`)?.scrollIntoView({ behavior: motionReduced() ? 'auto' : 'smooth', block: 'start' });
+/** Cards a section shows on the whole-shop page; a section with more ends in a Show more card that opens its own page. */
+const SECTION_PREVIEW = 5;
+
+function Shop({ points, section, onOpenSection }: { points: number; section?: ShopCategoryId; onOpenSection: (section: ShopCategoryId | null) => void }) {
+  // Jump to a section (the page scrolls inside the main pane). On a section page the buttons open the other sections.
+  const jump = (id: ShopCategoryId) => {
+    if (section) onOpenSection(id);
+    else document.getElementById(`shop-${id}`)?.scrollIntoView({ behavior: motionReduced() ? 'auto' : 'smooth', block: 'start' });
+  };
+  const shown = section ? SHOP_CATEGORIES.filter((c) => c.id === section) : SHOP_CATEGORIES;
   return (
     <section className="shop" aria-label={t('Skin shop preview')}>
-      <p className="settings-help">
-        {t('Skins for your avatar, pet, borders, sticky notes, background and Insights are on the way. Points you earn now are kept for them. All 50 achievements buy one or two skins.')}
-      </p>
+      {!section && (
+        <p className="settings-help">
+          {t('Skins for your avatar, pet, borders, sticky notes, background and Insights are on the way. Points you earn now are kept for them. All 50 achievements buy one or two skins.')}
+        </p>
+      )}
       <nav className="shop-cats" aria-label={t('Shop sections')}>
         {SHOP_CATEGORIES.map((category) => (
-          <button key={category.id} type="button" className="chip" onClick={() => jump(category.id)}>
+          <button
+            key={category.id}
+            type="button"
+            className={`chip ${category.id === section ? 'is-active' : ''}`}
+            aria-current={category.id === section ? 'page' : undefined}
+            onClick={() => jump(category.id)}
+          >
             {category.name}
           </button>
         ))}
@@ -160,19 +191,46 @@ function Shop({ points }: { points: number }) {
           </li>
         ))}
       </ul>
-      {SHOP_CATEGORIES.map((category) => (
-        <section key={category.id} id={`shop-${category.id}`} className="shop-section" aria-labelledby={`shop-${category.id}-title`}>
-          <h2 id={`shop-${category.id}-title`} className="shop-section-title">
-            {category.name}
-          </h2>
-          <p className="muted small shop-section-desc">{category.description}</p>
-          <ul className="shop-grid">
-            {SHOP_ITEMS.filter((item) => item.category === category.id).map((item) => (
-              <ShopCard key={item.id} item={item} points={points} />
-            ))}
-          </ul>
-        </section>
-      ))}
+      {shown.map((category) => {
+        const items = SHOP_ITEMS.filter((item) => item.category === category.id);
+        const more = section ? 0 : Math.max(0, items.length - SECTION_PREVIEW);
+        return (
+          <section
+            key={category.id}
+            id={`shop-${category.id}`}
+            className="shop-section"
+            aria-label={section ? category.name : undefined}
+            aria-labelledby={section ? undefined : `shop-${category.id}-title`}
+          >
+            {section ? (
+              <p className="muted small shop-section-desc">{category.description}</p>
+            ) : (
+              <>
+                <h2 id={`shop-${category.id}-title`} className="shop-section-title">
+                  {category.name}
+                </h2>
+                <p className="muted small shop-section-desc">{category.description}</p>
+              </>
+            )}
+            <ul className="shop-grid">
+              {(more ? items.slice(0, SECTION_PREVIEW) : items).map((item) => (
+                <ShopCard key={item.id} item={item} points={points} />
+              ))}
+              {more > 0 && (
+                <li className="shop-more">
+                  <button type="button" onClick={() => onOpenSection(category.id)}>
+                    <span className="shop-more-icon" aria-hidden="true">
+                      <ChevronRight size={18} />
+                    </span>
+                    <span className="shop-more-label">{t('Show more')}</span>
+                    <span className="muted small">{t('{n} more skins', { n: more })}</span>
+                  </button>
+                </li>
+              )}
+            </ul>
+          </section>
+        );
+      })}
     </section>
   );
 }

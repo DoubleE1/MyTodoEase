@@ -784,4 +784,7 @@ export const ko: Record<string, string> = {
   "Your progress as a small isometric world.": "진행 상황을 작은 아이소메트릭 세계로.",
   "Your week drawn as linked stars.": "한 주를 이어진 별로 그려요.",
   "{n} to go": "{n} 남음",
+  // Shop: Show more card.
+  "Show more": "더 보기",
+  "{n} more skins": "스킨 {n}개 더",
 };

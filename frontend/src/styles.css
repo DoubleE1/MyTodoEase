@@ -7772,6 +7772,84 @@ body.is-resizing-span * {
   outline-offset: 1px;
 }
 
+.shop-cats .chip.is-active {
+  border-color: var(--accent);
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+/* Section page: back to the whole shop. */
+.shop-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 0 4px -4px;
+  padding: 2px 8px 2px 4px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-muted);
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.shop-back:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.shop-back:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+/* The last card of a section that has more skins than the whole-shop page shows. */
+.shop-more {
+  display: flex;
+}
+
+.shop-more button {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 160px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.shop-more button:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.shop-more button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.shop-more-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.shop-more-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .shop-legend {
   display: flex;
   flex-wrap: wrap;

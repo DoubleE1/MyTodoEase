@@ -784,4 +784,7 @@ export const ja: Record<string, string> = {
   "Your progress as a small isometric world.": "あなたの進み具合を小さなアイソメトリックの世界に。",
   "Your week drawn as linked stars.": "一週間をつながった星で描きます。",
   "{n} to go": "あと {n}",
+  // Shop: Show more card.
+  "Show more": "もっと見る",
+  "{n} more skins": "ほかに {n} 個のスキン",
 };

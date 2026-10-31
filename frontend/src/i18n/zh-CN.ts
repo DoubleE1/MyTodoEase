@@ -784,4 +784,7 @@ export const zhCN: Record<string, string> = {
   "Your progress as a small isometric world.": "把你的进展变成一个小小的等距世界。",
   "Your week drawn as linked stars.": "把你的一周画成相连的星星。",
   "{n} to go": "还差 {n}",
+  // Shop: Show more card.
+  "Show more": "显示更多",
+  "{n} more skins": "还有 {n} 款皮肤",
 };

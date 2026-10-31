@@ -1,4 +1,5 @@
 import type { Label, Project, Task } from '../api/types';
+import type { ShopCategoryId } from './achievements';
 import { compareDue, todayStr } from './dates';
 import { t } from '../i18n';
 
@@ -12,7 +13,7 @@ export type View =
   | { kind: 'insights' }
   | { kind: 'completed' }
   | { kind: 'achievements' }
-  | { kind: 'shop' }
+  | { kind: 'shop'; section?: ShopCategoryId }
   | { kind: 'project'; projectId: string }
   | { kind: 'label'; labelId: string }
   | { kind: 'search'; query: string };
@@ -22,6 +23,7 @@ export function viewEquals(a: View, b: View): boolean {
   if (a.kind === 'project' && b.kind === 'project') return a.projectId === b.projectId;
   if (a.kind === 'label' && b.kind === 'label') return a.labelId === b.labelId;
   if (a.kind === 'search' && b.kind === 'search') return a.query === b.query;
+  if (a.kind === 'shop' && b.kind === 'shop') return a.section === b.section;
   return true;
 }
 

@@ -61,7 +61,8 @@ With all achievements (10,000): 1 Legendary, or 2 Rare, or 1 Epic + 1 Common, or
 
 The Shop page lists skins by what they change (`SHOP_CATEGORIES` and `SHOP_ITEMS` in
 `frontend/src/lib/achievements.ts`); rarity sets the price. Each section's first card is the look everyone has
-(Included).
+(Included). The whole-shop page shows up to 5 skins per section (`SECTION_PREVIEW` in `AchievementsView.tsx`);
+a section with more ends in a Show more card that opens that section on its own page.
 
 | Section | Skins |
 | ------- | ----- |
