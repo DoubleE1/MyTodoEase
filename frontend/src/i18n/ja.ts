@@ -694,4 +694,5 @@ export const ja: Record<string, string> = {
   "These work while TodoEase is open. Turn on “Keep running in the background” to use them after closing the window.": "TodoEase が開いている間だけ使えます。ウィンドウを閉じた後も使うには「バックグラウンドで実行し続ける」をオンにします。",
   "Turned off in Windows Settings > Apps > Startup. Turn it on there.": "Windows の設定 > アプリ > スタートアップ でオフになっています。そこでオンにしてください。",
   "e.g. Call mum tomorrow 3pm #Home": "例：Call mum tomorrow 3pm #Home",
+  "Delete the selected note": "選択した付箋を削除",
 };

@@ -65,6 +65,7 @@ const FIXED_GROUPS: { title: string; items: FixedShortcut[] }[] = [
       { label: t('Move the selected note'), keys: [['←↑→↓']] },
       { label: t('Move it further'), keys: [['Shift', '←↑→↓']] },
       { label: t('Resize the selected note'), keys: [[MOD_KEY, '←↑→↓']] },
+      { label: t('Delete the selected note'), keys: [['Delete']] },
       { label: t('Zoom'), keys: [['Scroll'], [MOD_KEY, 'Scroll']] },
       { label: t('Pan'), keys: [['Shift', 'Scroll']] },
     ],

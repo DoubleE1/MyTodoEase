@@ -694,4 +694,5 @@ export const ko: Record<string, string> = {
   "These work while TodoEase is open. Turn on “Keep running in the background” to use them after closing the window.": "TodoEase가 열려 있을 때만 작동해요. 창을 닫은 후에도 쓰려면 “백그라운드에서 계속 실행”을 켜세요.",
   "Turned off in Windows Settings > Apps > Startup. Turn it on there.": "Windows 설정 > 앱 > 시작 프로그램에서 꺼져 있어요. 거기서 켜 주세요.",
   "e.g. Call mum tomorrow 3pm #Home": "예: Call mum tomorrow 3pm #Home",
+  "Delete the selected note": "선택한 메모 삭제",
 };

@@ -352,25 +352,38 @@ function revealNoteWindow(note) {
 
 // A spare note window, loaded in the background (#note-spare) and handed the next note to open, so a new note
 // appears at once instead of after a page load. Kept only while the "New sticky note" shortcut is on.
+// Notes asked for while the spare is still loading wait for it, so only one note page loads at a time even when
+// the shortcut is pressed over and over; a fresh spare starts loading as soon as one is used.
 let spareNote = null;
-let spareNoteLoaded = false;
+/** The spare's page is listening for its note ('note:spare-ready'). */
+let spareNoteReady = false;
+/** Notes waiting for the spare, oldest first. */
+const waitingForSpare = [];
+const SPARE_WAIT_MS = 8000;
 
 function prepareSpareNote() {
   if (spareNote || quitting || !settings.globalHotkeys.newNote) return;
   const spare = makeNoteWindow({ ...NOTE_DEFAULT, x: 0, y: 0 }, 'note-spare');
   spareNote = spare;
-  spareNoteLoaded = false;
-  spare.webContents.once('did-finish-load', () => {
-    if (spareNote === spare) spareNoteLoaded = true;
-  });
+  spareNoteReady = false;
   spare.on('closed', () => {
     if (spareNote === spare) spareNote = null;
   });
 }
 
+ipcMain.on('note:spare-ready', (event) => {
+  if (!spareNote || spareNote.isDestroyed() || event.sender !== spareNote.webContents) return;
+  spareNoteReady = true;
+  const next = waitingForSpare.shift();
+  if (next) openNoteWindow(next);
+});
+
 function dropSpareNote() {
   const spare = spareNote;
   spareNote = null;
+  spareNoteReady = false;
+  // Anything still waiting for it opens on its own.
+  for (const id of waitingForSpare.splice(0)) setTimeout(() => openNoteWindow(id), 0);
   if (spare && !spare.isDestroyed()) spare.destroy();
 }
 
@@ -384,15 +397,28 @@ function openNoteWindow(id) {
     existing.focus();
     return;
   }
+  if (waitingForSpare.includes(id)) return;
+  // The spare is still loading: wait for it rather than load a second page alongside (see 'note:spare-ready').
+  // Should it never get ready, the note opens in a window of its own after a while.
+  if (spareNote && !spareNote.isDestroyed() && !spareNoteReady) {
+    waitingForSpare.push(id);
+    setTimeout(() => {
+      const index = waitingForSpare.indexOf(id);
+      if (index < 0) return;
+      waitingForSpare.splice(index, 1);
+      openNoteWindow(id);
+    }, SPARE_WAIT_MS);
+    return;
+  }
   const bounds = onScreen(settings.noteBounds?.[id]) ?? defaultNoteBounds();
   let note;
-  if (spareNote && spareNoteLoaded && !spareNote.isDestroyed()) {
+  if (spareNote && !spareNote.isDestroyed() && spareNoteReady) {
     note = spareNote;
     spareNote = null;
+    spareNoteReady = false;
     note.setBounds(bounds);
     note.webContents.send('note:assign', id);
-    // Make the next spare once this one has settled.
-    setTimeout(prepareSpareNote, 1500);
+    prepareSpareNote();
   } else {
     note = makeNoteWindow(bounds, `note=${id}`);
   }
@@ -870,6 +896,8 @@ function openQuickAdd({ show = true } = {}) {
 
 /** New sticky note: the main window's page creates it (it knows local vs cloud) and pops it out. */
 function requestNewNote() {
+  // Holding the keys repeats the shortcut many times a second; one note per 0.4 s is plenty.
+  if (Date.now() - newNoteRequestedAt < 400) return;
   newNoteRequestedAt = Date.now();
   if (win && !win.isDestroyed() && !win.webContents.isLoading()) {
     win.webContents.send('quick:new-note');
@@ -972,7 +1000,9 @@ app.whenReady().then(async () => {
     prepareSpareNote();
   }, 4000);
   // Notes that were open in their own windows at the last quit come back.
-  for (const id of Array.isArray(settings.openNotes) ? settings.openNotes : []) openNoteWindow(id);
+  // One after another, so a dozen restored notes do not all load at the same moment.
+  const restore = Array.isArray(settings.openNotes) ? [...settings.openNotes] : [];
+  restore.forEach((id, i) => setTimeout(() => openNoteWindow(id), i * 350));
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

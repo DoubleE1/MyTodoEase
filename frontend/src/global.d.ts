@@ -93,6 +93,8 @@ interface Window {
     resizeQuickAdd?: (height: number) => Promise<void>;
     /** A note window has its note on screen; the shell shows the window then (no blank frame). */
     noteReady?: () => void;
+    /** A spare note window is loaded and listening for its note. */
+    noteSpareReady?: () => void;
     /** A spare note window (#note-spare) is handed the note to show. */
     onNoteAssign?: (callback: (id: string) => void) => () => void;
     /** The "new sticky note" global shortcut was pressed. */

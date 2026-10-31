@@ -58,6 +58,7 @@ contextBridge.exposeInMainWorld('mytodoease', {
   resizeQuickAdd: (height) => ipcRenderer.invoke('quick-add:resize', Number(height)),
   // Note windows: the note is on screen (show the window now), and a spare window being handed its note.
   noteReady: () => ipcRenderer.send('note:ready'),
+  noteSpareReady: () => ipcRenderer.send('note:spare-ready'),
   onNoteAssign: (callback) => {
     const listener = (_event, id) => callback(String(id));
     ipcRenderer.on('note:assign', listener);

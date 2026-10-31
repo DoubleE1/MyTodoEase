@@ -181,15 +181,16 @@ export function SpareNoteWindow() {
   const queryClient = useQueryClient();
   const [noteId, setNoteId] = useState<string | null>(null);
 
-  useEffect(
-    () =>
-      window.mytodoease?.onNoteAssign?.((id) => {
-        window.history.replaceState(null, '', `#note=${id}`);
-        // The note was probably created a moment ago: fetch it before showing.
-        void queryClient.invalidateQueries({ queryKey: ['notes'] }).then(() => setNoteId(id));
-      }),
-    [queryClient],
-  );
+  useEffect(() => {
+    const off = window.mytodoease?.onNoteAssign?.((id) => {
+      window.history.replaceState(null, '', `#note=${id}`);
+      // The note was probably created a moment ago: fetch it before showing.
+      void queryClient.invalidateQueries({ queryKey: ['notes'] }).then(() => setNoteId(id));
+    });
+    // Only now can the shell hand this window a note.
+    window.mytodoease?.noteSpareReady?.();
+    return off;
+  }, [queryClient]);
 
   return noteId ? <NoteWindow noteId={noteId} /> : <div className="note-window" />;
 }

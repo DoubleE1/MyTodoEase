@@ -15,6 +15,12 @@ Newest first. Each release is a GitHub release with the Windows installer; todoe
   a small New task box, Ctrl+Alt+N opens a new sticky note. Both shortcuts can be changed or turned off.
   Both windows are loaded in the background, so they open at once (a new note in about 0.2 s) and never flash
   white; the New task box is only as tall as its content. All TodoEase windows share one taskbar icon.
+  Pressing Ctrl+Alt+N over and over (or holding it) opens notes one at a time instead of loading many at once;
+  notes restored at start-up open one after another.
+- Notes board: press Delete on a selected note to remove it (a note with text asks first).
+
+### Fixed
+- Notes board: a note dragged or resized quickly now keeps up with the mouse instead of stopping halfway.
 - Turn into tasks and quick add understand more date phrases ("next Friday at 3pm", "end of the month", "in 2 weeks")
   and times of day: morning 9:00, noon 12:00, afternoon 2:00 PM, evening 6:00 PM, tonight 8:00 PM, midnight 11:59 PM
   ("tomorrow morning", "next weekend afternoon", "by midnight"). "Morning routine" or "game night" stay titles.

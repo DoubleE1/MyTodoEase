@@ -694,4 +694,5 @@ export const zhCN: Record<string, string> = {
   "These work while TodoEase is open. Turn on “Keep running in the background” to use them after closing the window.": "仅在 TodoEase 打开时可用。打开“在后台保持运行”后，关闭窗口也能使用。",
   "Turned off in Windows Settings > Apps > Startup. Turn it on there.": "已在 Windows 设置 > 应用 > 启动 中关闭。请在那里打开。",
   "e.g. Call mum tomorrow 3pm #Home": "例如：Call mum tomorrow 3pm #Home",
+  "Delete the selected note": "删除选中的便签",
 };

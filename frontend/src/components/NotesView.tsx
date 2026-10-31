@@ -128,6 +128,22 @@ function findFreeSpotNear(placed: Rect[], cx: number, cy: number): { x: number; 
  * device and screen size; the last one moved or created sits on top. Notes save while typing, can be
  * coloured and resized, and "Turn into tasks" suggests tasks from the text for the user to approve.
  */
+/**
+ * Follow a drag on the whole window, not on the card. Pressing a card brings it to the front, and React moving
+ * its element ends the pointer capture, after which a card listening on itself lost any fast move that left it.
+ * Returns the function that stops following.
+ */
+function followPointer(move: (e: PointerEvent) => void, up: (e: PointerEvent) => void): () => void {
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', up);
+  return () => {
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    window.removeEventListener('pointercancel', up);
+  };
+}
+
 export function NotesView({
   projects,
   sections,
@@ -488,20 +504,23 @@ export function NotesView({
       }
       return { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
     };
-    const move = (e: PointerEvent) => setResize({ id: note.id, ...rectAt(e) });
+    const pointerId = event.pointerId;
+    const move = (e: PointerEvent) => {
+      if (e.pointerId !== pointerId) return;
+      // The button came up somewhere we did not hear about (outside the window): finish here.
+      if (e.buttons === 0) return up(e);
+      setResize({ id: note.id, ...rectAt(e) });
+    };
     const up = (e: PointerEvent) => {
-      target.removeEventListener('pointermove', move);
-      target.removeEventListener('pointerup', up);
-      target.removeEventListener('pointercancel', up);
+      if (e.pointerId !== pointerId) return;
+      stopFollowing();
       const rect = rectAt(e);
       setResize(null);
       if (rect.w === start.w && rect.h === start.h) return;
       const moved = rect.x !== start.x || rect.y !== start.y ? { x: rect.x, y: rect.y } : {};
       save(note, { w: rect.w, h: rect.h, ...moved, ...front(note) });
     };
-    target.addEventListener('pointermove', move);
-    target.addEventListener('pointerup', up);
-    target.addEventListener('pointercancel', up);
+    const stopFollowing = followPointer(move, up);
   };
 
   const resizeBy = (note: Note, card: HTMLElement | null, dw: number, dh: number) => {
@@ -544,7 +563,10 @@ export function NotesView({
       x: clampX(from.x + (e.clientX - startX) / z, size.w),
       y: clampY(from.y + (e.clientY - startY) / z, size.h),
     });
+    const pointerId = event.pointerId;
     const move = (e: PointerEvent) => {
+      if (e.pointerId !== pointerId) return;
+      if (e.buttons === 0) return up(e);
       const to = placeAt(e);
       const dx = to.x - from.x;
       const dy = to.y - from.y;
@@ -555,9 +577,8 @@ export function NotesView({
       if (!frame) frame = requestAnimationFrame(paint);
     };
     const up = (e: PointerEvent) => {
-      target.removeEventListener('pointermove', move);
-      target.removeEventListener('pointerup', up);
-      target.removeEventListener('pointercancel', up);
+      if (e.pointerId !== pointerId) return;
+      stopFollowing();
       cancelAnimationFrame(frame);
       setDrag(null);
       if (!moved) return;
@@ -569,9 +590,7 @@ export function NotesView({
       target.style.transform = '';
       save(note, { x, y, order: note.order === topOrder ? note.order : topOrder + 1 });
     };
-    target.addEventListener('pointermove', move);
-    target.addEventListener('pointerup', up);
-    target.addEventListener('pointercancel', up);
+    const stopFollowing = followPointer(move, up);
   };
 
   const nudge = (note: Note, dx: number, dy: number) => {
@@ -890,6 +909,12 @@ function NoteCard({
   const onMoveKeys = (e: React.KeyboardEvent) => {
     const target = e.target as HTMLElement;
     if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.isContentEditable || target.closest('.popover, .rich-desc')) return;
+    // Delete removes the selected note (asking first when it has text).
+    if (e.key === 'Delete' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      e.preventDefault();
+      onDelete();
+      return;
+    }
     const step = e.shiftKey ? KEY_STEP * 4 : KEY_STEP;
     const moves: Record<string, [number, number]> = {
       ArrowLeft: [-step, 0],
@@ -911,7 +936,7 @@ function NoteCard({
       data-color={note.color}
       style={style}
       tabIndex={movable ? -1 : undefined}
-      aria-label={movable ? 'Note: arrow keys move it, Shift for bigger steps, Ctrl+arrow keys resize it' : undefined}
+      aria-label={movable ? 'Note: arrow keys move it, Shift for bigger steps, Ctrl+arrow keys resize it, Delete removes it' : undefined}
       onKeyDown={movable ? onMoveKeys : undefined}
       onPointerDown={(e) => {
         // Any press on the note (text included) brings it to the front; the header also starts a drag.
