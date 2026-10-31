@@ -112,7 +112,7 @@ export function HomeView({
         {background === 'field' && <AsciiField word="TodoEase" clearOf={HOME_CLEAR} className="home-field" />}
         {background === 'field-todoease' && <AsciiField word="TodoEase" variant="todoease" clearOf={HOME_CLEAR} className="home-field" />}
         {background === 'dots-full' && <DotTrail className="home-field" />}
-        {background === 'chroma' && <ChromaTrail className="home-field" />}
+        {background === 'chroma' && <ChromaTrail word="TodoEase" below=".home-grid" className="home-field" />}
         {background === 'lines' && (
           <LineField word={draft ?? lineWord} caret={draft !== null} below=".home-grid" className="home-field" onWordBox={setWordBox} />
         )}
