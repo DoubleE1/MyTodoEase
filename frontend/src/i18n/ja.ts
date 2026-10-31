@@ -718,4 +718,6 @@ export const ja: Record<string, string> = {
   "New sticky note window": "新しい付箋ウィンドウ",
   "Paste as note": "メモとして貼り付け",
   "Show archived": "アーカイブを表示",
+  "The browser did not allow reading the clipboard. Press Ctrl+V in the new note to paste.": "ブラウザーがクリップボードの読み取りを許可しませんでした。新しいメモで Ctrl+V を押して貼り付けてください。",
+  "There is no text on the clipboard.": "クリップボードにテキストがありません。",
 };

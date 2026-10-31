@@ -718,4 +718,6 @@ export const zhCN: Record<string, string> = {
   "New sticky note window": "在新窗口中新建便签",
   "Paste as note": "粘贴为便签",
   "Show archived": "显示已归档",
+  "The browser did not allow reading the clipboard. Press Ctrl+V in the new note to paste.": "浏览器不允许读取剪贴板。请在新便签中按 Ctrl+V 粘贴。",
+  "There is no text on the clipboard.": "剪贴板中没有文字。",
 };

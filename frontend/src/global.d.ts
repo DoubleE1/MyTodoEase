@@ -64,6 +64,8 @@ interface Window {
     getMcpSetup?: () => Promise<DesktopMcpSetup>;
     /** Put text on the system clipboard. */
     copyText?: (text: string) => Promise<boolean>;
+    /** The system clipboard's text. */
+    readText?: () => Promise<string>;
     getUpdateState?: () => Promise<DesktopUpdateState>;
     /** Ask for a newer release now; resolves with the state reached (a download continues in the background). */
     checkForUpdates?: () => Promise<DesktopUpdateState>;

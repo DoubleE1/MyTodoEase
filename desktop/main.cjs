@@ -1075,6 +1075,9 @@ ipcMain.handle('clipboard:write-text', (_event, text) => {
   return true;
 });
 
+// The clipboard's text (Paste as note): read here, where no permission prompt applies.
+ipcMain.handle('clipboard:read-text', () => clipboard.readText());
+
 // Save text (a backup) where the user chooses. Returns the path, or null when they cancel.
 ipcMain.handle('file:save-text', async (_event, { defaultName, content }) => {
   const { canceled, filePath } = await dialog.showSaveDialog(win ?? undefined, {

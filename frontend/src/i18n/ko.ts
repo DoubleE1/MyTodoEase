@@ -718,4 +718,6 @@ export const ko: Record<string, string> = {
   "New sticky note window": "새 스티커 메모 창",
   "Paste as note": "메모로 붙여넣기",
   "Show archived": "보관함 보기",
+  "The browser did not allow reading the clipboard. Press Ctrl+V in the new note to paste.": "브라우저가 클립보드 읽기를 허용하지 않았어요. 새 메모에서 Ctrl+V를 눌러 붙여넣으세요.",
+  "There is no text on the clipboard.": "클립보드에 텍스트가 없어요.",
 };

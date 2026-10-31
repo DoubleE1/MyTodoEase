@@ -24,6 +24,7 @@ import { NoteEditor } from './NoteEditor';
 import { NoteToTasksDialog } from './NoteToTasksDialog';
 import { COLOR_LABELS, canPopOutNotes, editedLabel, popOutNote } from '../lib/notes';
 import { Popover } from './Popover';
+import { showToast } from '../lib/toast';
 import { t } from '../i18n';
 
 const SAVE_DELAY_MS = 500;
@@ -473,15 +474,20 @@ export function NotesView({
     setFocusId(note.id);
   };
 
-  /** A note holding the clipboard's text (an empty one when the clipboard has none or cannot be read). */
+  /**
+   * A note holding the clipboard's text. The desktop app reads the clipboard itself; a browser may refuse (no
+   * permission), and then the note opens empty with the cursor in it and a hint to press Ctrl+V.
+   */
   const pasteAsNote = async (at: { x: number; y: number }) => {
-    let text = '';
+    let text: string | null;
     try {
-      text = (await navigator.clipboard.readText()).trim();
+      text = (await (window.mytodoease?.readText ? window.mytodoease.readText() : navigator.clipboard.readText())).trim();
     } catch {
-      // Clipboard access refused; fall back to an empty note.
+      text = null;
     }
-    await addNote(at, { text });
+    if (text === null) showToast(t('The browser did not allow reading the clipboard. Press Ctrl+V in the new note to paste.'));
+    else if (!text) showToast(t('There is no text on the clipboard.'));
+    await addNote(at, { text: text ?? '' });
   };
 
   const save = (note: Note, input: NoteInput) => mut.update.mutate({ id: note.id, input });
@@ -856,12 +862,10 @@ export function NotesView({
                     <span>{t('New sticky note window')}</span>
                   </button>
                 )}
-                {typeof navigator !== 'undefined' && !!navigator.clipboard?.readText && (
-                  <button type="button" role="menuitem" className="note-menu-item" onClick={run(() => void pasteAsNote(boardMenu.at))}>
-                    <ClipboardPaste size={14} />
-                    <span>{t('Paste as note')}</span>
-                  </button>
-                )}
+                <button type="button" role="menuitem" className="note-menu-item" onClick={run(() => void pasteAsNote(boardMenu.at))}>
+                  <ClipboardPaste size={14} />
+                  <span>{t('Paste as note')}</span>
+                </button>
                 <div className="note-menu-sep" role="separator" />
                 <button type="button" role="menuitem" className="note-menu-item" disabled={active.length === 0} onClick={run(fitAll)}>
                   <Maximize size={14} />
@@ -981,10 +985,26 @@ function NoteCard({
   // Save what is pending when the card goes away (view change, archive).
   useEffect(() => () => flush(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // A brand-new note: the editor takes focus itself (autoFocus below); tell the board it has been handled.
+  // A brand-new note: the cursor goes into its text, and the board is told it has been handled. The editor
+  // focuses itself when it is created with autoFocus, but the card can mount (from the refreshed list) a moment
+  // before it is marked as new, so wait for the editor (it loads lazily) and focus it if it has not been.
+  const focusFrame = useRef(0);
   useEffect(() => {
-    if (autoFocus) onFocused();
+    if (!autoFocus) return;
+    onFocused();
+    let tries = 0;
+    const check = () => {
+      const editable = cardRef.current?.querySelector<HTMLElement>('[contenteditable="true"]');
+      if (editable) {
+        if (!editable.contains(document.activeElement)) editable.focus({ preventScroll: true });
+        return;
+      }
+      if (++tries < 60) focusFrame.current = requestAnimationFrame(check);
+    };
+    focusFrame.current = requestAnimationFrame(check);
+    // Not cancelled when autoFocus turns off (onFocused does that straight away), only when the card goes.
   }, [autoFocus, onFocused]);
+  useEffect(() => () => cancelAnimationFrame(focusFrame.current), []);
 
   // The card grows with its text (the editor sizes itself); report the height so the board can place notes.
   useLayoutEffect(() => {
