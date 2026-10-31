@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { FluidWake } from '../lib/fluidWake';
+import { CLASSIC_FEEL, FluidWake, type WakeFeel } from '../lib/fluidWake';
 import { motionReduced } from '../lib/motion';
 
 /**
@@ -19,11 +19,14 @@ export function AsciiField({
   word,
   clearOf,
   className,
+  variant = 'classic',
 }: {
   word: string;
   /** CSS selector of elements (text) the field stays clear of, so they remain readable. */
   clearOf?: string;
   className?: string;
+  /** `classic`: as the shadcn.io hero. `todoease`: brand colours, ticks, a softer wake and a click ripple. */
+  variant?: FieldVariant;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -32,16 +35,22 @@ export function AsciiField({
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
 
+    const style = FIELD_STYLES[variant];
     // ---- Glyphs: empty, the three marks, the word's letters, and the symbols the wake flickers through ----
-    const MARKS = [' ', '·', ':', '+'];
-    const SCRAMBLE = [...'#%&*=/<>?$@'];
+    const MARKS = style.marks;
+    const SCRAMBLE = style.scramble;
     const letters = [...(word.toUpperCase().replace(/[^A-Z0-9#-]+/g, '') || 'A')];
+    /** Mark levels above empty; letters come above the top one. */
+    const LEVELS = MARKS.length - 1;
     const glyphs = [...MARKS, ...new Set(letters), ...SCRAMBLE];
     const glyphOf = new Map(glyphs.map((g, i) => [g, i]));
     const wordIndex = letters.map((l) => glyphOf.get(l) ?? 0);
     const scrambleAt = glyphs.length - SCRAMBLE.length;
+    const tick = glyphOf.get('✓') ?? 0;
     /** The atlas holds every glyph at this many strengths, so a frame never changes canvas state. */
     const SHADES = 16;
+    /** Colour bands across the page (brand gradient), or one ink. */
+    const BANDS = style.colours === 'brand' ? 8 : 1;
 
     const IDLE_MS = 50;
     const WAKE_MS = 20;
@@ -57,13 +66,16 @@ export function AsciiField({
     let cols = 0;
     let rows = 0;
     let ink = '#e8e8e8';
+    let brand = ['#4f96ff', '#8a5cff', '#ff5fa8'];
     let opacity = 0.92;
+    /** Clicks rippling out (todoease): a ring of ticks, in canvas pixels. */
+    let rings: { x: number; y: number; at: number }[] = [];
     let clear: { left: number; top: number; right: number; bottom: number }[] = [];
     const atlas = document.createElement('canvas');
     const atlasCtx = atlas.getContext('2d');
 
     // ---- The wake: a small fluid the mouse stirs (lib/fluidWake.ts) ----
-    const wake = new FluidWake();
+    const wake = new FluidWake(style.feel);
     let wakeUntil = 0;
 
     // ---- The drift: noise sampled every few cells and blended in between ----
@@ -92,41 +104,46 @@ export function AsciiField({
 
     const readTheme = () => {
       const root = document.documentElement;
-      ink = getComputedStyle(root).getPropertyValue('--text').trim() || '#e8e8e8';
+      const css = getComputedStyle(root);
+      ink = css.getPropertyValue('--text').trim() || '#e8e8e8';
+      brand = ['--brand-1', '--brand-2', '--brand-3'].map((name, i) => css.getPropertyValue(name).trim() || brand[i]);
       opacity = root.dataset.theme === 'dark' ? 0.92 : 0.9;
     };
 
-    /** Each glyph drawn once per strength: row = strength, column = glyph. */
+    /** Each glyph drawn once per colour band and strength: row = band x strength, column = glyph. */
     const buildAtlas = () => {
       if (!atlasCtx) return;
       const cw = Math.round(cellW * dpr);
       const ch = Math.round(cellH * dpr);
       atlas.width = cw * glyphs.length;
-      atlas.height = ch * SHADES;
+      atlas.height = ch * SHADES * BANDS;
       atlasCtx.clearRect(0, 0, atlas.width, atlas.height);
       atlasCtx.font = `500 ${Math.max(1, 0.74 * ch)}px ui-monospace, "SF Mono", Consolas, "Cascadia Mono", monospace`;
       atlasCtx.textAlign = 'center';
       atlasCtx.textBaseline = 'alphabetic';
-      atlasCtx.fillStyle = ink;
       const m = atlasCtx.measureText('M');
       const ascent = m.actualBoundingBoxAscent || 0.74 * ch * 0.7;
       const baseline = (ch + ascent - (m.actualBoundingBoxDescent || 0)) / 2;
-      for (let s = 0; s < SHADES; s++) {
-        atlasCtx.globalAlpha = ((s + 1) / SHADES) * opacity;
-        glyphs.forEach((glyph, i) => {
-          if (glyph === ' ') return;
-          const cx = i * cw + cw / 2;
-          const w = atlasCtx.measureText(glyph).width;
-          atlasCtx.save();
-          atlasCtx.beginPath();
-          atlasCtx.rect(i * cw, s * ch, cw, ch);
-          atlasCtx.clip();
-          atlasCtx.translate(cx, s * ch + baseline);
-          // Wide glyphs are squeezed into the cell rather than cut.
-          if (w > cw * 0.96) atlasCtx.scale((cw * 0.96) / w, 1);
-          atlasCtx.fillText(glyph, 0, 0);
-          atlasCtx.restore();
-        });
+      for (let b = 0; b < BANDS; b++) {
+        atlasCtx.fillStyle = BANDS === 1 ? ink : gradientAt(brand, b / (BANDS - 1));
+        for (let s = 0; s < SHADES; s++) {
+          const top = (b * SHADES + s) * ch;
+          atlasCtx.globalAlpha = ((s + 1) / SHADES) * opacity;
+          glyphs.forEach((glyph, i) => {
+            if (glyph === ' ') return;
+            const cx = i * cw + cw / 2;
+            const w = atlasCtx.measureText(glyph).width;
+            atlasCtx.save();
+            atlasCtx.beginPath();
+            atlasCtx.rect(i * cw, top, cw, ch);
+            atlasCtx.clip();
+            atlasCtx.translate(cx, top + baseline);
+            // Wide glyphs are squeezed into the cell rather than cut.
+            if (w > cw * 0.96) atlasCtx.scale((cw * 0.96) / w, 1);
+            atlasCtx.fillText(glyph, 0, 0);
+            atlasCtx.restore();
+          });
+        }
       }
       atlasCtx.globalAlpha = 1;
     };
@@ -155,13 +172,14 @@ export function AsciiField({
       if (tones.length !== sCols * sRows) tones = new Float32Array(sCols * sRows);
       const aspect = width / Math.max(1, height);
       const scale = window.innerWidth < 760 ? 1.6 : 1;
-      const t = time * 0.05;
+      const t = time * style.drift;
+      const zoom = style.zoom;
       for (let sy = 0; sy < sRows; sy++) {
         const v = (sy * STEP_Y + 0.5) / rows;
         for (let sx = 0; sx < sCols; sx++) {
           const u = (sx * STEP_X + 0.5) / cols;
-          const px = (u - 0.5) * aspect * scale;
-          const py = (v - 0.5) * scale;
+          const px = (u - 0.5) * aspect * scale * zoom;
+          const py = (v - 0.5) * scale * zoom;
           const qx = fbm(px * 1.1, py * 1.1 + t);
           const qy = fbm(px * 1.1 + 5.2, py * 1.1 + 1.3 - t);
           tones[sy * sCols + sx] = smoothstep(0.32, 0.68, fbm(px * 1.4 + qx * 1.5 + t * 0.7, py * 1.4 + qy * 1.5 - t * 0.4));
@@ -177,12 +195,15 @@ export function AsciiField({
     let keepMap = new Float32Array(0);
     /** Per row, where the word starts, so the letters never line up in columns. */
     let rowOffset = new Int32Array(0);
+    /** Per cell, its colour band (brand gradient across the page, top left to bottom right). */
+    let bandMap = new Uint8Array(0);
     /** What each cell shows now (glyph and strength, 0 for nothing; -1 unknown): only changed cells are redrawn. */
     let shown = new Int32Array(0);
 
     const layoutCells = () => {
       keepMap = new Float32Array(cols * rows);
       rowOffset = new Int32Array(rows);
+      bandMap = new Uint8Array(cols * rows);
       for (let row = 0; row < rows; row++) {
         const y = row * cellH;
         const v = (row + 0.5) / rows;
@@ -198,6 +219,8 @@ export function AsciiField({
             keep *= smoothstep(0, 48, Math.hypot(ox, oy));
           }
           keepMap[row * cols + col] = keep;
+          const along = (col / Math.max(1, cols)) * 0.65 + (row / Math.max(1, rows)) * 0.35;
+          bandMap[row * cols + col] = Math.min(BANDS - 1, Math.floor(along * BANDS));
         }
       }
       shown = new Int32Array(cols * rows).fill(-1);
@@ -218,6 +241,13 @@ export function AsciiField({
       const flicker = Math.floor(clock * 10);
       const cw = Math.round(cellW * dpr);
       const ch = Math.round(cellH * dpr);
+      // Click ripples: rings of ticks spreading out and fading (RING_S long).
+      const now = performance.now();
+      rings = rings.filter((r) => now - r.at < RING_S * 1000);
+      const ringNow = rings.map((r) => {
+        const age = (now - r.at) / 1000 / RING_S;
+        return { x: r.x, y: r.y, radius: 20 + 340 * (1 - (1 - age) ** 2), fade: (1 - age) ** 0.7 };
+      });
 
       for (let row = 0; row < rows; row++) {
         const py = Math.round(row * cellH * dpr);
@@ -246,18 +276,29 @@ export function AsciiField({
             tone *= keep;
             k *= keep;
 
-            // Ordered dither for the marks; letters from a little under half tone, in runs along the row.
-            const level = tone * 7;
-            const tier = level >= 3.5 ? 4 : Math.min(3, Math.max(0, Math.floor(level + (BAYER[(col & 3) + (row & 3) * 4] + 0.5) / 16)));
-            if (tier > 0) {
-              let glyph = tier < 4 ? tier : wordIndex[(col + offset) % letters.length];
-              if (tier === 4 && hash2(col + 3.1, row + 8.7) < Math.max(k * 0.9 - 0.2, intro)) {
+            // A click ring passing over this cell turns it into a tick.
+            let ring = 0;
+            for (const r of ringNow) {
+              const d = Math.hypot((col + 0.5) * cellW - r.x, (row + 0.5) * cellH - r.y);
+              ring = Math.max(ring, Math.exp(-(((d - r.radius) / 20) ** 2)) * r.fade * Math.max(keep, 0.6));
+            }
+
+            // Dither for the marks (ordered, or scattered), then letters from a little under half tone, in runs.
+            const level = tone * (2 * LEVELS + 1);
+            const threshold = style.dither === 'bayer' ? (BAYER[(col & 3) + (row & 3) * 4] + 0.5) / 16 : hash2(col * 1.7 + 0.3, row * 2.3 + 0.7);
+            const tier = level >= LEVELS + 0.5 ? LEVELS + 1 : Math.min(LEVELS, Math.max(0, Math.floor(level + threshold)));
+            if (ring > 0.25) {
+              const shade = Math.min(SHADES - 1, Math.max(0, Math.round((0.7 + 0.3 * ring) * SHADES) - 1));
+              code = 1 + (tick * BANDS + bandMap[cell]) * SHADES + shade;
+            } else if (tier > 0) {
+              let glyph = tier <= LEVELS ? tier : wordIndex[(col + offset) % letters.length];
+              if (tier > LEVELS && hash2(col + 3.1, row + 8.7) < Math.max(k * 0.9 - 0.2, intro)) {
                 glyph = scrambleAt + Math.floor(hash2(col + flicker * 0.71, row + flicker * 0.37) * SCRAMBLE.length);
               }
-              const strength = tier < 4 ? 0.32 + tier * 0.07 : 0.58 + 0.32 * tone;
+              const strength = tier <= LEVELS ? 0.32 + tier * (0.21 / LEVELS) : 0.58 + 0.32 * tone;
               const alpha = strength + (1 - strength) * k;
               const shade = Math.min(SHADES - 1, Math.max(0, Math.round(alpha * SHADES) - 1));
-              code = 1 + glyph * SHADES + shade;
+              code = 1 + (glyph * BANDS + bandMap[cell]) * SHADES + shade;
             }
           }
           if (code === shown[cell]) continue;
@@ -265,9 +306,11 @@ export function AsciiField({
           const px = Math.round(col * cellW * dpr);
           ctx.clearRect(px, py, cw, ch);
           if (code > 0) {
-            const glyph = Math.floor((code - 1) / SHADES);
             const shade = (code - 1) % SHADES;
-            ctx.drawImage(atlas, glyph * cw, shade * ch, cw, ch, px, py, cw, ch);
+            const rest = Math.floor((code - 1) / SHADES);
+            const band = rest % BANDS;
+            const glyph = Math.floor(rest / BANDS);
+            ctx.drawImage(atlas, glyph * cw, (band * SHADES + shade) * ch, cw, ch, px, py, cw, ch);
           }
         }
       }
@@ -276,7 +319,7 @@ export function AsciiField({
     const loop = (now: number) => {
       frame = 0;
       if (document.hidden) return;
-      const waking = now < wakeUntil;
+      const waking = now < wakeUntil || rings.length > 0;
       const pace = waking ? WAKE_MS : IDLE_MS;
       if (now - lastFrame >= pace) {
         const dt = Math.min(0.05, (now - (lastFrame || now)) / 1000 || 0.016);
@@ -339,7 +382,21 @@ export function AsciiField({
       kick();
     };
     const onLeave = () => wake.lift();
+    // Click (todoease): the fluid bursts outward and a ring of ticks spreads from the pointer.
+    const onDown = (event: PointerEvent) => {
+      if (!style.clickRipple || motionReduced() || event.button !== 0) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      if (x < 0 || y < 0 || x > width || y > height) return;
+      const now = performance.now();
+      wake.burst(x / Math.max(1, width), y / Math.max(1, height));
+      rings.push({ x, y, at: now });
+      wakeUntil = now + WAKE_LINGER_MS;
+      kick();
+    };
     window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerdown', onDown);
     document.addEventListener('pointerleave', onLeave);
 
     return () => {
@@ -349,11 +406,75 @@ export function AsciiField({
       settings.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerdown', onDown);
       document.removeEventListener('pointerleave', onLeave);
     };
-  }, [word, clearOf]);
+  }, [word, clearOf, variant]);
 
   return <canvas ref={canvasRef} className={className} aria-hidden="true" />;
+}
+
+export type FieldVariant = 'classic' | 'todoease';
+
+interface FieldStyle {
+  /** Marks by tone, the first empty. */
+  marks: string[];
+  /** What the wake's freshest letters flicker through. */
+  scramble: string[];
+  colours: 'ink' | 'brand';
+  /** Drift speed of the pattern. */
+  drift: number;
+  /** Pattern scale (below 1: bigger shapes). */
+  zoom: number;
+  dither: 'bayer' | 'scatter';
+  feel: WakeFeel;
+  clickRipple: boolean;
+}
+
+const FIELD_STYLES: Record<FieldVariant, FieldStyle> = {
+  // As the shadcn.io hero: one ink, ordered dither, symbols in the wake.
+  classic: {
+    marks: [' ', '·', ':', '+'],
+    scramble: [...'#%&*=/<>?$@'],
+    colours: 'ink',
+    drift: 0.05,
+    zoom: 1,
+    dither: 'bayer',
+    feel: CLASSIC_FEEL,
+    clickRipple: false,
+  },
+  // TodoEase's own: the brand gradient, round marks, ticks in the wake and on click, a softer gliding wake with
+  // gentler curls, bigger shapes drifting a little livelier, and a scattered dither.
+  todoease: {
+    marks: [' ', '·', '•', '×'],
+    scramble: ['✓', '✓', '✓', '✓', '+', '•'],
+    colours: 'brand',
+    drift: 0.08,
+    zoom: 0.8,
+    dither: 'scatter',
+    feel: { fadeVelocity: 1.25, fadeDye: 2.3, swirl: 6, width: 0.0445, pushSlow: 1.5, pushFast: 14 },
+    clickRipple: true,
+  },
+};
+
+/** How long a click ring takes to spread and fade, in seconds. */
+const RING_S = 1.1;
+
+/** A colour along a gradient of stops (#rrggbb or rgb()), at t from 0 to 1. */
+function gradientAt(stops: string[], t: number): string {
+  const rgb = stops.map(parseColour);
+  const x = Math.min(1, Math.max(0, t)) * (rgb.length - 1);
+  const i = Math.min(rgb.length - 2, Math.floor(x));
+  const k = x - i;
+  const mix = rgb[i].map((c, j) => Math.round(c + (rgb[i + 1][j] - c) * k));
+  return `rgb(${mix[0]}, ${mix[1]}, ${mix[2]})`;
+}
+
+function parseColour(colour: string): number[] {
+  const hex = /^#([0-9a-f]{6})$/i.exec(colour.trim());
+  if (hex) return [0, 2, 4].map((i) => parseInt(hex[1].slice(i, i + 2), 16));
+  const rgb = /rgba?\(([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/.exec(colour);
+  return rgb ? [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])] : [128, 128, 255];
 }
 
 /** A 4 x 4 ordered-dither matrix: neighbouring cells switch marks at different tones. */

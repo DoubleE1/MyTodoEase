@@ -1,6 +1,7 @@
 /**
  * The mouse wake behind the Home background (components/AsciiField.tsx): a small 2D fluid on a grid of at most
- * 128 points across, after the hero of shadcn.io/background. The mouse stirs it in short oval stamps; each step
+ * 128 points across, after the hero of shadcn.io/background. Its feel (glide, curl, width) is a setting, and a
+ * click can burst it outward. The mouse stirs it in short oval stamps; each step
  * carries velocity and dye along the flow, adds back the small swirls the grid smooths away (vorticity
  * confinement) and keeps the flow from piling up (a few pressure iterations), so a stroke curls and spreads
  * like smoke before it fades. `trailAt` reads how stirred a spot is, from the flow's speed and its dye.
@@ -24,7 +25,27 @@ interface Segment {
 
 const MAX_SPEED = 80;
 
+/** How the wake feels: how long it glides and stays tinted, how much it curls, how wide and hard a stroke is. */
+export interface WakeFeel {
+  /** Velocity fade per second (higher stops sooner). */
+  fadeVelocity: number;
+  /** Dye fade per second. */
+  fadeDye: number;
+  /** Strength of the curls given back each step. */
+  swirl: number;
+  /** Stroke width as a share of the grid's shorter side. */
+  width: number;
+  /** Push per unit moved, for a crawl and for a flick. */
+  pushSlow: number;
+  pushFast: number;
+}
+
+/** The shadcn.io hero's feel. */
+export const CLASSIC_FEEL: WakeFeel = { fadeVelocity: 1.9, fadeDye: 3.2, swirl: 10, width: 0.0445, pushSlow: 2, pushFast: 20 };
+
 export class FluidWake {
+  constructor(private feel: WakeFeel = CLASSIC_FEEL) {}
+
   width = 0;
   height = 0;
   private vx = new Float32Array(0);
@@ -88,7 +109,7 @@ export class FluidWake {
     const seconds = now > from.at ? Math.max(1 / 240, (now - from.at) / 1000) : 1 / 60;
     // Speed in shares of the area per second, eased: 0 for a crawl, close to 1 for a flick.
     const fast = 1 - Math.exp(-Math.min(12, length / short / seconds) / 2.2);
-    const width = 0.0445 * short * (0.65 + 0.95 * fast);
+    const width = this.feel.width * short * (0.65 + 0.95 * fast);
     const count = Math.min(128, Math.max(1, Math.ceil(length / (0.4 * width))));
     this.segments.push({
       ax: from.x * (w - 1),
@@ -98,8 +119,37 @@ export class FluidWake {
       count,
       width,
       ink: ((length / width) * (0.32 + 0.22 * fast)) / count,
-      push: (length * (2 + 18 * fast)) / count,
+      push: (length * (this.feel.pushSlow + (this.feel.pushFast - this.feel.pushSlow) * fast)) / count,
     });
+    this.active = true;
+  }
+
+  /**
+   * A click at a point (shares of the area): the fluid is pushed outward in a ring and tinted round it, so the
+   * field ripples out from the pointer.
+   */
+  burst(x: number, y: number, strength = 1) {
+    const { width: w, height: h, vx, vy, dye } = this;
+    const cx = Math.min(1, Math.max(0, x)) * (w - 1);
+    const cy = Math.min(1, Math.max(0, y)) * (h - 1);
+    const radius = 0.06 * Math.min(w, h);
+    const reach = Math.ceil(radius * 2.2);
+    for (let gy = Math.max(1, Math.floor(cy - reach)); gy <= Math.min(h - 2, Math.ceil(cy + reach)); gy++) {
+      for (let gx = Math.max(1, Math.floor(cx - reach)); gx <= Math.min(w - 2, Math.ceil(cx + reach)); gx++) {
+        const dx = gx - cx;
+        const dy = gy - cy;
+        const d = Math.hypot(dx, dy);
+        if (d > reach) continue;
+        const ring = Math.exp(-(((d - radius) / (radius * 0.45)) ** 2));
+        const i = gy * w + gx;
+        dye[i] = 1 - (1 - dye[i]) * Math.exp(-ring * 0.35 * strength);
+        if (d > 0.001) {
+          const push = 12 * strength * ring;
+          vx[i] = clamp(vx[i] + (dx / d) * push, -MAX_SPEED, MAX_SPEED);
+          vy[i] = clamp(vy[i] + (dy / d) * push, -MAX_SPEED, MAX_SPEED);
+        }
+      }
+    }
     this.active = true;
   }
 
@@ -194,8 +244,8 @@ export class FluidWake {
   /** Carry velocity and dye along the flow (looking back along it), then let both fade. */
   private advect(dt: number) {
     const { width: w, height: h, vx, vy, dye, tmpX, tmpY, tmpD } = this;
-    const fadeV = Math.exp(-1.9 * dt);
-    const fadeD = Math.exp(-3.2 * dt);
+    const fadeV = Math.exp(-this.feel.fadeVelocity * dt);
+    const fadeD = Math.exp(-this.feel.fadeDye * dt);
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const i = y * w + x;
@@ -239,7 +289,7 @@ export class FluidWake {
         const ox = Math.abs(curl[i + 1]) - Math.abs(curl[i - 1]);
         const oy = Math.abs(curl[i + w]) - Math.abs(curl[i - w]);
         const l = Math.hypot(ox, oy) + 1e-4;
-        const k = curl[i] * dt * 10;
+        const k = curl[i] * dt * this.feel.swirl;
         const speed = Math.hypot(vx[i], vy[i]);
         const nx = vx[i] + (oy / l) * k;
         const ny = vy[i] - (ox / l) * k;

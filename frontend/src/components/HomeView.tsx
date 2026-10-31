@@ -11,6 +11,9 @@ import type { ConfirmOptions } from './Dialogs';
 import { Wordmark } from './Logo';
 import { t } from '../i18n';
 
+/** The text the background effects keep clear of, so it stays readable. */
+const HOME_CLEAR = '.home-bar > *, .home-head p';
+
 interface Feature {
   id: string;
   title: string;
@@ -89,7 +92,8 @@ export function HomeView({
     <div className="view view-home" data-bg={background}>
       {/* The background effect (decoration only). The "dots" ones are the Tasks pages' header art, shown via CSS. */}
       <div className="home-decor" aria-hidden="true">
-        {background === 'field' && <AsciiField word="TodoEase" clearOf=".home-bar > *, .home-head p" className="home-field" />}
+        {background === 'field' && <AsciiField word="TodoEase" clearOf={HOME_CLEAR} className="home-field" />}
+        {background === 'field-todoease' && <AsciiField word="TodoEase" variant="todoease" clearOf={HOME_CLEAR} className="home-field" />}
       </div>
       {import.meta.env.DEV && <BackgroundSwitcher value={background} />}
 

@@ -4,10 +4,11 @@ import { useSyncExternalStore } from 'react';
  * Home's background effects, the start of the shop's "background" category. For now one is picked with a
  * switcher that only appears on the local dev server (HomeView), to compare them; the choice is kept per device.
  */
-export type HomeBackground = 'field' | 'dots' | 'dots-full' | 'plain';
+export type HomeBackground = 'field' | 'field-todoease' | 'dots' | 'dots-full' | 'plain';
 
 export const HOME_BACKGROUNDS: { id: HomeBackground; label: string }[] = [
   { id: 'field', label: 'Character field (shadcn style)' },
+  { id: 'field-todoease', label: 'Character field (TodoEase)' },
   { id: 'dots', label: 'Dot halo (Tasks header)' },
   { id: 'dots-full', label: 'Dot halo (full page)' },
   { id: 'plain', label: 'Plain' },
