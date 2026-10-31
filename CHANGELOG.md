@@ -20,6 +20,9 @@ Newest first. Each release is a GitHub release with the Windows installer; todoe
   Pressing Ctrl+Alt+N over and over (or holding it) opens notes one at a time instead of loading many at once;
   notes restored at start-up open one after another.
 - Notes board: press Delete on a selected note to remove it (a note with text asks first).
+- Notes board right-click menus. On the empty board: New note here, New sticky note window (desktop app),
+  Paste as note, Show all notes, Back to 100%, Show/Hide archived. On a note: its colours, Open in its own window,
+  Archive, Delete and Turn into tasks. Shift+F10 or the menu key opens a selected note's menu.
 
 ### Fixed
 - Notes board: a note dragged or resized quickly now keeps up with the mouse instead of stopping halfway.

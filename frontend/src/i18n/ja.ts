@@ -712,4 +712,10 @@ export const ja: Record<string, string> = {
   // Home: the line wave background word.
   "Click to change the word": "クリックして文字を変更",
   "Background word": "背景の文字",
+  // Notes board: right-click menus.
+  "Board actions": "ボードの操作",
+  "New note here": "ここに新しいメモ",
+  "New sticky note window": "新しい付箋ウィンドウ",
+  "Paste as note": "メモとして貼り付け",
+  "Show archived": "アーカイブを表示",
 };

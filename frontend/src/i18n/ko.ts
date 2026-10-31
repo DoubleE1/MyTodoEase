@@ -712,4 +712,10 @@ export const ko: Record<string, string> = {
   // Home: the line wave background word.
   "Click to change the word": "클릭해서 글자 바꾸기",
   "Background word": "배경 글자",
+  // Notes board: right-click menus.
+  "Board actions": "보드 작업",
+  "New note here": "여기에 새 메모",
+  "New sticky note window": "새 스티커 메모 창",
+  "Paste as note": "메모로 붙여넣기",
+  "Show archived": "보관함 보기",
 };

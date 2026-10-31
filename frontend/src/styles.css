@@ -4338,6 +4338,32 @@ p.detail-description {
   color: var(--danger);
 }
 
+.note-menu-item:focus-visible {
+  outline: none;
+  background: var(--bg-hover);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.note-menu-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.note-menu-item:disabled:hover {
+  background: none;
+}
+
+/* Right-click menus (ContextMenu.tsx): a compact popover opened at the pointer. */
+.popover.context-menu {
+  min-width: 200px;
+  padding: 0;
+}
+
+/* The menu itself holds focus until an arrow key picks an item; the item shows the focus ring. */
+.popover.context-menu:focus {
+  outline: none;
+}
+
 .note-colors {
   display: flex;
   gap: 6px;

@@ -712,4 +712,10 @@ export const zhCN: Record<string, string> = {
   // Home: the line wave background word.
   "Click to change the word": "点击更改文字",
   "Background word": "背景文字",
+  // Notes board: right-click menus.
+  "Board actions": "白板操作",
+  "New note here": "在此新建便签",
+  "New sticky note window": "在新窗口中新建便签",
+  "Paste as note": "粘贴为便签",
+  "Show archived": "显示已归档",
 };

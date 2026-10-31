@@ -1,6 +1,7 @@
 import {
   Archive,
   ArchiveRestore,
+  ClipboardPaste,
   Ellipsis,
   Grip,
   ListTodo,
@@ -16,6 +17,7 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useNoteMutations, useNotes } from '../api/hooks';
 import { NOTE_COLORS, type Label, type Note, type NoteInput, type Project, type Section } from '../api/types';
+import { ContextMenu } from './ContextMenu';
 import type { ConfirmOptions } from './Dialogs';
 import { MarkdownText } from './MarkdownText';
 import { NoteEditor } from './NoteEditor';
@@ -173,6 +175,8 @@ export function NotesView({
   const [drag, setDrag] = useState<{ id: string } | null>(null);
   const [resize, setResize] = useState<{ id: string; x: number; y: number; w: number; h: number } | null>(null);
   const [panning, setPanning] = useState(false);
+  /** The board's right-click menu: where it opened (client) and the board point under it. */
+  const [boardMenu, setBoardMenu] = useState<{ x: number; y: number; at: { x: number; y: number } } | null>(null);
 
   const all = notesQuery.data ?? [];
   const active = useMemo(() => all.filter((n) => !n.isArchived), [all]);
@@ -443,13 +447,41 @@ export function NotesView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, rectOf, mut.update]);
 
-  /** A new note in the free spot nearest `at` (canvas point), or the middle of the view. */
-  const addNote = async (at?: { x: number; y: number }) => {
+  /** The board point under (clientX, clientY). */
+  const boardPoint = (clientX: number, clientY: number) => {
+    const r = canvasRef.current!.getBoundingClientRect();
+    const { x, y, z } = view.current;
+    return { x: (clientX - r.left - x) / z, y: (clientY - r.top - y) / z };
+  };
+
+  /**
+   * A new note in the free spot nearest `at` (canvas point), or the middle of the view: typed into straight
+   * away, or (`popOut`) opened as a sticky note in its own window.
+   */
+  const addNote = async (at?: { x: number; y: number }, options: { text?: string; popOut?: boolean } = {}) => {
     const center = at ?? viewCenter();
     const placed = active.map(rectOf).filter((r): r is Rect => r !== null);
     const position = findFreeSpotNear(placed, center.x, center.y);
-    const note = await mut.create.mutateAsync({ text: '', color: 'yellow', order: topOrder + 1, ...position });
+    const note = await mut.create.mutateAsync({ text: options.text ?? '', color: 'yellow', order: topOrder + 1, ...position });
+    if (options.popOut) {
+      popOutNote(note.id);
+      return;
+    }
+    // Out of whatever was being typed in (e.g. another note's text, when the menu was opened from there), so the
+    // new note's text can take the cursor.
+    (document.activeElement as HTMLElement | null)?.blur?.();
     setFocusId(note.id);
+  };
+
+  /** A note holding the clipboard's text (an empty one when the clipboard has none or cannot be read). */
+  const pasteAsNote = async (at: { x: number; y: number }) => {
+    let text = '';
+    try {
+      text = (await navigator.clipboard.readText()).trim();
+    } catch {
+      // Clipboard access refused; fall back to an empty note.
+    }
+    await addNote(at, { text });
   };
 
   const save = (note: Note, input: NoteInput) => mut.update.mutate({ id: note.id, input });
@@ -629,8 +661,8 @@ export function NotesView({
         <div>
           <h1>{t('Notes')}</h1>
           <p className="muted small">
-            Drag the board to move around, scroll to zoom, double-click to add a note. Turn a note into tasks
-            when you are ready.
+            Drag the board to move around, scroll to zoom, double-click or right-click to add a note. Turn a
+            note into tasks when you are ready.
           </p>
         </div>
         <div className="notes-header-actions">
@@ -659,9 +691,15 @@ export function NotesView({
           onPointerCancel={onCanvasPointerUp}
           onDoubleClick={(e) => {
             if (e.target !== surfaceRef.current) return;
-            const r = canvasRef.current!.getBoundingClientRect();
-            const { x, y, z } = view.current;
-            void addNote({ x: (e.clientX - r.left - x) / z, y: (e.clientY - r.top - y) / z });
+            void addNote(boardPoint(e.clientX, e.clientY));
+          }}
+          // Right-click on the empty board: add a note there, and the board's other actions.
+          onContextMenu={(e) => {
+            const onBackground =
+              e.target === canvasRef.current || e.target === worldRef.current || e.target === surfaceRef.current;
+            if (!onBackground) return;
+            e.preventDefault();
+            setBoardMenu({ x: e.clientX, y: e.clientY, at: boardPoint(e.clientX, e.clientY) });
           }}
         >
           <div ref={worldRef} className="notes-board notes-world">
@@ -794,6 +832,62 @@ export function NotesView({
         </div>
       )}
 
+      {boardMenu && (
+        <ContextMenu at={boardMenu} label={t('Board actions')} onClose={() => setBoardMenu(null)}>
+          {(close) => {
+            const run = (action: () => void) => () => {
+              close();
+              action();
+            };
+            return (
+              <div className="note-menu">
+                <button type="button" role="menuitem" className="note-menu-item" onClick={run(() => void addNote(boardMenu.at))}>
+                  <Plus size={14} />
+                  <span>{t('New note here')}</span>
+                </button>
+                {canPopOutNotes() && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="note-menu-item"
+                    onClick={run(() => void addNote(boardMenu.at, { popOut: true }))}
+                  >
+                    <PictureInPicture2 size={14} />
+                    <span>{t('New sticky note window')}</span>
+                  </button>
+                )}
+                {typeof navigator !== 'undefined' && !!navigator.clipboard?.readText && (
+                  <button type="button" role="menuitem" className="note-menu-item" onClick={run(() => void pasteAsNote(boardMenu.at))}>
+                    <ClipboardPaste size={14} />
+                    <span>{t('Paste as note')}</span>
+                  </button>
+                )}
+                <div className="note-menu-sep" role="separator" />
+                <button type="button" role="menuitem" className="note-menu-item" disabled={active.length === 0} onClick={run(fitAll)}>
+                  <Maximize size={14} />
+                  <span>{t('Show all notes')}</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="note-menu-item"
+                  onClick={run(() => zoomAt(boardMenu.x, boardMenu.y, 1))}
+                >
+                  <ZoomIn size={14} />
+                  <span>{t('Back to 100%')}</span>
+                </button>
+                {archived.length > 0 && (
+                  <button type="button" role="menuitem" className="note-menu-item" onClick={run(() => setShowArchived((v) => !v))}>
+                    {showArchived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
+                    <span>{showArchived ? t('Hide archived') : t('Show archived')}</span>
+                  </button>
+                )}
+              </div>
+            );
+          }}
+        </ContextMenu>
+      )}
+
       {converting && (
         <NoteToTasksDialog
           note={converting}
@@ -863,6 +957,8 @@ function NoteCard({
   const [focused, setFocused] = useState(false);
   const [editorVersion, setEditorVersion] = useState(0);
   const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
+  /** The note's right-click menu, opened at this client point (from the keyboard: at the note's corner). */
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number; keyboard: boolean } | null>(null);
 
   // Take edits made on another device or window, unless this card is being typed in.
   useEffect(() => {
@@ -929,6 +1025,94 @@ function NoteCard({
     else onNudge(delta[0], delta[1]);
   };
 
+  /** The note's actions: in the "..." menu, and (with Turn into tasks) in its right-click menu. */
+  const menuItems = (close: () => void, withConvert = false) => (
+    <>
+      <div className="note-menu-label">
+        <Palette size={14} />
+        <span>{t('Colour')}</span>
+      </div>
+      <div className="note-colors" role="radiogroup" aria-label={t('Note colour')}>
+        {NOTE_COLORS.map((color) => (
+          <button
+            key={color}
+            type="button"
+            role="radio"
+            aria-checked={note.color === color}
+            aria-label={COLOR_LABELS[color]}
+            data-tooltip={COLOR_LABELS[color]}
+            className={`note-color-swatch ${note.color === color ? 'is-selected' : ''}`}
+            data-color={color}
+            onClick={() => {
+              onSave({ color });
+              close();
+            }}
+          />
+        ))}
+      </div>
+      <div className="note-menu-sep" role="separator" />
+      {canPopOutNotes() && (
+        <button
+          type="button"
+          role="menuitem"
+          className="note-menu-item"
+          onClick={() => {
+            close();
+            flush();
+            popOutNote(note.id);
+          }}
+        >
+          <PictureInPicture2 size={14} />
+          <span>{t('Open in its own window')}</span>
+        </button>
+      )}
+      <button
+        type="button"
+        role="menuitem"
+        className="note-menu-item"
+        onClick={() => {
+          close();
+          flush();
+          onArchive();
+        }}
+      >
+        <Archive size={14} />
+        <span>{t('Archive')}</span>
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        className="note-menu-item is-danger"
+        onClick={() => {
+          close();
+          onDelete();
+        }}
+      >
+        <Trash2 size={14} />
+        <span>{t('Delete')}</span>
+      </button>
+      {withConvert && (
+        <>
+          <div className="note-menu-sep" role="separator" />
+          <button
+            type="button"
+            role="menuitem"
+            className="note-menu-item"
+            disabled={!text.trim()}
+            onClick={() => {
+              close();
+              flush();
+              onConvert();
+            }}
+          >
+            <ListTodo size={14} />
+            <span>{t('Turn into tasks')}</span>
+          </button>
+        </>
+      )}
+    </>
+  );
+
   return (
     <article
       ref={cardRef}
@@ -948,7 +1132,24 @@ function NoteCard({
         }
         onPointerDown(e);
       }}
+      onContextMenu={(e) => {
+        if (!movable) return;
+        // With text selected, the browser's own menu (copy, spelling) stays.
+        const selection = window.getSelection();
+        if ((e.target as Element).closest('.note-body') && selection && !selection.isCollapsed) return;
+        e.preventDefault();
+        onActivate();
+        // From the keyboard (Shift+F10, the menu key) there is no pointer: open at the note's corner.
+        const r = cardRef.current?.getBoundingClientRect();
+        const keyboard = e.clientX === 0 && e.clientY === 0;
+        setMenuAt(keyboard && r ? { x: r.left + 16, y: r.top + 16, keyboard } : { x: e.clientX, y: e.clientY, keyboard: false });
+      }}
     >
+      {menuAt && (
+        <ContextMenu at={menuAt} keyboard={menuAt.keyboard} label={t('Note actions')} onClose={() => setMenuAt(null)}>
+          {(close) => <div className="note-menu">{menuItems(close, true)}</div>}
+        </ContextMenu>
+      )}
       {/* Header bar: drag the note by it (like the top bar of Windows Sticky Notes); it holds the note's buttons. */}
       <header className="note-head" data-tooltip={movable ? t('Drag to move') : undefined}>
         {movable && (
@@ -980,69 +1181,7 @@ function NoteCard({
         >
           {(close) => (
             <div className="note-menu" role="menu" aria-label={t('Note actions')}>
-              <div className="note-menu-label">
-                <Palette size={14} />
-                <span>{t('Colour')}</span>
-              </div>
-              <div className="note-colors" role="radiogroup" aria-label={t('Note colour')}>
-                {NOTE_COLORS.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    role="radio"
-                    aria-checked={note.color === color}
-                    aria-label={COLOR_LABELS[color]}
-                    data-tooltip={COLOR_LABELS[color]}
-                    className={`note-color-swatch ${note.color === color ? 'is-selected' : ''}`}
-                    data-color={color}
-                    onClick={() => {
-                      onSave({ color });
-                      close();
-                    }}
-                  />
-                ))}
-              </div>
-              <div className="note-menu-sep" role="separator" />
-              {canPopOutNotes() && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="note-menu-item"
-                  onClick={() => {
-                    close();
-                    flush();
-                    popOutNote(note.id);
-                  }}
-                >
-                  <PictureInPicture2 size={14} />
-                  <span>{t('Open in its own window')}</span>
-                </button>
-              )}
-              <button
-                type="button"
-                role="menuitem"
-                className="note-menu-item"
-                onClick={() => {
-                  close();
-                  flush();
-                  onArchive();
-                }}
-              >
-                <Archive size={14} />
-                <span>{t('Archive')}</span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="note-menu-item is-danger"
-                onClick={() => {
-                  close();
-                  onDelete();
-                }}
-              >
-                <Trash2 size={14} />
-                <span>{t('Delete')}</span>
-              </button>
+              {menuItems(close)}
             </div>
           )}
         </Popover>
