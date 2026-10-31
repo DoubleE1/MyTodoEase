@@ -1,5 +1,5 @@
 import { ArrowRight, BookOpen, CalendarDays, CircleCheckBig, Clock3, Wallet } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import type { Note, Task } from '../api/types';
 import { todayStr } from '../lib/dates';
 import { HOME_BACKGROUNDS, LINE_WORD_MAX, setHomeBackground, setLineWord, useHomeBackground, useLineWord, type HomeBackground } from '../lib/homeBackground';
@@ -11,6 +11,14 @@ import { LineField, type WordBox } from './LineField';
 import type { ConfirmOptions } from './Dialogs';
 import { Wordmark } from './Logo';
 import { t } from '../i18n';
+
+/** Put the text cursor after the last character (after the browser has placed it where the click was). */
+function caretToEnd(input: HTMLInputElement) {
+  requestAnimationFrame(() => {
+    const end = input.value.length;
+    if (input.selectionStart !== end || input.selectionEnd !== end) input.setSelectionRange(end, end);
+  });
+}
 
 /** The text the background effects keep clear of, so it stays readable. */
 const HOME_CLEAR = '.home-bar > *, .home-head p';
@@ -53,10 +61,8 @@ export function HomeView({
   const lineWord = useLineWord();
   const [wordBox, setWordBox] = useState<WordBox | null>(null);
   const [draft, setDraft] = useState<string | null>(null);
-  const finishWord = (save: boolean) => {
-    if (save && draft !== null) setLineWord(draft);
-    setDraft(null);
-  };
+  /** Esc: leave without saving (the blur that follows must not save). */
+  const cancelWord = useRef(false);
   const today = todayStr();
   const dueToday = tasks.filter((task) => task.dueDate === today).length;
   const overdue = tasks.filter((task) => task.dueDate !== null && task.dueDate < today).length;
@@ -103,41 +109,45 @@ export function HomeView({
       <div className="home-decor" aria-hidden="true">
         {background === 'field' && <AsciiField word="TodoEase" clearOf={HOME_CLEAR} className="home-field" />}
         {background === 'field-todoease' && <AsciiField word="TodoEase" variant="todoease" clearOf={HOME_CLEAR} className="home-field" />}
-        {background === 'lines' && <LineField word={draft ?? lineWord} below=".home-grid" className="home-field" onWordBox={setWordBox} />}
+        {background === 'lines' && (
+          <LineField word={draft ?? lineWord} caret={draft !== null} below=".home-grid" className="home-field" onWordBox={setWordBox} />
+        )}
       </div>
-      {background === 'lines' &&
-        wordBox &&
-        (draft === null ? (
-          <button
-            type="button"
-            className="home-word-edit"
-            style={{ left: wordBox.left, top: wordBox.top, width: wordBox.width, height: wordBox.height }}
-            aria-label={t('Change the background word')}
-            data-tooltip={t('Click to change the word')}
-            onClick={() => setDraft(lineWord)}
-          />
-        ) : (
-          <input
-            className="home-word-input"
-            style={{ left: wordBox.left + wordBox.width / 2, top: wordBox.top + wordBox.height / 2 }}
-            value={draft}
-            maxLength={LINE_WORD_MAX}
-            autoFocus
-            spellCheck={false}
-            aria-label={t('Background word')}
-            placeholder={t('Type a word, then press Enter')}
-            onChange={(e) => setDraft(e.target.value)}
-            onFocus={(e) => e.target.select()}
-            onBlur={() => finishWord(true)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') finishWord(true);
-              if (e.key === 'Escape') {
-                e.stopPropagation();
-                finishWord(false);
-              }
-            }}
-          />
-        ))}
+      {/* Edit the word right in the background: an invisible field over it takes the typing (and brings up a
+          phone's keyboard); the lines show the word and a blinking bar. Enter or clicking away saves, Esc cancels. */}
+      {background === 'lines' && wordBox && (
+        <input
+          className={`home-word-input ${draft !== null ? 'is-editing' : ''}`}
+          style={{ left: wordBox.left, top: wordBox.top, width: wordBox.width, height: wordBox.height }}
+          value={draft ?? lineWord}
+          maxLength={LINE_WORD_MAX}
+          spellCheck={false}
+          autoComplete="off"
+          aria-label={t('Background word')}
+          data-tooltip={draft === null ? t('Click to change the word') : undefined}
+          onFocus={(e) => {
+            cancelWord.current = false;
+            setDraft(lineWord);
+            caretToEnd(e.currentTarget);
+          }}
+          // The bar in the lines is always after the last letter, so the real cursor stays there too.
+          onSelect={(e) => caretToEnd(e.currentTarget)}
+          onMouseUp={(e) => caretToEnd(e.currentTarget)}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => {
+            if (!cancelWord.current && draft !== null) setLineWord(draft);
+            setDraft(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+              cancelWord.current = true;
+              e.currentTarget.blur();
+            }
+          }}
+        />
+      )}
       {import.meta.env.DEV && <BackgroundSwitcher value={background} />}
 
       <div className="home-page">

@@ -23,23 +23,44 @@ export function LineField({
   below,
   className,
   onWordBox,
+  caret = false,
 }: {
   word: string;
   below?: string;
   className?: string;
   onWordBox?: (box: WordBox) => void;
+  /** Editing: a bar blinks after the word, raised in the lines like a text cursor. */
+  caret?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   /** Set by the drawing effect: re-shape the lines for a new word without starting over. */
-  const setWordRef = useRef<((word: string) => void) | null>(null);
+  const setWordRef = useRef<(() => void) | null>(null);
   const wordRef = useRef(word);
+  /** Whether the blinking bar is showing right now. */
+  const caretOnRef = useRef(false);
   const onWordBoxRef = useRef(onWordBox);
   onWordBoxRef.current = onWordBox;
 
   useEffect(() => {
     wordRef.current = word;
-    setWordRef.current?.(word);
+    setWordRef.current?.();
   }, [word]);
+
+  // The bar blinks while editing (steady with Reduce motion) and goes away after.
+  useEffect(() => {
+    caretOnRef.current = caret;
+    setWordRef.current?.();
+    if (!caret || motionReduced()) return;
+    const blink = window.setInterval(() => {
+      caretOnRef.current = !caretOnRef.current;
+      setWordRef.current?.();
+    }, 600);
+    return () => {
+      window.clearInterval(blink);
+      caretOnRef.current = false;
+      setWordRef.current?.();
+    };
+  }, [caret]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -66,8 +87,11 @@ export function LineField({
     let frame = 0;
     let stroke: CanvasGradient | string = '#8a5cff';
 
-    /** The word, drawn white on black and blurred a little, so its brightness lifts the lines smoothly. */
-    const wordMask = (text: string, boxW: number, boxH: number) => {
+    /**
+     * The word, drawn white on black and blurred a little, so its brightness lifts the lines smoothly. The size
+     * leaves room for the editing bar, so the word does not jump as the bar blinks.
+     */
+    const wordMask = (text: string, boxW: number, boxH: number, withCaret: boolean) => {
       const mask = document.createElement('canvas');
       mask.width = Math.max(1, Math.round(boxW / 2));
       mask.height = Math.max(1, Math.round(boxH / 2));
@@ -77,15 +101,20 @@ export function LineField({
       m.fillRect(0, 0, mask.width, mask.height);
       m.filter = 'blur(1.5px)';
       m.fillStyle = '#fff';
-      m.textAlign = 'center';
+      m.textAlign = 'left';
       m.textBaseline = 'middle';
-      // As large as fits the box.
+      // As large as fits the box (word and bar together).
       let size = mask.height * 0.82;
       m.font = `900 ${size}px ${FONT}`;
-      const measured = m.measureText(text).width;
+      const measured = m.measureText(`${text}|`).width;
       if (measured > mask.width * 0.92) size *= (mask.width * 0.92) / measured;
       m.font = `900 ${size}px ${FONT}`;
-      m.fillText(text, mask.width / 2, mask.height / 2);
+      const textW = m.measureText(text).width;
+      const barGap = size * 0.08;
+      const barW = Math.max(2, size * 0.09);
+      const left = (mask.width - (textW + barGap + barW)) / 2;
+      m.fillText(text, left, mask.height / 2);
+      if (withCaret) m.fillRect(left + textW + barGap, mask.height / 2 - size * 0.42, barW, size * 0.84);
       return { data: m.getImageData(0, 0, mask.width, mask.height).data, w: mask.width, h: mask.height };
     };
 
@@ -102,7 +131,7 @@ export function LineField({
 
     /** Each point's resting height for `text`; with `keep`, points stay where they are and spring into place. */
     const shape = (text: string, keep: boolean) => {
-      const mask = wordMask(text.toUpperCase() || ' ', box.right - box.left, box.bottom - box.top);
+      const mask = wordMask(text.toUpperCase(), box.right - box.left, box.bottom - box.top, caretOnRef.current);
       lines.forEach((line, i) => {
         // Each line rests at its own height, lifted where it crosses the word.
         const restY = i * LINE_GAP;
@@ -208,10 +237,10 @@ export function LineField({
       if (!frame && !motionReduced()) frame = requestAnimationFrame(loop);
     };
 
-    // A new word: the lines flow into it (or switch at once with Reduce motion).
-    setWordRef.current = (next: string) => {
+    // A new word (or the bar blinking): the lines flow into it (or switch at once with Reduce motion).
+    setWordRef.current = () => {
       const reduced = motionReduced();
-      shape(next, !reduced);
+      shape(wordRef.current, !reduced);
       if (reduced) draw();
       else kick();
     };

@@ -710,8 +710,6 @@ export const zhCN: Record<string, string> = {
   "Tasks, projects, calendar and sticky notes.": "任务、项目、日历和便签。",
   "Organize your tasks, notes and finances, all in one place.": "在一个地方整理你的任务、笔记和财务。",
   // Home: the line wave background word.
-  "Change the background word": "更改背景文字",
   "Click to change the word": "点击更改文字",
   "Background word": "背景文字",
-  "Type a word, then press Enter": "输入文字，然后按 Enter",
 };

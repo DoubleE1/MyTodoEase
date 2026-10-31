@@ -7889,46 +7889,34 @@ body.is-resizing-span * {
   mask-image: linear-gradient(to bottom, #000 80%, transparent 100%);
 }
 
-/* ---- The line wave's word: a click target over it, and the box to type a new one ---- */
-.view-home > .home-word-edit {
+/* ---- The line wave's word: an invisible field over it; the lines themselves show the typing ---- */
+.view-home > .home-word-input {
   position: absolute;
   z-index: 1;
+  padding: 0;
   border: 1px dashed transparent;
   border-radius: 16px;
   background: none;
-  cursor: text;
-}
-
-.view-home > .home-word-edit:hover,
-.view-home > .home-word-edit:focus-visible {
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-}
-
-.view-home > .home-word-input {
-  position: absolute;
-  z-index: 2;
-  transform: translate(-50%, -50%);
-  width: min(440px, 80vw);
-  padding: 10px 16px;
-  border: 1px solid color-mix(in srgb, var(--accent) 60%, var(--border));
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: blur(8px);
-  color: var(--text);
+  /* The text, caret and selection are drawn by the lines, not by the field. */
+  color: transparent;
+  caret-color: transparent;
   font: inherit;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
   text-align: center;
-  text-transform: uppercase;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  cursor: text;
+  outline: none;
 }
 
-.view-home > .home-word-input::placeholder {
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
+.view-home > .home-word-input::selection {
+  background: transparent;
+}
+
+.view-home > .home-word-input:hover {
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.view-home > .home-word-input.is-editing,
+.view-home > .home-word-input:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 /* ---- Dev-only background switcher (bottom right; beats the page's own stacking rule for its children) ---- */
