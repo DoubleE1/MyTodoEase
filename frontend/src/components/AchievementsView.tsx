@@ -1,6 +1,19 @@
 import { format, parseISO } from 'date-fns';
 import { Lock, Trophy } from 'lucide-react';
-import { CATEGORY_TITLES, SHOP_TIERS, TOTAL_POINTS, type AchievementState, type Category } from '../lib/achievements';
+import type { ReactNode } from 'react';
+import {
+  CATEGORY_TITLES,
+  SHOP_CATEGORIES,
+  SHOP_ITEMS,
+  SHOP_TIERS,
+  TOTAL_POINTS,
+  type AchievementState,
+  type Category,
+  type ShopCategoryId,
+  type ShopItem,
+  type ShopTierId,
+} from '../lib/achievements';
+import { motionReduced } from '../lib/motion';
 import { useAchievements } from '../lib/useAchievements';
 import { datePattern, t } from '../i18n';
 
@@ -123,35 +136,122 @@ function AchievementCard({ state }: { state: AchievementState }) {
 }
 
 function Shop({ points }: { points: number }) {
+  // Jump to a section (the page scrolls inside the main pane).
+  const jump = (id: string) =>
+    document.getElementById(`shop-${id}`)?.scrollIntoView({ behavior: motionReduced() ? 'auto' : 'smooth', block: 'start' });
   return (
     <section className="shop" aria-label={t('Skin shop preview')}>
       <p className="settings-help">
         {t('Skins for your avatar, pet, borders, sticky notes, background and Insights are on the way. Points you earn now are kept for them. All 50 achievements buy one or two skins.')}
       </p>
-      <ul className="shop-grid">
-        {SHOP_TIERS.map((tier) => {
-          const short = Math.max(0, tier.price - points);
-          return (
-            <li key={tier.id} className={`shop-tier tier-${tier.id}`}>
-              <div className="shop-tier-head">
-                <span className="shop-tier-name">{tier.name}</span>
-                <span className="shop-tier-price">{t('{n} points', { n: tier.price.toLocaleString() })}</span>
-              </div>
-              <ul className="shop-examples">
-                {tier.examples.map((example) => (
-                  <li key={example}>{example}</li>
-                ))}
-              </ul>
-              <span className="muted small">
-                {short === 0 ? t('You have enough points for this tier.') : t('{n} more points to go.', { n: short.toLocaleString() })}
-              </span>
-              <button type="button" className="btn" disabled>
-                {t('Coming soon')}
-              </button>
-            </li>
-          );
-        })}
+      <nav className="shop-cats" aria-label={t('Shop sections')}>
+        {SHOP_CATEGORIES.map((category) => (
+          <button key={category.id} type="button" className="chip" onClick={() => jump(category.id)}>
+            {category.name}
+          </button>
+        ))}
+      </nav>
+      <ul className="shop-legend" aria-label={t('Prices')}>
+        {(Object.keys(SHOP_TIERS) as ShopTierId[]).map((tier) => (
+          <li key={tier} className={`tier-${tier}`}>
+            <span className="shop-legend-dot" aria-hidden="true" />
+            <span className="shop-legend-name">{SHOP_TIERS[tier].name}</span>
+            <span className="muted">{SHOP_TIERS[tier].price.toLocaleString()}</span>
+          </li>
+        ))}
       </ul>
+      {SHOP_CATEGORIES.map((category) => (
+        <section key={category.id} id={`shop-${category.id}`} className="shop-section" aria-labelledby={`shop-${category.id}-title`}>
+          <h2 id={`shop-${category.id}-title`} className="shop-section-title">
+            {category.name}
+          </h2>
+          <p className="muted small shop-section-desc">{category.description}</p>
+          <ul className="shop-grid">
+            {SHOP_ITEMS.filter((item) => item.category === category.id).map((item) => (
+              <ShopCard key={item.id} item={item} points={points} />
+            ))}
+          </ul>
+        </section>
+      ))}
     </section>
+  );
+}
+
+function ShopCard({ item, points }: { item: ShopItem; points: number }) {
+  const tier = item.tier ? SHOP_TIERS[item.tier] : null;
+  const short = tier ? Math.max(0, tier.price - points) : 0;
+  return (
+    <li className={`shop-item ${item.tier ? `tier-${item.tier}` : 'is-included'}`}>
+      <ShopPreview item={item} />
+      <div className="shop-item-body">
+        <div className="shop-item-head">
+          <span className="shop-item-name">{item.name}</span>
+          <span className="shop-item-tier">{tier ? tier.name : t('Included')}</span>
+        </div>
+        <span className="muted small shop-item-desc">{item.description}</span>
+        {tier ? (
+          <div className="shop-item-foot">
+            <span className="shop-item-price">{t('{n} points', { n: tier.price.toLocaleString() })}</span>
+            <span className="muted small">
+              {short === 0 ? t('Enough points') : t('{n} to go', { n: short.toLocaleString() })}
+            </span>
+          </div>
+        ) : (
+          <div className="shop-item-foot">
+            <span className="muted small">{t('Everyone has this one.')}</span>
+          </div>
+        )}
+        {tier && (
+          <button type="button" className="btn" disabled>
+            {t('Coming soon')}
+          </button>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/** A small picture of the skin: a sketch of the part of the app it changes, drawn in CSS (styles.css, .shop-preview). */
+function ShopPreview({ item }: { item: ShopItem }) {
+  const sketch: Record<ShopCategoryId, ReactNode> = {
+    background: null,
+    tab: (
+      <span className="shop-mock-tab">
+        <span className="shop-mock-icon" />
+        <span className="shop-mock-line" />
+      </span>
+    ),
+    dashboard: (
+      <span className="shop-mock-dash">
+        <span className="shop-mock-ring" />
+        <span className="shop-mock-bars">
+          {[40, 70, 30, 90, 55].map((h, i) => (
+            <span key={i} style={{ height: `${h}%` }} />
+          ))}
+        </span>
+      </span>
+    ),
+    calendar: (
+      <span className="shop-mock-cal">
+        {Array.from({ length: 14 }, (_, i) => (
+          <span key={i} className={i === 9 ? 'is-today' : ''} data-load={(i * 5) % 4} />
+        ))}
+      </span>
+    ),
+    notes: <span className="shop-mock-note" />,
+    insights: (
+      <span className="shop-mock-chart">
+        {[30, 55, 45, 80, 65, 95].map((h, i) => (
+          <span key={i} style={{ height: `${h}%` }} />
+        ))}
+      </span>
+    ),
+    profile: <span className="shop-mock-avatar" />,
+    bundle: <span className="shop-mock-avatar" />,
+  };
+  return (
+    <div className="shop-preview" data-preview={item.id} aria-hidden="true">
+      {sketch[item.category]}
+    </div>
   );
 }

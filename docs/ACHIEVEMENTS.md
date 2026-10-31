@@ -57,6 +57,23 @@ The last 2,000 points need the 365-day streak and the 1-year anniversary, so a f
 
 With all achievements (10,000): 1 Legendary, or 2 Rare, or 1 Epic + 1 Common, or 4 Common.
 
+### Shop sections
+
+The Shop page lists skins by what they change (`SHOP_CATEGORIES` and `SHOP_ITEMS` in
+`frontend/src/lib/achievements.ts`); rarity sets the price. Each section's first card is the look everyone has
+(Included).
+
+| Section | Skins |
+| ------- | ----- |
+| Background effects (Home page) | Plain (included), Dot trail (Rare), Character field, Line wave, Chroma trail (Epic) |
+| Tab effects (selected sidebar item) | Soft fill (included), Accent bar, Gradient pill (Common), Shimmer, Neon glow (Rare) |
+| Dashboard effects (sidebar progress card) | Classic (included), Aurora, Confetti finish (Rare), Constellation week (Epic) |
+| Calendar effects | Classic (included), Today spotlight, Busy-day glow (Common), Seasons (Rare) |
+| Sticky notes | Paper skin (Common), Washi tape (Rare) |
+| Insights | Colour theme (Rare), World pack (Epic) |
+| Profile | Profile border, Accent colour pack (Common), Avatar frame, Pet skin (Rare), Animated avatar frame (Epic) |
+| Bundles | Matching bundle (Legendary) |
+
 ## The 50 achievements
 
 Points are paid once, when the achievement unlocks. Hidden achievements show as "???" until unlocked.

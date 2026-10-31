@@ -398,16 +398,73 @@ export const pointsOf = (states: AchievementState[]) => states.filter((s) => s.u
 
 // ---------- Shop (preview: skins come with the "Skin change" task) ----------
 
-export interface ShopTier {
-  id: 'common' | 'rare' | 'epic' | 'legendary';
+export type ShopTierId = 'common' | 'rare' | 'epic' | 'legendary';
+
+/** Rarity sets the price (docs/ACHIEVEMENTS.md, "Shop prices"). */
+export const SHOP_TIERS: Record<ShopTierId, { name: string; price: number }> = {
+  common: { name: t('Common'), price: 2500 },
+  rare: { name: t('Rare'), price: 5000 },
+  epic: { name: t('Epic'), price: 7500 },
+  legendary: { name: t('Legendary'), price: 10000 },
+};
+
+export type ShopCategoryId = 'background' | 'tab' | 'dashboard' | 'calendar' | 'notes' | 'insights' | 'profile' | 'bundle';
+
+/** The shop's sections, in page order: what each kind of skin changes. */
+export const SHOP_CATEGORIES: { id: ShopCategoryId; name: string; description: string }[] = [
+  { id: 'background', name: t('Background effects'), description: t('Moving backgrounds for the Home page.') },
+  { id: 'tab', name: t('Tab effects'), description: t('How the selected item in the sidebar lights up.') },
+  { id: 'dashboard', name: t('Dashboard effects'), description: t('The progress card at the top of the sidebar.') },
+  { id: 'calendar', name: t('Calendar effects'), description: t('How today and busy days stand out in the calendar.') },
+  { id: 'notes', name: t('Sticky notes'), description: t('Paper and tape for your notes.') },
+  { id: 'insights', name: t('Insights'), description: t('Colours and designs for your Insights page.') },
+  { id: 'profile', name: t('Profile'), description: t('Your avatar, border and pet.') },
+  { id: 'bundle', name: t('Bundles'), description: t('A matching set in one theme.') },
+];
+
+export interface ShopItem {
+  id: string;
+  category: ShopCategoryId;
   name: string;
-  price: number;
-  examples: string[];
+  description: string;
+  /** Rarity (price); null for the look every account has (shown as Included). */
+  tier: ShopTierId | null;
 }
 
-export const SHOP_TIERS: ShopTier[] = [
-  { id: 'common', name: t('Common'), price: 2500, examples: [t('Static profile border'), t('Sticky-note paper skin'), t('Accent colour pack')] },
-  { id: 'rare', name: t('Rare'), price: 5000, examples: [t('Avatar frame'), t('Pet skin'), t('Subtle background effect'), t('Insights colour theme')] },
-  { id: 'epic', name: t('Epic'), price: 7500, examples: [t('Animated avatar frame'), t('Animated background effect'), t('Insights design (World pack)')] },
-  { id: 'legendary', name: t('Legendary'), price: 10000, examples: [t('Matching bundle: frame, border, note skin, background and pet in one theme')] },
+export const SHOP_ITEMS: ShopItem[] = [
+  { id: 'bg-plain', category: 'background', tier: null, name: t('Plain'), description: t('A calm, empty page.') },
+  { id: 'bg-dots', category: 'background', tier: 'rare', name: t('Dot trail'), description: t('A grid of dots that lights up behind the pointer.') },
+  { id: 'bg-field', category: 'background', tier: 'epic', name: t('Character field'), description: t('Drifting characters that part around the pointer.') },
+  { id: 'bg-lines', category: 'background', tier: 'epic', name: t('Line wave'), description: t('Lines that ripple and raise a word you choose.') },
+  { id: 'bg-chroma', category: 'background', tier: 'epic', name: t('Chroma trail'), description: t('A glowing light that signs your name.') },
+
+  { id: 'tab-fill', category: 'tab', tier: null, name: t('Soft fill'), description: t('The standard highlight.') },
+  { id: 'tab-bar', category: 'tab', tier: 'common', name: t('Accent bar'), description: t('A bright bar at the edge of the selected item.') },
+  { id: 'tab-gradient', category: 'tab', tier: 'common', name: t('Gradient pill'), description: t('The selected item in the brand gradient.') },
+  { id: 'tab-shimmer', category: 'tab', tier: 'rare', name: t('Shimmer'), description: t('A slow sheen across the selected item.') },
+  { id: 'tab-neon', category: 'tab', tier: 'rare', name: t('Neon glow'), description: t('A soft neon outline.') },
+
+  { id: 'dash-classic', category: 'dashboard', tier: null, name: t('Classic'), description: t('The standard progress card.') },
+  { id: 'dash-aurora', category: 'dashboard', tier: 'rare', name: t('Aurora'), description: t('Slow colour waves behind the card.') },
+  { id: 'dash-confetti', category: 'dashboard', tier: 'rare', name: t('Confetti finish'), description: t('A burst of confetti when the day is done.') },
+  { id: 'dash-stars', category: 'dashboard', tier: 'epic', name: t('Constellation week'), description: t('Your week drawn as linked stars.') },
+
+  { id: 'cal-classic', category: 'calendar', tier: null, name: t('Classic'), description: t('The standard calendar.') },
+  { id: 'cal-spotlight', category: 'calendar', tier: 'common', name: t('Today spotlight'), description: t('A soft light on today.') },
+  { id: 'cal-heat', category: 'calendar', tier: 'common', name: t('Busy-day glow'), description: t('Days glow warmer the more they hold.') },
+  { id: 'cal-seasons', category: 'calendar', tier: 'rare', name: t('Seasons'), description: t('Gentle seasonal colours for each month.') },
+
+  { id: 'note-paper', category: 'notes', tier: 'common', name: t('Sticky-note paper skin'), description: t('Kraft, grid or lined paper.') },
+  { id: 'note-tape', category: 'notes', tier: 'rare', name: t('Washi tape'), description: t('A strip of patterned tape on each note.') },
+
+  { id: 'ins-colours', category: 'insights', tier: 'rare', name: t('Insights colour theme'), description: t('New colours for every chart.') },
+  { id: 'ins-world', category: 'insights', tier: 'epic', name: t('Insights design (World pack)'), description: t('Your progress as a small isometric world.') },
+
+  { id: 'prof-border', category: 'profile', tier: 'common', name: t('Static profile border'), description: t('A border round your profile.') },
+  { id: 'prof-accent', category: 'profile', tier: 'common', name: t('Accent colour pack'), description: t('New accent colours for the app.') },
+  { id: 'prof-frame', category: 'profile', tier: 'rare', name: t('Avatar frame'), description: t('A frame for your avatar.') },
+  { id: 'prof-pet', category: 'profile', tier: 'rare', name: t('Pet skin'), description: t('A new look for your pet.') },
+  { id: 'prof-animated', category: 'profile', tier: 'epic', name: t('Animated avatar frame'), description: t('A frame that moves.') },
+
+  { id: 'bundle-theme', category: 'bundle', tier: 'legendary', name: t('Matching bundle'), description: t('Frame, border, note skin, background and pet in one theme.') },
 ];

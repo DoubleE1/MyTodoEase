@@ -25,6 +25,9 @@ Newest first. Each release is a GitHub release with the Windows installer; todoe
   Archive, Delete and Turn into tasks. Shift+F10 or the menu key opens a selected note's menu.
   Paste as note reads the clipboard in the desktop app; a browser that blocks it gets an empty note and a Ctrl+V hint.
 - Notes board: drag an archived note from the Archived panel onto the board to put it back where you drop it.
+- Shop: skins grouped by what they change (Background, Tab, Dashboard and Calendar effects, Sticky notes, Insights,
+  Profile, Bundles), each with a small preview, its rarity and price, and how many points to go. Buttons at the top
+  jump to a section.
 
 ### Fixed
 - Notes board: a note dragged or resized quickly now keeps up with the mouse instead of stopping halfway.
