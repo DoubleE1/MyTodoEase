@@ -68,6 +68,7 @@ export function AsciiField({
     let ink = '#e8e8e8';
     let brand = ['#4f96ff', '#8a5cff', '#ff5fa8'];
     let opacity = 0.92;
+    let dark = true;
     /** Clicks rippling out (todoease): a ring of ticks, in canvas pixels. */
     let rings: { x: number; y: number; at: number }[] = [];
     let clear: { left: number; top: number; right: number; bottom: number }[] = [];
@@ -107,7 +108,8 @@ export function AsciiField({
       const css = getComputedStyle(root);
       ink = css.getPropertyValue('--text').trim() || '#e8e8e8';
       brand = ['--brand-1', '--brand-2', '--brand-3'].map((name, i) => css.getPropertyValue(name).trim() || brand[i]);
-      opacity = root.dataset.theme === 'dark' ? 0.92 : 0.9;
+      dark = root.dataset.theme === 'dark';
+      opacity = dark ? 0.92 : 0.9;
     };
 
     /** Each glyph drawn once per colour band and strength: row = band x strength, column = glyph. */
@@ -125,10 +127,12 @@ export function AsciiField({
       const ascent = m.actualBoundingBoxAscent || 0.74 * ch * 0.7;
       const baseline = (ch + ascent - (m.actualBoundingBoxDescent || 0)) / 2;
       for (let b = 0; b < BANDS; b++) {
-        atlasCtx.fillStyle = BANDS === 1 ? ink : gradientAt(brand, b / (BANDS - 1));
+        // On a light page the brand colours are too pale: a little darker, and drawn stronger (LIGHT_BOOST).
+        atlasCtx.fillStyle = BANDS === 1 ? ink : gradientAt(brand, b / (BANDS - 1), dark ? 0 : 0.25);
+        const boost = BANDS > 1 && !dark ? LIGHT_BOOST : 1;
         for (let s = 0; s < SHADES; s++) {
           const top = (b * SHADES + s) * ch;
-          atlasCtx.globalAlpha = ((s + 1) / SHADES) * opacity;
+          atlasCtx.globalAlpha = Math.min(1, ((s + 1) / SHADES) * opacity * boost);
           glyphs.forEach((glyph, i) => {
             if (glyph === ' ') return;
             const cx = i * cw + cw / 2;
@@ -460,13 +464,16 @@ const FIELD_STYLES: Record<FieldVariant, FieldStyle> = {
 /** How long a click ring takes to spread and fade, in seconds. */
 const RING_S = 1.1;
 
-/** A colour along a gradient of stops (#rrggbb or rgb()), at t from 0 to 1. */
-function gradientAt(stops: string[], t: number): string {
+/** How much stronger the brand-coloured marks are drawn on a light page. */
+const LIGHT_BOOST = 1.5;
+
+/** A colour along a gradient of stops (#rrggbb or rgb()), at t from 0 to 1, darkened by a share towards black. */
+function gradientAt(stops: string[], t: number, darken = 0): string {
   const rgb = stops.map(parseColour);
   const x = Math.min(1, Math.max(0, t)) * (rgb.length - 1);
   const i = Math.min(rgb.length - 2, Math.floor(x));
   const k = x - i;
-  const mix = rgb[i].map((c, j) => Math.round(c + (rgb[i + 1][j] - c) * k));
+  const mix = rgb[i].map((c, j) => Math.round((c + (rgb[i + 1][j] - c) * k) * (1 - darken)));
   return `rgb(${mix[0]}, ${mix[1]}, ${mix[2]})`;
 }
 
