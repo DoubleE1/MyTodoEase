@@ -3,8 +3,9 @@ import { motionReduced } from '../lib/motion';
 
 /**
  * A black hole: a tilted, spinning disk of purple light round a black centre with a bright rim, after the classic
- * canvas "blackhole" demo. Each particle draws a short line from where it was to where it is, over a picture that
- * fades a little every frame, so the disk is made of light streaks.
+ * canvas "blackhole" demo. Each particle is drawn with a short tail through where it was over the last moment,
+ * fading towards its end, so the disk is made of light streaks. The tails are kept relative to the hole, so they
+ * travel with it, and the canvas is cleared every frame (no fading picture, so no faint haze builds up).
  *
  * Every particle makes one journey: it starts at the page's edge, spirals in the way the disk turns (its orbit round
  * far out, flattening into the disk's tilted plane as it nears it), slows down and joins the disk, drifts inwards
@@ -23,18 +24,13 @@ import { motionReduced } from '../lib/motion';
  */
 export function BlackHole({ className, below }: { className?: string; below?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // The near half of the disk is drawn on a layer of its own over the hole, so its streaks keep their tails as they
-  // cross it (the hole is painted afresh every frame on the layer below).
-  const frontRef = useRef<HTMLCanvasElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const frontCanvas = frontRef.current;
     const glow = glowRef.current;
     const ctx = canvas?.getContext('2d');
-    const fctx = frontCanvas?.getContext('2d');
-    if (!canvas || !frontCanvas || !glow || !ctx || !fctx) return;
+    if (!canvas || !glow || !ctx) return;
 
     /** The disk's tilt (radians, rising to the right) and how flat it looks (height over width). */
     const TILT = -0.22;
@@ -48,8 +44,11 @@ export function BlackHole({ className, below }: { className?: string; below?: st
      */
     const SPRING = 10;
     const DAMPING = 2 * Math.sqrt(SPRING);
-    /** Share of the picture that fades each second (the length of the streaks). */
-    const FADE = 9;
+    /** Points kept for each particle's tail, one every TRAIL_STEP seconds (the tail's length), and how bright its
+     *  newest, middle and oldest parts are. */
+    const TRAIL = 6;
+    const TRAIL_STEP = 1 / 30;
+    const AGE_ALPHA = [1, 0.6, 0.28];
     /** Brightness levels, from the dim outer edge (0) to white (5). */
     const LEVELS = 6;
 
@@ -58,9 +57,8 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     let dark = true;
     let frame = 0;
     let lastFrame = 0;
-    let dpr = 1;
-    /** Where the hole was when the trails' picture was last moved along with it. */
-    let drawn = { x: 0, y: 0 };
+    /** Time since the tails last took a point. */
+    let sinceSample = 0;
 
     /** Horizon radius, and the disk's inner and outer edges (px). */
     let hole = 30;
@@ -80,15 +78,15 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     let burst = 0;
 
     // Particles: the radius and angle of their orbit round the hole (in the disk's plane), their own centre (trailing
-    // the hole), last drawn point, sparkle. One set for everything: a particle starts at the page's edge, spirals in,
+    // the hole), sparkle, and their tail's points (relative to the hole, newest first). One set for everything: a particle starts at the page's edge, spirals in,
     // slows down and joins the disk, drifts through it, and drops into the hole.
     let n = 0;
     let r = new Float32Array(0);
     let a = new Float32Array(0);
     let ox = new Float32Array(0);
     let oy = new Float32Array(0);
-    let px = new Float32Array(0);
-    let py = new Float32Array(0);
+    let hx = new Float32Array(0);
+    let hy = new Float32Array(0);
     let shine = new Float32Array(0);
     /** Where particles start: the page's far corner from the hole. */
     let reach = 400;
@@ -146,9 +144,10 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       a[i] = Math.random() * Math.PI * 2;
       ox[i] = center.x;
       oy[i] = center.y;
+      // A new particle has no tail yet: every point of it is where the particle is.
       const p = point(i);
-      px[i] = p.x;
-      py[i] = p.y;
+      hx.fill(p.x - center.x, i * TRAIL, (i + 1) * TRAIL);
+      hy.fill(p.y - center.y, i * TRAIL, (i + 1) * TRAIL);
     };
 
     /**
@@ -172,15 +171,10 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       const rect = canvas.getBoundingClientRect();
       width = rect.width;
       height = rect.height;
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
-      for (const [c, x] of [
-        [canvas, ctx],
-        [frontCanvas, fctx],
-      ] as const) {
-        c.width = Math.max(1, Math.round(width * dpr));
-        c.height = Math.max(1, Math.round(height * dpr));
-        x.setTransform(dpr, 0, 0, dpr, 0, 0);
-      }
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.max(1, Math.round(width * dpr));
+      canvas.height = Math.max(1, Math.round(height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       // The disk's size follows the space; the hole is small inside it, so most of the disk is light.
       const scale = Math.max(18, Math.min(60, Math.min(width, height * 2) * 0.062));
@@ -191,7 +185,6 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       center = { ...home };
       target = { ...home };
       velocity = { x: 0, y: 0 };
-      drawn = { ...center };
       // Crossing about its own disk's width per second at most.
       topSpeed = Math.max(140, outer * 0.8);
 
@@ -202,8 +195,8 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       a = new Float32Array(n);
       ox = new Float32Array(n);
       oy = new Float32Array(n);
-      px = new Float32Array(n);
-      py = new Float32Array(n);
+      hx = new Float32Array(n * TRAIL);
+      hy = new Float32Array(n * TRAIL);
       shine = new Float32Array(n);
       const radii = journey();
       for (let i = 0; i < n; i++) {
@@ -214,10 +207,9 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       const size = outer * 3.2;
       glow.style.width = glow.style.height = `${size}px`;
       ctx.clearRect(0, 0, width, height);
-      fctx.clearRect(0, 0, width, height);
     };
 
-    // One path per brightness level, behind and in front of the hole, so a frame is twelve strokes.
+    // One path per tail age and brightness level, behind and in front of the hole.
     const back: Path2D[] = [];
     const front: Path2D[] = [];
 
@@ -231,29 +223,17 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       }
       center.x += velocity.x * dt;
       center.y += velocity.y * dt;
-      // The trails travel with the hole, so moving it carries the disk's streaks along (they stay arcs) instead of
-      // smearing them into straight lines; only particles that lag behind leave a tail. Whole device pixels, so the
-      // picture never blurs.
-      const sx = Math.round((center.x - drawn.x) * dpr);
-      const sy = Math.round((center.y - drawn.y) * dpr);
-      if (sx || sy) {
-        shift(canvas, ctx, sx, sy);
-        shift(frontCanvas, fctx, sx, sy);
-        drawn.x += sx / dpr;
-        drawn.y += sy / dpr;
-        for (let i = 0; i < n; i++) {
-          px[i] += sx / dpr;
-          py[i] += sy / dpr;
-        }
-      }
       pull += (pullTarget - pull) * (1 - Math.exp(-5 * dt));
       kick *= Math.exp(-2.2 * dt);
       burst += (kick - burst) * (1 - Math.exp(-9 * dt));
 
-      for (let l = 0; l < LEVELS; l++) {
-        back[l] = new Path2D();
-        front[l] = new Path2D();
+      for (let k = 0; k < AGE_ALPHA.length * LEVELS; k++) {
+        back[k] = new Path2D();
+        front[k] = new Path2D();
       }
+      sinceSample += dt;
+      const sample = sinceSample >= TRAIL_STEP;
+      if (sample) sinceSample %= TRAIL_STEP;
 
       for (let i = 0; i < n; i++) {
         // Each orbit is carried along with the hole: inner ones tightly, outer ones and the dust on its way in a
@@ -285,45 +265,47 @@ export function BlackHole({ className, below }: { className?: string; below?: st
         }
         level = Math.max(0, Math.min(LEVELS - 1, level));
         // The near half of the disk passes in front of the hole (across its lower part), so it reads as orbiting.
-        const path = Math.sin(a[i]) > 0 && r[i] < outer * 1.4 ? front[level] : back[level];
-        path.moveTo(px[i], py[i]);
-        path.lineTo(p.x, p.y);
-        px[i] = p.x;
-        py[i] = p.y;
+        const paths = Math.sin(a[i]) > 0 && r[i] < outer * 1.4 ? front : back;
+        // The tail: from where the particle is back through its earlier points (relative to the hole, so it travels
+        // with it), two segments per age.
+        const base = i * TRAIL;
+        let x = p.x;
+        let y = p.y;
+        for (let k = 0; k < TRAIL; k++) {
+          const path = paths[(k >> 1) * LEVELS + level];
+          const nx = hx[base + k] + center.x;
+          const ny = hy[base + k] + center.y;
+          path.moveTo(x, y);
+          path.lineTo(nx, ny);
+          x = nx;
+          y = ny;
+        }
+        if (sample) {
+          hx.copyWithin(base + 1, base, base + TRAIL - 1);
+          hy.copyWithin(base + 1, base, base + TRAIL - 1);
+          hx[base] = p.x - center.x;
+          hy[base] = p.y - center.y;
+        }
       }
     };
 
     const strokeAll = (c: CanvasRenderingContext2D, paths: Path2D[]) => {
       c.lineCap = 'round';
       c.globalCompositeOperation = dark ? 'lighter' : 'source-over';
-      for (let l = 0; l < LEVELS; l++) {
-        c.strokeStyle = colours[l];
-        c.lineWidth = 0.8 + l * 0.22;
-        c.stroke(paths[l]);
-      }
+      AGE_ALPHA.forEach((alpha, age) => {
+        c.globalAlpha = alpha;
+        for (let l = 0; l < LEVELS; l++) {
+          c.strokeStyle = colours[l];
+          c.lineWidth = 0.8 + l * 0.22;
+          c.stroke(paths[age * LEVELS + l]);
+        }
+      });
+      c.globalAlpha = 1;
       c.globalCompositeOperation = 'source-over';
     };
 
-    /** Fade what is there (keeping the canvas see-through, so the page shows behind in both themes). */
-    const fade = (c: CanvasRenderingContext2D, dt: number) => {
-      c.globalCompositeOperation = 'destination-out';
-      c.fillStyle = `rgba(0,0,0,${1 - Math.exp(-FADE * dt)})`;
-      c.fillRect(0, 0, width, height);
-      c.globalCompositeOperation = 'source-over';
-    };
-
-    /** Move a layer's picture by (dx, dy) device pixels. */
-    const shift = (c: HTMLCanvasElement, x: CanvasRenderingContext2D, dx: number, dy: number) => {
-      x.save();
-      x.setTransform(1, 0, 0, 1, 0, 0);
-      x.globalCompositeOperation = 'copy';
-      x.drawImage(c, dx, dy);
-      x.restore();
-    };
-
-    const draw = (dt: number) => {
-      fade(ctx, dt);
-      fade(fctx, dt);
+    const draw = () => {
+      ctx.clearRect(0, 0, width, height);
       strokeAll(ctx, back);
 
       // The hole, with a thin bright rim of bent light.
@@ -342,7 +324,8 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       ctx.stroke();
       ctx.restore();
 
-      strokeAll(fctx, front);
+      // The near half of the disk, over the hole.
+      strokeAll(ctx, front);
 
       const size = outer * 3.2;
       glow.style.transform = `translate(${center.x - size / 2}px, ${center.y - size / 2}px) scale(${1 + burst * 0.4})`;
@@ -354,17 +337,17 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       const dt = Math.min(0.05, lastFrame ? (now - lastFrame) / 1000 : 1 / 60);
       lastFrame = now;
       step(dt);
-      draw(dt);
+      draw();
       if (!document.hidden && !motionReduced()) frame = requestAnimationFrame(loop);
       else lastFrame = 0;
     };
     const start = () => {
       if (frame) return;
       if (motionReduced()) {
-        // One still picture: a moment of the disk turning.
+        // One still picture: a moment of the disk turning (long enough for the tails to fill in).
         for (let k = 0; k < 24; k++) {
           step(1 / 60);
-          draw(1 / 60);
+          draw();
         }
         return;
       }
@@ -381,7 +364,6 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     const theme = new MutationObserver(() => {
       readTheme();
       ctx.clearRect(0, 0, width, height);
-      fctx.clearRect(0, 0, width, height);
       if (motionReduced()) start();
     });
     theme.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -452,7 +434,6 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     <div className={`blackhole ${className ?? ''}`} aria-hidden="true">
       <div ref={glowRef} className="blackhole-glow" />
       <canvas ref={canvasRef} className="blackhole-canvas" />
-      <canvas ref={frontRef} className="blackhole-canvas" />
     </div>
   );
 }
