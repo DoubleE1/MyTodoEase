@@ -442,7 +442,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app ${shellClass}`}>
+    <div className={`app ${shellClass} ${effectiveView.kind === 'home' ? 'is-home' : ''}`}>
       {titleBar}
       {/* Home sits above the features, so the Tasks sidebar is not shown there. */}
       {effectiveView.kind !== 'home' && (

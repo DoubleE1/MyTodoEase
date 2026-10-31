@@ -705,7 +705,6 @@ export const zhCN: Record<string, string> = {
   "Wallet": "钱包",
   "{due} due today": "今天到期 {due} 项",
   "{due} due today · {late} overdue": "今天到期 {due} 项 · 逾期 {late} 项",
-  "{greeting}, {name}": "{greeting}，{name}",
   "{n} notes": "{n} 张便签",
   "Todo": "待办",
   "Tasks, projects, calendar and sticky notes.": "任务、项目、日历和便签。",

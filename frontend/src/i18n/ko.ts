@@ -705,7 +705,6 @@ export const ko: Record<string, string> = {
   "Wallet": "지갑",
   "{due} due today": "오늘 마감 {due}개",
   "{due} due today · {late} overdue": "오늘 마감 {due}개 · 지난 마감 {late}개",
-  "{greeting}, {name}": "{greeting}, {name}님",
   "{n} notes": "메모 {n}개",
   "Todo": "할 일",
   "Tasks, projects, calendar and sticky notes.": "작업, 프로젝트, 캘린더, 스티커 메모.",

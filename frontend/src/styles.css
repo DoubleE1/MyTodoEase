@@ -7814,6 +7814,24 @@ body.is-resizing-span * {
   background: var(--bg-hover);
 }
 
+/* Home is a plain page: no dotted header art and no glass panel (both belong to the feature pages). */
+.app.is-home .main {
+  background: var(--bg);
+}
+
+.app.is-home .main-art {
+  display: none;
+}
+
+.view.view-home {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .view-home {
   max-width: 860px;
   margin: 0 auto;
@@ -7827,7 +7845,7 @@ body.is-resizing-span * {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 40px;
+  margin-bottom: 48px;
 }
 
 /* The profile button is made for the sidebar footer; on Home it sizes to its content. */
@@ -7836,21 +7854,9 @@ body.is-resizing-span * {
   flex: 0 0 auto;
 }
 
-.home-head h1 {
-  margin: 0;
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.home-head p {
-  margin: 6px 0 0;
-  font-size: 15px;
-}
-
 .home-grid {
   list-style: none;
-  margin: 36px 0 0;
+  margin: 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -7975,9 +7981,6 @@ button.home-card:hover .home-card-arrow {
 @media (max-width: 640px) {
   .view-home {
     padding: 32px 16px;
-  }
-  .home-head h1 {
-    font-size: 24px;
   }
   .home-card {
     min-height: 0;

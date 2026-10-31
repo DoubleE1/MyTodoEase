@@ -705,7 +705,6 @@ export const ja: Record<string, string> = {
   "Wallet": "ウォレット",
   "{due} due today": "今日が期限 {due} 件",
   "{due} due today · {late} overdue": "今日が期限 {due} 件 · 期限切れ {late} 件",
-  "{greeting}, {name}": "{greeting}、{name}さん",
   "{n} notes": "付箋 {n} 枚",
   "Todo": "Todo",
   "Tasks, projects, calendar and sticky notes.": "タスク、プロジェクト、カレンダー、付箋。",

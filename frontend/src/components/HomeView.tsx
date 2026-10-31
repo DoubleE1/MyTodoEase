@@ -1,4 +1,3 @@
-import { format } from 'date-fns';
 import { ArrowRight, BookOpen, CircleCheckBig, Wallet } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { Note, Task } from '../api/types';
@@ -6,11 +5,9 @@ import { todayStr } from '../lib/dates';
 import type { ThemePreference } from '../lib/theme';
 import type { View } from '../lib/views';
 import { ProfileMenu } from './AccountMenu';
-import { greeting } from './Dashboard';
 import type { ConfirmOptions } from './Dialogs';
 import { Wordmark } from './Logo';
-import { useCloudUser } from './SessionGate';
-import { datePattern, t } from '../i18n';
+import { t } from '../i18n';
 
 interface Feature {
   id: string;
@@ -45,10 +42,6 @@ export function HomeView({
   themePreference: ThemePreference;
   onSetTheme: (preference: ThemePreference) => void;
 }) {
-  const user = useCloudUser();
-  const now = new Date();
-  const firstName = user?.displayName?.split(' ')[0];
-
   const today = todayStr();
   const dueToday = tasks.filter((task) => task.dueDate === today).length;
   const overdue = tasks.filter((task) => task.dueDate !== null && task.dueDate < today).length;
@@ -103,11 +96,6 @@ export function HomeView({
           onSetTheme={onSetTheme}
         />
       </div>
-      <header className="home-head">
-        <h1>{firstName ? t('{greeting}, {name}', { greeting: greeting(now), name: firstName }) : greeting(now)}</h1>
-        <p className="muted">{format(now, datePattern('weekdayLong'))}</p>
-      </header>
-
       <ul className="home-grid" aria-label={t('Features')}>
         {features.map((feature) => (
           <li key={feature.id} style={{ '--tone': feature.tone } as React.CSSProperties}>
