@@ -23,6 +23,8 @@ Newest first. Each release is a GitHub release with the Windows installer; todoe
 - Notes board right-click menus. On the empty board: New note here, New sticky note window (desktop app),
   Paste as note, Show all notes, Back to 100%, Show/Hide archived. On a note: its colours, Open in its own window,
   Archive, Delete and Turn into tasks. Shift+F10 or the menu key opens a selected note's menu.
+  Paste as note reads the clipboard in the desktop app; a browser that blocks it gets an empty note and a Ctrl+V hint.
+- Notes board: drag an archived note from the Archived panel onto the board to put it back where you drop it.
 
 ### Fixed
 - Notes board: a note dragged or resized quickly now keeps up with the mouse instead of stopping halfway.

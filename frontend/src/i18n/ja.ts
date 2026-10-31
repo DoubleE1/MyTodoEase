@@ -720,4 +720,5 @@ export const ja: Record<string, string> = {
   "Show archived": "アーカイブを表示",
   "The browser did not allow reading the clipboard. Press Ctrl+V in the new note to paste.": "ブラウザーがクリップボードの読み取りを許可しませんでした。新しいメモで Ctrl+V を押して貼り付けてください。",
   "There is no text on the clipboard.": "クリップボードにテキストがありません。",
+  "Drag a note onto the board to put it back there.": "メモをボードにドラッグすると、その場所に戻せます。",
 };

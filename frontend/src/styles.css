@@ -4122,6 +4122,38 @@ p.detail-description {
   translate: none;
 }
 
+/* Archived notes are dragged onto the board to put them back (the Restore button does it too). */
+.notes-archived .note-card.is-archived {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.notes-archived .note-card.is-archived.is-lifted {
+  opacity: 0.3;
+}
+
+.notes-archived-hint {
+  margin: -6px 0 10px;
+}
+
+/* The archived note being dragged: the note at the board's zoom, following the pointer. */
+.note-card.note-drag-ghost {
+  position: fixed;
+  z-index: 200;
+  min-height: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+  cursor: grabbing;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+/* Over the Archived panel (or off the board), letting go leaves it archived. */
+.note-card.note-drag-ghost.is-off-board {
+  opacity: 0.45;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .note-card {
     transition: none;

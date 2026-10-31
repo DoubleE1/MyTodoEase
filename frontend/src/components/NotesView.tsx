@@ -15,6 +15,7 @@ import {
   ZoomOut,
 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useNoteMutations, useNotes } from '../api/hooks';
 import { NOTE_COLORS, type Label, type Note, type NoteInput, type Project, type Section } from '../api/types';
 import { ContextMenu } from './ContextMenu';
@@ -176,6 +177,12 @@ export function NotesView({
   const [drag, setDrag] = useState<{ id: string } | null>(null);
   const [resize, setResize] = useState<{ id: string; x: number; y: number; w: number; h: number } | null>(null);
   const [panning, setPanning] = useState(false);
+  /**
+   * An archived note being dragged out of the Archived panel: drawn at the board's zoom under the pointer
+   * (client position of its top-left corner), and whether letting go here would put it on the board.
+   */
+  const [archivedDrag, setArchivedDrag] = useState<{ note: Note; left: number; top: number; overBoard: boolean } | null>(null);
+  const archivedPanelRef = useRef<HTMLElement>(null);
   /** The board's right-click menu: where it opened (client) and the board point under it. */
   const [boardMenu, setBoardMenu] = useState<{ x: number; y: number; at: { x: number; y: number } } | null>(null);
 
@@ -640,6 +647,49 @@ export function NotesView({
     });
   };
 
+  /**
+   * Drag an archived note out of the Archived panel and drop it on the board to put it back there, where it was
+   * let go. A press that does not move (or moves under 4 px) stays a click; Escape or letting go over the panel
+   * (or outside the board) leaves it archived.
+   */
+  const startArchivedDrag = (note: Note, event: ReactPointerEvent<HTMLElement>) => {
+    if (event.button !== 0 || (event.target as Element).closest('button, a')) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    // Where the card was grabbed, in the dragged copy's size (the note at the board's zoom).
+    const scale = (widthOf(note) * view.current.z) / rect.width;
+    const grabX = (startX - rect.left) * scale;
+    const grabY = (startY - rect.top) * scale;
+    const inside = (r: DOMRect | undefined, x: number, y: number) => !!r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    const overBoard = (x: number, y: number) =>
+      inside(canvasRef.current?.getBoundingClientRect(), x, y) && !inside(archivedPanelRef.current?.getBoundingClientRect(), x, y);
+    let moved = false;
+    const finish = (e: PointerEvent | null) => {
+      stop();
+      window.removeEventListener('keydown', onKey, true);
+      setArchivedDrag(null);
+      if (!e || !moved || !overBoard(e.clientX, e.clientY)) return;
+      const at = boardPoint(e.clientX - grabX, e.clientY - grabY);
+      const w = widthOf(note);
+      save(note, { isArchived: false, order: topOrder + 1, x: clampX(at.x, w), y: clampY(at.y, note.h ?? NOTE_HEIGHT_GUESS) });
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      finish(null);
+    };
+    const stop = followPointer(
+      (e) => {
+        if (!moved && Math.hypot(e.clientX - startX, e.clientY - startY) < 4) return;
+        moved = true;
+        setArchivedDrag({ note, left: e.clientX - grabX, top: e.clientY - grabY, overBoard: overBoard(e.clientX, e.clientY) });
+      },
+      (e) => finish(e),
+    );
+    window.addEventListener('keydown', onKey, true);
+  };
+
   const remove = async (note: Note) => {
     if (note.text.trim()) {
       const ok = await confirm({
@@ -784,11 +834,17 @@ export function NotesView({
           </div>
 
           {showArchived && archived.length > 0 && (
-            <section className="notes-archived" aria-label={t('Archived notes')}>
+            <section ref={archivedPanelRef} className="notes-archived" aria-label={t('Archived notes')}>
               <h2 className="notes-archived-title">{t('Archived')}</h2>
+              <p className="notes-archived-hint muted small">{t('Drag a note onto the board to put it back there.')}</p>
               <div className="notes-grid">
                 {archived.map((note) => (
-                  <article key={note.id} className="note-card is-archived" data-color={note.color}>
+                  <article
+                    key={note.id}
+                    className={`note-card is-archived ${archivedDrag?.note.id === note.id ? 'is-lifted' : ''}`}
+                    data-color={note.color}
+                    onPointerDown={(e) => startArchivedDrag(note, e)}
+                  >
                     {note.text ? (
                       <MarkdownText text={note.text} className="md note-text-static" />
                     ) : (
@@ -837,6 +893,31 @@ export function NotesView({
           )}
         </div>
       )}
+
+      {/* The archived note being dragged back: the note at the board's size, under the pointer. */}
+      {archivedDrag &&
+        createPortal(
+          <div
+            className={`note-card note-drag-ghost ${archivedDrag.overBoard ? '' : 'is-off-board'}`}
+            data-color={archivedDrag.note.color}
+            style={{
+              left: archivedDrag.left,
+              top: archivedDrag.top,
+              width: widthOf(archivedDrag.note),
+              transform: `scale(${view.current.z})`,
+            }}
+            aria-hidden="true"
+          >
+            {archivedDrag.note.text ? (
+              <MarkdownText text={archivedDrag.note.text} className="md note-text-static" />
+            ) : (
+              <div className="note-text-static">
+                <span className="muted">(empty)</span>
+              </div>
+            )}
+          </div>,
+          document.body,
+        )}
 
       {boardMenu && (
         <ContextMenu at={boardMenu} label={t('Board actions')} onClose={() => setBoardMenu(null)}>
