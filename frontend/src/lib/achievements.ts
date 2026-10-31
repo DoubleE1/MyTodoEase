@@ -437,6 +437,7 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'bg-field', category: 'background', tier: 'epic', name: t('Character field'), description: t('Drifting characters that part around the pointer.') },
   { id: 'bg-lines', category: 'background', tier: 'epic', name: t('Line wave'), description: t('Lines that ripple and raise a word you choose.') },
   { id: 'bg-chroma', category: 'background', tier: 'epic', name: t('Chroma trail'), description: t('A glowing light that signs your name.') },
+  { id: 'bg-blackhole', category: 'background', tier: 'legendary', name: t('Black hole'), description: t('A spinning disk of light that follows the pointer and pulls everything in.') },
 
   { id: 'tab-fill', category: 'tab', tier: null, name: t('Soft fill'), description: t('The standard highlight.') },
   { id: 'tab-bar', category: 'tab', tier: 'common', name: t('Accent bar'), description: t('A bright bar at the edge of the selected item.') },

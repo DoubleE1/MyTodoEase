@@ -795,4 +795,9 @@ export const ja: Record<string, string> = {
   "Click the preview and the light follows the pointer; click again and it signs the word.": "プレビューをクリックすると光がポインターを追い、もう一度クリックすると文字をサインします。",
   "Move the pointer over the preview.": "プレビューの上でポインターを動かしてください。",
   "A sketch: this skin is still being made.": "スケッチです：このスキンは制作中です。",
+  // Shop: black hole background.
+  "Black hole": "ブラックホール",
+  "A spinning disk of light that follows the pointer and pulls everything in.": "ポインターを追いかけ、すべてを引き込む回転する光の円盤。",
+  "It follows the pointer. Hold the mouse button to pull harder; click and the disk flares out.": "ポインターを追いかけます。マウスボタンを押し続けると強く引き込み、クリックすると円盤が外へ広がります。",
+  "1 more skin": "ほかに 1 個のスキン",
 };

@@ -795,4 +795,9 @@ export const ko: Record<string, string> = {
   "Click the preview and the light follows the pointer; click again and it signs the word.": "미리보기를 클릭하면 빛이 포인터를 따라가고, 다시 클릭하면 단어를 사인해요.",
   "Move the pointer over the preview.": "미리보기 위로 포인터를 움직여 보세요.",
   "A sketch: this skin is still being made.": "스케치예요: 이 스킨은 아직 만드는 중이에요.",
+  // Shop: black hole background.
+  "Black hole": "블랙홀",
+  "A spinning disk of light that follows the pointer and pulls everything in.": "포인터를 따라가며 모든 것을 끌어당기는 회전하는 빛의 원반.",
+  "It follows the pointer. Hold the mouse button to pull harder; click and the disk flares out.": "포인터를 따라가요. 마우스 버튼을 누르고 있으면 더 세게 끌어당기고, 클릭하면 원반이 밖으로 퍼져요.",
+  "1 more skin": "스킨 1개 더",
 };

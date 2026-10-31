@@ -795,4 +795,9 @@ export const zhCN: Record<string, string> = {
   "Click the preview and the light follows the pointer; click again and it signs the word.": "点击预览，光线会跟随鼠标；再点一次，它会写出文字。",
   "Move the pointer over the preview.": "将鼠标移到预览上。",
   "A sketch: this skin is still being made.": "示意图：这个皮肤还在制作中。",
+  // Shop: black hole background.
+  "Black hole": "黑洞",
+  "A spinning disk of light that follows the pointer and pulls everything in.": "一圈旋转的光盘，跟随鼠标并把一切吸进去。",
+  "It follows the pointer. Hold the mouse button to pull harder; click and the disk flares out.": "它会跟随鼠标。按住鼠标键吸得更猛；点击一下，光盘会向外迸发。",
+  "1 more skin": "还有 1 款皮肤",
 };

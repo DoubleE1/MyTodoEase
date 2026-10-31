@@ -7,6 +7,7 @@ import type { ThemePreference } from '../lib/theme';
 import type { View } from '../lib/views';
 import { ProfileMenu } from './AccountMenu';
 import { AsciiField } from './AsciiField';
+import { BlackHole } from './BlackHole';
 import { ChromaTrail } from './ChromaTrail';
 import { DotTrail } from './DotTrail';
 import { LineField, type WordBox } from './LineField';
@@ -113,6 +114,7 @@ export function HomeView({
         {background === 'field-todoease' && <AsciiField word="TodoEase" variant="todoease" clearOf={HOME_CLEAR} className="home-field" />}
         {background === 'dots-full' && <DotTrail className="home-field" />}
         {background === 'chroma' && <ChromaTrail word="TodoEase" below=".home-grid" className="home-field" />}
+        {background === 'blackhole' && <BlackHole below=".home-grid" className="home-field" />}
         {background === 'lines' && (
           <LineField word={draft ?? lineWord} caret={draft !== null} below=".home-grid" className="home-field" onWordBox={setWordBox} />
         )}

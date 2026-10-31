@@ -30,6 +30,9 @@ Newest first. Each release is a GitHub release with the Windows installer; todoe
   jump to a section. A section with more than 5 skins ends in a Show more card that opens a page with only that
   section (Back returns to where you were). Clicking a skin opens a large preview: background effects run for real
   under the pointer, other skins show their sketch enlarged; the arrows or ← → step through the section.
+- Black hole background (Shop, Legendary): a tilted, spinning disk of purple light round a black centre that
+  follows the pointer and pulls loose dust in; hold the mouse button to pull harder, click to make it flare out.
+  Also in the Home background switcher on the dev server.
 
 ### Fixed
 - Notes board: a note dragged or resized quickly now keeps up with the mouse instead of stopping halfway.

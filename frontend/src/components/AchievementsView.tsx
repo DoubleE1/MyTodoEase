@@ -15,6 +15,7 @@ import {
 } from '../lib/achievements';
 import { motionReduced } from '../lib/motion';
 import { AsciiField } from './AsciiField';
+import { BlackHole } from './BlackHole';
 import { ChromaTrail } from './ChromaTrail';
 import { Modal } from './Dialogs';
 import { DotTrail } from './DotTrail';
@@ -234,7 +235,7 @@ function Shop({ points, section, onOpenSection }: { points: number; section?: Sh
                       <ChevronRight size={18} />
                     </span>
                     <span className="shop-more-label">{t('Show more')}</span>
-                    <span className="muted small">{t('{n} more skins', { n: more })}</span>
+                    <span className="muted small">{more === 1 ? t('1 more skin') : t('{n} more skins', { n: more })}</span>
                   </button>
                 </li>
               )}
@@ -315,13 +316,16 @@ function SkinPreviewDialog({ item, points, onStep, onClose }: { item: ShopItem; 
     'bg-field': <AsciiField word="TodoEase" className="home-field" />,
     'bg-lines': <LineField word="TodoEase" className="home-field" />,
     'bg-chroma': <ChromaTrail word="TodoEase" className="home-field" />,
+    'bg-blackhole': <BlackHole className="home-field" />,
   };
   const hint =
     item.id === 'bg-plain'
       ? t('No effect: the Home page stays calm.')
       : item.id === 'bg-chroma'
         ? t('Click the preview and the light follows the pointer; click again and it signs the word.')
-        : item.category === 'background'
+        : item.id === 'bg-blackhole'
+          ? t('It follows the pointer. Hold the mouse button to pull harder; click and the disk flares out.')
+          : item.category === 'background'
           ? t('Move the pointer over the preview.')
           : t('A sketch: this skin is still being made.');
 
