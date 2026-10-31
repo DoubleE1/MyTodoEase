@@ -7,7 +7,8 @@ import { motionReduced } from '../lib/motion';
  * blue on the other), the split widening towards the tail as it thins and fades.
  *
  * Drawn by stamping soft glow dots closely along the smoothed path and adding their light together, which gives
- * the same bright-centre, long-falloff profile as the shader. In the light theme, where added light would vanish
+ * the same bright-centre, long-falloff profile as the shader. The trail's head glides after the pointer, so a quick
+ * change of direction comes out as a rounded arc, and the colour edges turn round gradually with it. In the light theme, where added light would vanish
  * against white, it is a softer glow in the brand colours. Nothing runs once the trail has faded; Reduce motion
  * (OS or Settings) turns it off.
  */
@@ -24,10 +25,15 @@ export function ChromaTrail({ className }: { className?: string }) {
     /** Spacing of the glow stamps along the path, in px. */
     const STEP = 3;
     /** Glow radius at the head, in px. */
-    const RADIUS = 38;
+    const RADIUS = 44;
 
     type Point = { x: number; y: number; at: number };
     let points: Point[] = [];
+    /** Where the pointer is, and the trail's head gliding after it (so sharp turns come out as arcs). */
+    let target: { x: number; y: number } | null = null;
+    let head: { x: number; y: number } | null = null;
+    /** How quickly the head catches up with the pointer (per second). */
+    const FOLLOW = 22;
     let width = 0;
     let height = 0;
     let dark = true;
@@ -45,9 +51,9 @@ export function ChromaTrail({ className }: { className?: string }) {
       const g = s.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
       const [r, gr, b] = rgb;
       g.addColorStop(0, `rgba(${r}, ${gr}, ${b}, 1)`);
-      g.addColorStop(0.08, `rgba(${r}, ${gr}, ${b}, 0.75)`);
-      g.addColorStop(0.2, `rgba(${r}, ${gr}, ${b}, 0.28)`);
-      g.addColorStop(0.45, `rgba(${r}, ${gr}, ${b}, 0.08)`);
+      g.addColorStop(0.12, `rgba(${r}, ${gr}, ${b}, 0.8)`);
+      g.addColorStop(0.26, `rgba(${r}, ${gr}, ${b}, 0.3)`);
+      g.addColorStop(0.5, `rgba(${r}, ${gr}, ${b}, 0.08)`);
       g.addColorStop(1, `rgba(${r}, ${gr}, ${b}, 0)`);
       s.fillStyle = g;
       s.fillRect(0, 0, size, size);
@@ -81,19 +87,26 @@ export function ChromaTrail({ className }: { className?: string }) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 
-    /** The path again, a point every STEP px, then smoothed so mouse jitter does not show. */
+    /**
+     * The path again with a point every STEP px measured along it (however close or far apart the recorded points
+     * are, so the light is even), then smoothed so mouse jitter does not show.
+     */
     const smoothPath = (): Point[] => {
       const even: Point[] = [points[0]];
+      let carry = 0; // distance since the last emitted point
       for (let i = 1; i < points.length; i++) {
         const a = points[i - 1];
         const b = points[i];
-        const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / STEP));
-        for (let k = 1; k <= n; k++) {
-          const f = k / n;
+        const length = Math.hypot(b.x - a.x, b.y - a.y);
+        let d = STEP - carry;
+        while (d <= length) {
+          const f = d / length;
           even.push({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, at: a.at + (b.at - a.at) * f });
+          d += STEP;
         }
+        carry = length - (d - STEP);
       }
-      const W = 6;
+      const W = 9;
       return even.map((p, i) => {
         let x = 0;
         let y = 0;
@@ -114,18 +127,31 @@ export function ChromaTrail({ className }: { className?: string }) {
       const path = smoothPath();
       ctx.save();
       ctx.globalCompositeOperation = dark ? 'lighter' : 'source-over';
+      // Across the path (where the colours split to either side), eased along it, so through a sharp turn the
+      // warm and blue edges rotate round gradually instead of jumping sides.
+      let nx = 0;
+      let ny = 0;
       for (let i = 0; i < path.length; i++) {
         const p = path[i];
         const life = 1 - (now - p.at) / LIFE_MS; // 1 at the head, 0 at the end of the tail
+        const prev = path[Math.max(0, i - 8)];
+        const next = path[Math.min(path.length - 1, i + 8)];
+        let tx = -(next.y - prev.y);
+        let ty = next.x - prev.x;
+        const tl = Math.hypot(tx, ty) || 1;
+        tx /= tl;
+        ty /= tl;
+        if (i === 0) {
+          nx = tx;
+          ny = ty;
+        } else {
+          nx += (tx - nx) * 0.12;
+          ny += (ty - ny) * 0.12;
+          const nl = Math.hypot(nx, ny) || 1;
+          nx /= nl;
+          ny /= nl;
+        }
         if (life <= 0) continue;
-        // Across the path: the normal of the local direction, so the colours split to either side.
-        const prev = path[Math.max(0, i - 4)];
-        const next = path[Math.min(path.length - 1, i + 4)];
-        let nx = -(next.y - prev.y);
-        let ny = next.x - prev.x;
-        const nl = Math.hypot(nx, ny) || 1;
-        nx /= nl;
-        ny /= nl;
         // The band stays bright and wide along most of its length, thinning only near the end of the tail;
         // the colours stay together (white) near the head and split towards the tail.
         const radius = RADIUS * (0.45 + 0.55 * life);
@@ -140,9 +166,27 @@ export function ChromaTrail({ className }: { className?: string }) {
       return true;
     };
 
+    let lastFrame = 0;
     const loop = (now: number) => {
       frame = 0;
-      if (draw(now) && !document.hidden) frame = requestAnimationFrame(loop);
+      const dt = Math.min(0.05, lastFrame ? (now - lastFrame) / 1000 : 1 / 60);
+      lastFrame = now;
+      let chasing = false;
+      if (target && head) {
+        const k = 1 - Math.exp(-FOLLOW * dt);
+        head.x += (target.x - head.x) * k;
+        head.y += (target.y - head.y) * k;
+        const last = points[points.length - 1];
+        // Points closer than 1.5px add nothing.
+        if (!last || Math.hypot(head.x - last.x, head.y - last.y) > 1.5) {
+          points.push({ x: head.x, y: head.y, at: performance.now() });
+          if (points.length > 400) points.shift();
+        }
+        chasing = Math.hypot(target.x - head.x, target.y - head.y) > 0.5;
+      }
+      const lit = draw(now);
+      if ((lit || chasing) && !document.hidden) frame = requestAnimationFrame(loop);
+      else lastFrame = 0;
     };
     const kick = () => {
       if (!frame) frame = requestAnimationFrame(loop);
@@ -159,18 +203,15 @@ export function ChromaTrail({ className }: { className?: string }) {
     const onMove = (event: PointerEvent) => {
       if (motionReduced()) return;
       // A different pointer (touch after mouse, a second pen) starts its own trail rather than joining this one.
-      if (event.pointerId !== pointerId) {
-        pointerId = event.pointerId;
-        points = [];
-      }
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-      const last = points[points.length - 1];
-      // Points closer than 2px add nothing.
-      if (last && Math.hypot(x - last.x, y - last.y) < 2) return;
-      points.push({ x, y, at: performance.now() });
-      if (points.length > 240) points.shift();
+      if (event.pointerId !== pointerId || !head) {
+        pointerId = event.pointerId;
+        points = [];
+        head = { x, y };
+      }
+      target = { x, y };
       kick();
     };
     window.addEventListener('pointermove', onMove);
