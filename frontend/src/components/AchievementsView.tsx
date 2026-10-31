@@ -1,21 +1,17 @@
 import { format, parseISO } from 'date-fns';
-import { Lock, ShoppingBag, Trophy } from 'lucide-react';
-import { useState } from 'react';
+import { Lock, Trophy } from 'lucide-react';
 import { CATEGORY_TITLES, SHOP_TIERS, TOTAL_POINTS, type AchievementState, type Category } from '../lib/achievements';
 import { useAchievements } from '../lib/useAchievements';
 import { datePattern, t } from '../i18n';
 
-type Tab = 'achievements' | 'shop';
-
 const CATEGORY_ORDER: Category[] = ['start', 'milestones', 'streaks', 'habits', 'planning', 'notes', 'insights', 'hidden'];
 
 /**
- * Achievements and points (docs/ACHIEVEMENTS.md), and a preview of the skin shop. Skins are not on sale yet
- * (the "Skin change" task); the shop shows the tiers and what the points will buy.
+ * Achievements and points (docs/ACHIEVEMENTS.md). The skin shop is its own page (ShopView); both open from the
+ * profile menu.
  */
 export function AchievementsView() {
   const { states, points, ready } = useAchievements();
-  const [tab, setTab] = useState<Tab>('achievements');
   const unlockedCount = states.filter((s) => s.unlocked).length;
 
   return (
@@ -23,63 +19,65 @@ export function AchievementsView() {
       <header className="view-header">
         <div className="view-header-row">
           <h1>{t('Achievements')}</h1>
-          <div className="segmented" role="tablist" aria-label={t('Achievements or shop')}>
-            {(
-              [
-                ['achievements', t('Achievements'), <Trophy key="a" size={14} />],
-                ['shop', t('Shop'), <ShoppingBag key="s" size={14} />],
-              ] as const
-            ).map(([id, label, icon]) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={tab === id}
-                className={`segmented-option ${tab === id ? 'is-selected' : ''}`}
-                onClick={() => setTab(id)}
-              >
-                {icon}
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
         </div>
-        <div className="points-summary" aria-live="polite">
-          <span className="points-value">{points.toLocaleString()}</span>
-          <span className="muted">
-            {t('points · {unlocked} of {all} unlocked · {total} in total', { unlocked: unlockedCount, all: states.length, total: TOTAL_POINTS.toLocaleString() })}
-          </span>
-          <span className="points-bar" aria-hidden="true">
-            <span style={{ width: `${(points / TOTAL_POINTS) * 100}%` }} />
-          </span>
-        </div>
+        <PointsSummary points={points}>
+          {t('points · {unlocked} of {all} unlocked · {total} in total', { unlocked: unlockedCount, all: states.length, total: TOTAL_POINTS.toLocaleString() })}
+        </PointsSummary>
         {!ready && <p className="muted small">{t('Counting your history…')}</p>}
       </header>
 
-      {tab === 'achievements' ? (
-        CATEGORY_ORDER.map((category) => {
-          const items = states.filter((s) => s.def.category === category);
-          const earned = items.filter((s) => s.unlocked).reduce((n, s) => n + s.def.points, 0);
-          const total = items.reduce((n, s) => n + s.def.points, 0);
-          return (
-            <section key={category} className="achievement-group" aria-label={CATEGORY_TITLES[category]}>
-              <div className="achievement-group-head">
-                <h2>{CATEGORY_TITLES[category]}</h2>
-                <span className="muted small">
-                  {t('{earned} / {total} points', { earned: earned.toLocaleString(), total: total.toLocaleString() })}
-                </span>
-              </div>
-              <ul className="achievement-grid">
-                {items.map((s) => (
-                  <AchievementCard key={s.def.id} state={s} />
-                ))}
-              </ul>
-            </section>
-          );
-        })
-      ) : (
-        <Shop points={points} />
-      )}
+      {CATEGORY_ORDER.map((category) => {
+        const items = states.filter((s) => s.def.category === category);
+        const earned = items.filter((s) => s.unlocked).reduce((n, s) => n + s.def.points, 0);
+        const total = items.reduce((n, s) => n + s.def.points, 0);
+        return (
+          <section key={category} className="achievement-group" aria-label={CATEGORY_TITLES[category]}>
+            <div className="achievement-group-head">
+              <h2>{CATEGORY_TITLES[category]}</h2>
+              <span className="muted small">
+                {t('{earned} / {total} points', { earned: earned.toLocaleString(), total: total.toLocaleString() })}
+              </span>
+            </div>
+            <ul className="achievement-grid">
+              {items.map((s) => (
+                <AchievementCard key={s.def.id} state={s} />
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * A preview of the skin shop. Skins are not on sale yet (the "Skin change" task); it shows the tiers and what
+ * the points will buy.
+ */
+export function ShopView() {
+  const { points, ready } = useAchievements();
+  return (
+    <div className="view view-achievements">
+      <header className="view-header">
+        <div className="view-header-row">
+          <h1>{t('Shop')}</h1>
+        </div>
+        <PointsSummary points={points}>{t('points to spend')}</PointsSummary>
+        {!ready && <p className="muted small">{t('Counting your history…')}</p>}
+      </header>
+      <Shop points={points} />
+    </div>
+  );
+}
+
+function PointsSummary({ points, children }: { points: number; children: React.ReactNode }) {
+  return (
+    <div className="points-summary" aria-live="polite">
+      <span className="points-value">{points.toLocaleString()}</span>
+      <span className="muted">{children}</span>
+      <span className="points-bar" aria-hidden="true">
+        <span style={{ width: `${(points / TOTAL_POINTS) * 100}%` }} />
+      </span>
     </div>
   );
 }
@@ -137,7 +135,7 @@ function Shop({ points }: { points: number }) {
             <li key={tier.id} className={`shop-tier tier-${tier.id}`}>
               <div className="shop-tier-head">
                 <span className="shop-tier-name">{tier.name}</span>
-                <span className="shop-tier-price">{tier.price.toLocaleString()} points</span>
+                <span className="shop-tier-price">{t('{n} points', { n: tier.price.toLocaleString() })}</span>
               </div>
               <ul className="shop-examples">
                 {tier.examples.map((example) => (

@@ -10,7 +10,6 @@ export const ko: Record<string, string> = {
   'Account & sync': '계정 및 동기화',
   'Achievement unlocked: {name} (+{points} points)': '업적 달성: {name} (+{points}포인트)',
   Achievements: '업적',
-  'Achievements or shop': '업적 또는 상점',
   Actions: '작업 실행',
   'Add 10 tasks': '작업 10개 추가',
   'Add 50 tasks using quick-add words (#project, @label, dates, p1–p4)': '빠른 추가 단어(#프로젝트, @라벨, 날짜, p1–p4)로 작업 50개 추가',
@@ -667,4 +666,7 @@ export const ko: Record<string, string> = {
   '{n}m ago': '{n}분 전',
   '{tasks} completed in {year} across {days}.': '{year}년에 {days} 동안 {tasks}를 완료했어요.',
   '“{name}” and its sub-tasks will be permanently deleted.': '“{name}”과(와) 하위 작업이 영구히 삭제돼요.',
+  // Profile menu: Achievements and Shop are separate pages.
+  'points to spend': '사용할 수 있는 포인트',
+  '{n} points': '{n}포인트',
 };

@@ -32,6 +32,7 @@ import { TooltipLayer } from './components/TooltipLayer';
 // share of the bundle and most sessions never open all three, so the first paint ships without them.
 const CalendarView = lazy(() => import('./components/CalendarView').then((m) => ({ default: m.CalendarView })));
 const AchievementsView = lazy(() => import('./components/AchievementsView').then((m) => ({ default: m.AchievementsView })));
+const ShopView = lazy(() => import('./components/AchievementsView').then((m) => ({ default: m.ShopView })));
 const InsightsView = lazy(() => import('./components/InsightsView').then((m) => ({ default: m.InsightsView })));
 const NotesView = lazy(() => import('./components/NotesView').then((m) => ({ default: m.NotesView })));
 const SettingsDialog = lazy(() => import('./components/SettingsDialog').then((m) => ({ default: m.SettingsDialog })));
@@ -498,6 +499,10 @@ export default function App() {
         ) : effectiveView.kind === 'achievements' ? (
           <Suspense fallback={<div className="loading">Loading…</div>}>
             <AchievementsView />
+          </Suspense>
+        ) : effectiveView.kind === 'shop' ? (
+          <Suspense fallback={<div className="loading">Loading…</div>}>
+            <ShopView />
           </Suspense>
         ) : effectiveView.kind === 'insights' ? (
           <Suspense fallback={<div className="loading">Loading…</div>}>

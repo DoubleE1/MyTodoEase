@@ -10,7 +10,6 @@ export const zhCN: Record<string, string> = {
   'Account & sync': '账户与同步',
   'Achievement unlocked: {name} (+{points} points)': '成就解锁：{name}（+{points} 点）',
   Achievements: '成就',
-  'Achievements or shop': '成就或商店',
   Actions: '操作',
   'Add 10 tasks': '添加 10 个任务',
   'Add 50 tasks using quick-add words (#project, @label, dates, p1–p4)': '用快速添加关键词添加 50 个任务（#项目、@标签、日期、p1–p4）',
@@ -667,4 +666,7 @@ export const zhCN: Record<string, string> = {
   '{n}m ago': '{n} 分钟前',
   '{tasks} completed in {year} across {days}.': '{year} 年完成了 {tasks}，分布在 {days}。',
   '“{name}” and its sub-tasks will be permanently deleted.': '“{name}”及其子任务将被永久删除。',
+  // Profile menu: Achievements and Shop are separate pages.
+  'points to spend': '可用点数',
+  '{n} points': '{n} 点',
 };

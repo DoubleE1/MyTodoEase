@@ -10,7 +10,6 @@ export const ja: Record<string, string> = {
   'Account & sync': 'アカウントと同期',
   'Achievement unlocked: {name} (+{points} points)': '実績解除：{name}（+{points} ポイント）',
   Achievements: '実績',
-  'Achievements or shop': '実績またはショップ',
   Actions: '操作',
   'Add 10 tasks': 'タスクを 10 件追加',
   'Add 50 tasks using quick-add words (#project, @label, dates, p1–p4)': 'クイック追加の記法（#プロジェクト、@ラベル、日付、p1–p4）でタスクを 50 件追加',
@@ -667,4 +666,7 @@ export const ja: Record<string, string> = {
   '{n}m ago': '{n} 分前',
   '{tasks} completed in {year} across {days}.': '{year} 年に {days}で{tasks}を完了しました。',
   '“{name}” and its sub-tasks will be permanently deleted.': '「{name}」とそのサブタスクは完全に削除されます。',
+  // Profile menu: Achievements and Shop are separate pages.
+  'points to spend': '使えるポイント',
+  '{n} points': '{n} ポイント',
 };

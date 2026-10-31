@@ -14,6 +14,7 @@ import {
   Sun,
   Tag,
   Tags,
+  ShoppingBag,
   Trophy,
   X,
 } from 'lucide-react';
@@ -243,6 +244,7 @@ export function CommandPalette({
         ['insights', t('Insights'), <ChartColumn size={16} />],
         ['completed', t('Completed'), <CircleCheck size={16} />],
         ['achievements', t('Achievements'), <Trophy size={16} />],
+        ['shop', t('Shop'), <ShoppingBag size={16} />],
       ] as const
     ).map(([kind, title, icon]) => ({
       key: `page:${kind}`,

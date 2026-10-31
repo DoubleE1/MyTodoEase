@@ -1,9 +1,10 @@
-import { ChevronDown, Laptop, LogOut, Monitor, Moon, Settings, Sun, UserRoundPen } from 'lucide-react';
+import { ChevronDown, Laptop, LogOut, Monitor, Moon, Settings, ShoppingBag, Sun, Trophy, UserRoundPen } from 'lucide-react';
 import { useState } from 'react';
 import { IS_WEB_APP } from '../api/backend';
 import { signOutOfCloud, SignInCancelled, startDesktopSignIn } from '../api/cloudSession';
 import { signInWithGoogle } from '../api/firestoreClient';
 import type { ThemePreference } from '../lib/theme';
+import type { View } from '../lib/views';
 import { showToast } from '../lib/toast';
 import type { ConfirmOptions } from './Dialogs';
 import { Popover } from './Popover';
@@ -20,14 +21,15 @@ const THEMES: { value: ThemePreference; label: string; icon: React.ReactNode }[]
 const SETTINGS_SHORTCUT = /Mac/i.test(navigator.platform) ? '⌘,' : 'Ctrl+,';
 
 /**
- * Sidebar footer profile button and its menu: who is signed in (or "This PC" for the local file), Settings,
- * the theme, and for a Google account: switch account and sign out. Switching signs in again with the account chooser; Firebase replaces the current user only when
+ * Sidebar footer profile button and its menu: who is signed in (or "This PC" for the local file), Achievements,
+ * the Shop, Settings, the theme, and for a Google account: switch account and sign out. Switching signs in again with the account chooser; Firebase replaces the current user only when
  * that succeeds, so cancelling leaves the current account in place.
  */
 export function ProfileMenu({
   confirm,
   rail,
   onOpenSettings,
+  onSelectView,
   themePreference,
   onSetTheme,
 }: {
@@ -35,6 +37,7 @@ export function ProfileMenu({
   /** The sidebar shows icons only: the button is just the avatar. */
   rail: boolean;
   onOpenSettings: () => void;
+  onSelectView: (view: View) => void;
   themePreference: ThemePreference;
   onSetTheme: (preference: ThemePreference) => void;
 }) {
@@ -124,6 +127,27 @@ export function ProfileMenu({
               {user ? t('Synced through your Google account') : t('Tasks are stored on this computer')}
             </span>
           </div>
+          {(
+            [
+              ['achievements', t('Achievements'), <Trophy key="a" size={14} />],
+              ['shop', t('Shop'), <ShoppingBag key="s" size={14} />],
+            ] as const
+          ).map(([kind, label, icon]) => (
+            <button
+              key={kind}
+              type="button"
+              role="menuitem"
+              className="menu-item"
+              onClick={() => {
+                close();
+                onSelectView({ kind });
+              }}
+            >
+              {icon}
+              <span>{label}</span>
+            </button>
+          ))}
+          <div className="menu-sep" role="separator" />
           <button
             type="button"
             role="menuitem"
