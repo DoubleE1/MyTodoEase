@@ -19,7 +19,8 @@ import { motionReduced } from '../lib/motion';
  * it flare out, then settle.
  *
  * The side coming towards you is brighter, and brightness rises and falls with the radius, which shows as rings.
- * In the light theme the light is darker purple ink. It pauses while the window is hidden; with Reduce motion it
+ * In the light theme it is ink in the brand colours by heat (blue far out, violet, hot pink at the inner edge)
+ * round a deep indigo hole with a pink rim. It pauses while the window is hidden; with Reduce motion it
  * draws one still picture.
  */
 export function BlackHole({ className, below }: { className?: string; below?: string }) {
@@ -97,7 +98,9 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       dark = document.documentElement.dataset.theme === 'dark';
       colours = dark
         ? ['rgba(96,56,200,0.55)', 'rgba(124,78,240,0.65)', 'rgba(152,102,255,0.75)', 'rgba(184,142,255,0.85)', 'rgba(222,200,255,0.9)', 'rgba(255,246,255,0.95)']
-        : ['rgba(150,120,230,0.35)', 'rgba(130,95,225,0.45)', 'rgba(110,70,220,0.55)', 'rgba(90,50,200,0.65)', 'rgba(70,35,170,0.75)', 'rgba(50,20,130,0.85)'];
+        : // Light theme: the brand colours by heat, as added light cannot glow on white. Soft blue far out and in the
+          // dust, through violet, to hot pink at the inner edge (where the dark theme turns white).
+          ['rgba(110,150,255,0.32)', 'rgba(105,115,250,0.45)', 'rgba(123,77,255,0.58)', 'rgba(160,70,240,0.7)', 'rgba(205,70,200,0.8)', 'rgba(240,70,140,0.9)'];
     };
 
     const smoothstep = (from: number, to: number, x: number) => {
@@ -291,7 +294,8 @@ export function BlackHole({ className, below }: { className?: string; below?: st
 
     const strokeAll = (c: CanvasRenderingContext2D, paths: Path2D[]) => {
       c.lineCap = 'round';
-      c.globalCompositeOperation = dark ? 'lighter' : 'source-over';
+      // Dark: light adds up to white where streaks cross. Light: ink multiplies, so crossings get deeper, not muddier.
+      c.globalCompositeOperation = dark ? 'lighter' : 'multiply';
       AGE_ALPHA.forEach((alpha, age) => {
         c.globalAlpha = alpha;
         for (let l = 0; l < LEVELS; l++) {
@@ -310,14 +314,14 @@ export function BlackHole({ className, below }: { className?: string; below?: st
 
       // The hole, with a thin bright rim of bent light.
       const h = hole * (1 - pull * 0.12);
-      ctx.fillStyle = dark ? '#05030a' : '#0c0816';
+      ctx.fillStyle = dark ? '#05030a' : '#1c1033';
       ctx.beginPath();
       ctx.arc(center.x, center.y, h, 0, Math.PI * 2);
       ctx.fill();
       ctx.save();
-      ctx.shadowColor = dark ? 'rgba(190,150,255,0.9)' : 'rgba(120,80,230,0.8)';
+      ctx.shadowColor = dark ? 'rgba(190,150,255,0.9)' : 'rgba(240,80,160,0.7)';
       ctx.shadowBlur = h * 0.5;
-      ctx.strokeStyle = dark ? 'rgba(255,250,255,0.95)' : 'rgba(150,110,255,0.95)';
+      ctx.strokeStyle = dark ? 'rgba(255,250,255,0.95)' : 'rgba(245,95,165,0.95)';
       ctx.lineWidth = Math.max(1.2, h * 0.07);
       ctx.beginPath();
       ctx.arc(center.x, center.y, h * 1.03, 0, Math.PI * 2);

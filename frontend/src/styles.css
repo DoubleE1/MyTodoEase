@@ -8727,11 +8727,12 @@ body.is-resizing-span * {
   will-change: transform;
 }
 
+/* Light theme: a pink heart fading to violet, matching the disk's hot inner edge. */
 :root:not([data-theme='dark']) .blackhole-glow {
   background: radial-gradient(
     closest-side,
-    color-mix(in srgb, var(--brand-2, #7b4dff) 26%, transparent),
-    color-mix(in srgb, var(--brand-2, #7b4dff) 8%, transparent) 45%,
+    color-mix(in srgb, var(--brand-3, #ff5fa8) 22%, transparent),
+    color-mix(in srgb, var(--brand-2, #7b4dff) 9%, transparent) 40%,
     transparent
   );
 }
