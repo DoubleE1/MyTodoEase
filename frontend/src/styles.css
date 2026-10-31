@@ -7894,10 +7894,9 @@ body.is-resizing-span * {
   position: absolute;
   z-index: 1;
   padding: 0;
-  border: 1px dashed transparent;
-  border-radius: 16px;
+  border: 0;
   background: none;
-  /* The text, caret and selection are drawn by the lines, not by the field. */
+  /* The text, caret and selection are drawn by the lines, not by the field (the blinking bar shows editing). */
   color: transparent;
   caret-color: transparent;
   font: inherit;
@@ -7908,15 +7907,6 @@ body.is-resizing-span * {
 
 .view-home > .home-word-input::selection {
   background: transparent;
-}
-
-.view-home > .home-word-input:hover {
-  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
-}
-
-.view-home > .home-word-input.is-editing,
-.view-home > .home-word-input:focus-visible {
-  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 /* ---- Dev-only background switcher (bottom right; beats the page's own stacking rule for its children) ---- */
