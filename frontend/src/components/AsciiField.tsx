@@ -1,16 +1,19 @@
 import { useEffect, useRef } from 'react';
+import { FluidWake } from '../lib/fluidWake';
 import { motionReduced } from '../lib/motion';
 
 /**
  * A field of text characters for page backgrounds (after the hero of shadcn.io/background, rebuilt here on a 2D
  * canvas). A warped noise drifts very slowly; its tone picks a mark per cell, ` · : +`, shaded with an ordered
  * dither so areas blend instead of edging, and from half tone up the cells spell `word` along each row. Moving
- * the mouse leaves a wake that swirls and fades: it lifts letters out of the dots, and the freshest part flickers
- * through symbols. The field fades in with a short scramble, stays clear round `clearOf` elements (text on top),
- * and fades out at the top and bottom.
+ * the mouse stirs a small fluid (lib/fluidWake.ts) whose wake curls like smoke and fades: it lifts letters out of
+ * the dots, and the freshest part flickers through symbols; the faster the mouse, the wider the wake. The field
+ * fades in with a short scramble, stays clear round `clearOf` elements (text on top), and fades out at the top
+ * and bottom.
  *
- * About 20 frames a second at rest and 30 while a wake is moving; it pauses while the window is hidden, and with
- * Reduce motion on (OS or Settings) it is a still picture with no wake.
+ * About 20 frames a second at rest and 50 while a wake moves (up to 6 s after the mouse stops); only cells that
+ * change are redrawn. It pauses while the window is hidden, and with Reduce motion on (OS or Settings) it is a
+ * still picture with no wake.
  */
 export function AsciiField({
   word,
@@ -41,7 +44,9 @@ export function AsciiField({
     const SHADES = 16;
 
     const IDLE_MS = 50;
-    const WAKE_MS = 33;
+    const WAKE_MS = 20;
+    /** How long the wake keeps moving after the mouse stops. */
+    const WAKE_LINGER_MS = 6000;
     const REVEAL_S = 1.4;
 
     let width = 0;
@@ -57,15 +62,9 @@ export function AsciiField({
     const atlas = document.createElement('canvas');
     const atlasCtx = atlas.getContext('2d');
 
-    // ---- The wake: a coarse grid (one point per 2 x 2 cells) of velocity and dye ----
-    let gw = 0;
-    let gh = 0;
-    let vx = new Float32Array(0);
-    let vy = new Float32Array(0);
-    let dye = new Float32Array(0);
-    let scratch = new Float32Array(0);
+    // ---- The wake: a small fluid the mouse stirs (lib/fluidWake.ts) ----
+    const wake = new FluidWake();
     let wakeUntil = 0;
-    let lastPointer: { x: number; y: number; at: number } | null = null;
 
     // ---- The drift: noise sampled every few cells and blended in between ----
     const STEP_X = 3;
@@ -144,12 +143,7 @@ export function AsciiField({
       cellW = Math.max(2, Math.round(0.62 * cellH * dpr)) / dpr;
       cols = Math.ceil(width / cellW);
       rows = Math.ceil(height / cellH);
-      gw = Math.ceil(cols / 2) + 1;
-      gh = Math.ceil(rows / 2) + 1;
-      vx = new Float32Array(gw * gh);
-      vy = new Float32Array(gw * gh);
-      dye = new Float32Array(gw * gh);
-      scratch = new Float32Array(gw * gh);
+      wake.resize(width, height);
       buildAtlas();
       shown = new Int32Array(0);
     };
@@ -174,92 +168,6 @@ export function AsciiField({
         }
       }
       return sCols;
-    };
-
-    /** Advance the wake: carry dye and velocity along the velocity, then let both fade. */
-    const stepWake = (dt: number) => {
-      const fadeV = Math.exp(-1.9 * dt);
-      const fadeD = Math.exp(-3.2 * dt);
-      const advect = (field: Float32Array, fade: number) => {
-        for (let y = 1; y < gh - 1; y++) {
-          for (let x = 1; x < gw - 1; x++) {
-            const i = y * gw + x;
-            const px = Math.min(gw - 1.5, Math.max(0.5, x - vx[i] * dt));
-            const py = Math.min(gh - 1.5, Math.max(0.5, y - vy[i] * dt));
-            const ix = Math.floor(px);
-            const iy = Math.floor(py);
-            const fx = px - ix;
-            const fy = py - iy;
-            const j = iy * gw + ix;
-            const top = field[j] + (field[j + 1] - field[j]) * fx;
-            const bottom = field[j + gw] + (field[j + gw + 1] - field[j + gw]) * fx;
-            scratch[i] = (top + (bottom - top) * fy) * fade;
-          }
-        }
-        field.set(scratch);
-      };
-      advect(dye, fadeD);
-      advect(vx, fadeV);
-      advect(vy, fadeV);
-    };
-
-    /**
-     * Stir the wake along the mouse's path: dye where it passed, pushed the way it went. Each stamp is an oval
-     * stretched along the movement, with a slight twist and ragged edges, so the wake curls like smoke rather
-     * than printing circles; the faster the mouse, the wider it is.
-     */
-    const splat = (x0: number, y0: number, x1: number, y1: number, dt: number) => {
-      // Grid steps are wider apart down than across; `a` turns a step down into steps across.
-      const a = cellH / cellW;
-      const gx0 = x0 / (cellW * 2);
-      const gy0 = y0 / (cellH * 2);
-      const dx = x1 / (cellW * 2) - gx0;
-      const dy = y1 / (cellH * 2) - gy0;
-      const length = Math.hypot(dx, dy * a);
-      if (length === 0) return;
-      const dirX = dx / length;
-      const dirY = (dy * a) / length;
-      const speed = Math.min(80, length / Math.max(dt, 1 / 120));
-      // A slow drag leaves a thin line, a flick a broad swirl.
-      const R = 0.9 + 3.8 * smoothstep(2, 60, speed);
-      const steps = Math.max(1, Math.ceil(length));
-      for (let s = 0; s <= steps; s++) {
-        const cx = gx0 + (dx * s) / steps;
-        const cy = gy0 + (dy * s) / steps;
-        for (let y = Math.max(1, Math.floor(cy - (R * 3) / a)); y <= Math.min(gh - 2, Math.ceil(cy + (R * 3) / a)); y++) {
-          for (let x = Math.max(1, Math.floor(cx - R * 3)); x <= Math.min(gw - 2, Math.ceil(cx + R * 3)); x++) {
-            const ex = x - cx;
-            const ey = (y - cy) * a;
-            const u = (ex * dirX + ey * dirY) / R; // along the movement
-            const r = (ey * dirX - ex * dirY) / R; // across it
-            const falloff = Math.exp(-u * u * 0.65 - r * r * 1.7);
-            if (falloff < 0.01) continue;
-            // Ragged, changing edges instead of a clean oval.
-            const ragged = 0.55 + 0.9 * noise2(x * 0.7 + time * 2.1, y * 0.7 * a - time * 1.3);
-            const w = (falloff * ragged) / steps;
-            const i = y * gw + x;
-            dye[i] = 1 - (1 - dye[i]) * Math.exp(-w * 3.5);
-            // Mostly along the movement, with a twist that grows away from the centre line: the wake curls.
-            const side = 1 - r * r * 0.55;
-            const twist = u * r * 0.7;
-            vx[i] += (dirX * side - dirY * twist) * speed * w * 0.6;
-            vy[i] += ((dirY * side + dirX * twist) * speed * w * 0.6) / a;
-          }
-        }
-      }
-    };
-
-    const wakeAt = (col: number, row: number) => {
-      const x = Math.min(gw - 1.001, col / 2);
-      const y = Math.min(gh - 1.001, row / 2);
-      const ix = Math.floor(x);
-      const iy = Math.floor(y);
-      const fx = x - ix;
-      const fy = y - iy;
-      const i = iy * gw + ix;
-      const top = dye[i] + (dye[i + 1] - dye[i]) * fx;
-      const bottom = dye[i + gw] + (dye[i + gw + 1] - dye[i + gw]) * fx;
-      return top + (bottom - top) * fy;
     };
 
     /**
@@ -302,9 +210,11 @@ export function AsciiField({
       const sCols = sampleTones();
       const elapsed = (performance.now() - start) / 1000;
       const reduced = motionReduced();
-      const reveal = reduced ? 1 : Math.min(1, elapsed / REVEAL_S);
-      const intro = reduced ? 0 : Math.max(0, 1 - elapsed / (REVEAL_S * 0.9)) * 0.85;
-      const wakeOn = !reduced && performance.now() < wakeUntil;
+      // Fade in over REVEAL_S (eased), with a scramble that dies away as it does.
+      const left = reduced ? 0 : Math.max(0, 1 - elapsed / REVEAL_S);
+      const reveal = 1 - left ** 3;
+      const intro = left * left;
+      const wakeOn = !reduced && wake.active;
       const flicker = Math.floor(clock * 10);
       const cw = Math.round(cellW * dpr);
       const ch = Math.round(cellH * dpr);
@@ -329,7 +239,7 @@ export function AsciiField({
             let k = 0;
             if (wakeOn) {
               // The wake raises the tone: letters out of the dots.
-              k = Math.min(1, Math.max(0, (wakeAt(col, row) * 0.9) / 0.38));
+              k = Math.min(1, Math.max(0, (wake.trailAt((col + 0.5) / cols, (row + 0.5) / rows) * 0.9) / 0.38));
               k = k * k * (3 - 2 * k);
               tone += (1 - tone) * k * 0.92;
             }
@@ -373,8 +283,10 @@ export function AsciiField({
         lastFrame = now;
         time += dt;
         if (waking) {
-          stepWake(dt);
+          wake.step(dt);
           clock += dt;
+        } else if (wake.active) {
+          wake.settle();
         }
         if (now - start < REVEAL_S * 1000) clock += dt;
         draw();
@@ -419,17 +331,14 @@ export function AsciiField({
       const y = event.clientY - rect.top;
       const now = performance.now();
       if (x < 0 || y < 0 || x > width || y > height) {
-        lastPointer = null;
+        wake.lift();
         return;
       }
-      if (lastPointer) splat(lastPointer.x, lastPointer.y, x, y, (now - lastPointer.at) / 1000);
-      lastPointer = { x, y, at: now };
-      wakeUntil = now + 2500;
+      wake.point(x / Math.max(1, width), y / Math.max(1, height), now);
+      wakeUntil = now + WAKE_LINGER_MS;
       kick();
     };
-    const onLeave = () => {
-      lastPointer = null;
-    };
+    const onLeave = () => wake.lift();
     window.addEventListener('pointermove', onMove);
     document.addEventListener('pointerleave', onLeave);
 
