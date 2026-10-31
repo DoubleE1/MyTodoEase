@@ -7758,3 +7758,43 @@ body.is-resizing-span * {
   font: inherit;
   font-size: 13px;
 }
+
+/* ---- Desktop: the "New task" global shortcut's popup (#quick-add) ---- */
+.quick-add-window {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* The header is the window's drag area (the window has no frame). */
+.quick-add-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.quick-add-done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  color: var(--success, var(--accent));
+}
+
+.quick-add-loading {
+  margin: 8px 0;
+}
+
+/* Settings > Desktop app: reset button beside the shortcut chip. */
+.global-hotkey-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, screen, shell } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeTheme, screen, shell, Tray } = require('electron');
 const { execFile, execFileSync, spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -17,6 +17,15 @@ try {
 
 // Bundled native pieces live under desktop/build in development and under resources/ when packaged.
 const resourcesDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, 'build');
+const APP_ICON = path.join(__dirname, 'build', 'icon.ico');
+const QUICK_ADD_SIZE = { width: 600, height: 440 };
+
+// One TodoEase at a time: with "Start with Windows" it is often already running in the tray, so opening it
+// again just brings that window up. Development runs skip the lock so they can run beside the installed app.
+if (app.isPackaged && !app.requestSingleInstanceLock()) {
+  app.exit(0);
+}
+app.on('second-instance', () => showMainWindow());
 
 // Windows "app bar" helper (desktop/appbar): reserves a strip of the screen for the mini window so
 // maximized apps stop at its edge instead of covering it. Built by `npm run build:appbar`.
@@ -119,8 +128,16 @@ const settings = {
   // Sticky notes popped out into their own windows: which are open (reopened on the next start) and where each sat.
   openNotes: [],
   noteBounds: {},
+  // Closing the window keeps the app in the notification area, so the global shortcuts keep working.
+  keepInTray: true,
+  // Global shortcuts (Electron accelerators); null turns one off.
+  globalHotkeys: { newTask: 'Control+Alt+T', newNote: 'Control+Alt+N' },
   ...loadSettings(),
 };
+settings.globalHotkeys = { newTask: 'Control+Alt+T', newNote: 'Control+Alt+N', ...settings.globalHotkeys };
+
+// Started by Windows at sign-in ("Start with Windows"): stay in the tray until the user opens the window.
+const startHidden = process.argv.includes('--hidden') && settings.keepInTray;
 // Docking is re-applied on startup, never assumed: the shell forgets app bars when the window goes away.
 const dockOnStartup = settings.docked === true;
 settings.docked = false;
@@ -174,7 +191,7 @@ function onScreen(bounds) {
 
 let win = null;
 
-function createWindow() {
+function createWindow({ show = true } = {}) {
   const compact = settings.compact;
   const minimum = compact ? COMPACT_MIN : NORMAL_MIN;
   const remembered = onScreen(compact ? settings.compactBounds : settings.normalBounds);
@@ -185,7 +202,8 @@ function createWindow() {
     minWidth: minimum.width,
     minHeight: minimum.height,
     title: 'TodoEase',
-    icon: path.join(__dirname, 'build', 'icon.ico'),
+    icon: APP_ICON,
+    show,
     autoHideMenuBar: true,
     alwaysOnTop: settings.alwaysOnTop,
     // Window Controls Overlay: the page draws the title bar (see TitleBar.tsx); the OS keeps its buttons.
@@ -223,7 +241,10 @@ function createWindow() {
   });
 
   win.webContents.once('did-finish-load', () => {
-    if (dockOnStartup && process.platform === 'win32') void setDocked(true);
+    if (!dockOnStartup || process.platform !== 'win32') return;
+    // A hidden start must not reserve a strip for a window nobody can see; it docks when first shown.
+    if (win.isVisible()) void setDocked(true);
+    else redockOnShow = true;
   });
   win.on('move', onDockedWindowChanged);
   win.on('resize', onDockedWindowChanged);
@@ -232,7 +253,13 @@ function createWindow() {
     if (settings.compact && !settings.docked) applyCompact(false, { maximize: true });
   });
 
-  win.on('close', () => {
+  win.on('close', (event) => {
+    // Keep running in the tray: the close button hides the window; Quit (tray menu) or an update really closes it.
+    if (settings.keepInTray && tray && !quitting) {
+      event.preventDefault();
+      hideMainWindow();
+      return;
+    }
     const wasDocked = settings.docked;
     if (wasDocked) {
       // Release the strip but do not record the strip as a window size: the remembered
@@ -242,7 +269,8 @@ function createWindow() {
     } else {
       rememberBounds();
     }
-    settings.docked = wasDocked; // remember the preference for next launch
+    // remember the preference for next launch (hidden in the tray while docked counts as docked)
+    settings.docked = wasDocked || redockOnShow;
     saveSettings();
   });
   win.on('closed', () => {
@@ -289,7 +317,7 @@ function openNoteWindow(id) {
     frame: false,
     show: false,
     title: 'Sticky note',
-    icon: path.join(__dirname, 'build', 'icon.ico'),
+    icon: APP_ICON,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1f1f1f' : '#ffffff',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -302,7 +330,11 @@ function openNoteWindow(id) {
 
   if (devServerUrl) note.loadURL(`${devServerUrl}#note=${id}`);
   else note.loadFile(path.join(__dirname, 'renderer', 'index.html'), { hash: `note=${id}` });
-  note.once('ready-to-show', () => note.show());
+  note.once('ready-to-show', () => {
+    // A note made with the global shortcut comes to the front even though another app had the focus.
+    if (Date.now() - newNoteRequestedAt < 5000) bringToFront(note);
+    else note.show();
+  });
   note.webContents.setWindowOpenHandler(({ url }) => {
     try {
       const { protocol } = new URL(url);
@@ -339,9 +371,41 @@ function showMainWindow() {
     return;
   }
   if (win.isMinimized()) win.restore();
-  win.show();
-  win.focus();
+  bringToFront(win);
+  if (redockOnShow) {
+    redockOnShow = false;
+    void setDocked(true);
+  }
 }
+
+/** Hide the main window to the tray. A docked window gives its strip back first and docks again when shown. */
+function hideMainWindow() {
+  if (!win || win.isDestroyed()) return;
+  if (settings.docked) {
+    releaseAppBarSync();
+    restoreCaptionButtons();
+    redockOnShow = true;
+  } else {
+    rememberBounds();
+  }
+  saveSettings();
+  win.hide();
+}
+
+/**
+ * Show and focus a window even when another app is in front. Windows only lets the foreground app take the
+ * focus; briefly raising the window above everything gets it there after a global shortcut or tray click.
+ */
+function bringToFront(target) {
+  if (!target || target.isDestroyed()) return;
+  const wasOnTop = target.isAlwaysOnTop();
+  if (!wasOnTop) target.setAlwaysOnTop(true);
+  target.show();
+  target.focus();
+  if (!wasOnTop) target.setAlwaysOnTop(false);
+}
+
+let redockOnShow = false;
 
 function windowHandle() {
   const buf = win.getNativeWindowHandle();
@@ -599,6 +663,190 @@ ipcMain.handle('window:set-title-bar-theme', (_event, theme) => {
   }
 });
 
+// ---------------------------------------------------------------------------------------------------------
+// Background mode: start with Windows, the tray icon, and global shortcuts (Settings > Desktop app).
+// With "Keep running in the background" on, closing the window hides it to the notification area so the
+// shortcuts keep working; "Start with Windows" launches the app hidden there (--hidden) at sign-in.
+// ---------------------------------------------------------------------------------------------------------
+let tray = null;
+/** Tray menu labels in the app's language; the page sends them once it has loaded (English until then). */
+const trayLabels = { open: 'Open TodoEase', newTask: 'New task', newNote: 'New sticky note', quit: 'Quit TodoEase' };
+/** Shortcuts the system refused (another app holds them), by action. */
+let hotkeyErrors = {};
+let newNoteRequestedAt = 0;
+let pendingNewNote = false;
+let quickAddWindow = null;
+
+function updateTray() {
+  if (!settings.keepInTray) {
+    tray?.destroy();
+    tray = null;
+    return;
+  }
+  if (!tray) {
+    tray = new Tray(APP_ICON);
+    tray.setToolTip('TodoEase');
+    tray.on('click', () => showMainWindow());
+  }
+  const hotkeys = settings.globalHotkeys;
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: trayLabels.open, click: () => showMainWindow() },
+      { type: 'separator' },
+      { label: trayLabels.newTask, accelerator: hotkeys.newTask || undefined, registerAccelerator: false, click: () => openQuickAdd() },
+      { label: trayLabels.newNote, accelerator: hotkeys.newNote || undefined, registerAccelerator: false, click: () => requestNewNote() },
+      { type: 'separator' },
+      { label: trayLabels.quit, click: () => app.quit() },
+    ]),
+  );
+}
+
+const HOTKEY_ACTIONS = { newTask: () => openQuickAdd(), newNote: () => requestNewNote() };
+
+/** (Re)register every global shortcut; remembers which ones another app already holds. */
+function registerGlobalHotkeys() {
+  globalShortcut.unregisterAll();
+  hotkeyErrors = {};
+  for (const [action, run] of Object.entries(HOTKEY_ACTIONS)) {
+    const accelerator = settings.globalHotkeys[action];
+    if (!accelerator) continue;
+    let ok = false;
+    try {
+      ok = globalShortcut.register(accelerator, run);
+    } catch (error) {
+      console.error('[hotkey] invalid shortcut', accelerator, error.message);
+    }
+    if (!ok) hotkeyErrors[action] = true;
+  }
+}
+
+/**
+ * The quick-add popup: a small frameless window over everything, made on first use and then kept hidden
+ * between uses so the shortcut opens it at once. It loads the app page with #quick-add.
+ */
+function openQuickAdd() {
+  const cursor = screen.getCursorScreenPoint();
+  const area = screen.getDisplayNearestPoint(cursor).workArea;
+  const width = Math.min(QUICK_ADD_SIZE.width, area.width - 32);
+  const bounds = {
+    width,
+    height: QUICK_ADD_SIZE.height,
+    x: Math.round(area.x + (area.width - width) / 2),
+    y: Math.round(area.y + area.height * 0.18),
+  };
+  if (quickAddWindow && !quickAddWindow.isDestroyed()) {
+    quickAddWindow.setContentBounds(bounds);
+    quickAddWindow.webContents.send('quick-add:shown');
+    bringToFront(quickAddWindow);
+    return;
+  }
+  quickAddWindow = new BrowserWindow({
+    ...bounds,
+    // The size is the page's: a frameless window on Windows otherwise loses its invisible borders from it.
+    useContentSize: true,
+    frame: false,
+    // Resizable on purpose: a frameless window that cannot be resized comes out smaller than asked on Windows.
+    minWidth: 420,
+    minHeight: 300,
+    minimizable: false,
+    maximizable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    show: false,
+    title: 'New task',
+    icon: APP_ICON,
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1f1f1f' : '#ffffff',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  if (devServerUrl) quickAddWindow.loadURL(`${devServerUrl}#quick-add`);
+  else quickAddWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'), { hash: 'quick-add' });
+  quickAddWindow.once('ready-to-show', () => bringToFront(quickAddWindow));
+  // Clicking anywhere else puts it away, like a launcher.
+  quickAddWindow.on('blur', () => quickAddWindow?.hide());
+  quickAddWindow.on('closed', () => {
+    quickAddWindow = null;
+  });
+}
+
+/** New sticky note: the main window's page creates it (it knows local vs cloud) and pops it out. */
+function requestNewNote() {
+  newNoteRequestedAt = Date.now();
+  if (win && !win.isDestroyed() && !win.webContents.isLoading()) {
+    win.webContents.send('quick:new-note');
+    return;
+  }
+  // No page to ask yet: it picks the request up when it subscribes (see 'quick:take-pending-note').
+  pendingNewNote = true;
+  if (!win || win.isDestroyed()) createWindow({ show: false });
+}
+
+function loginItem() {
+  const state = app.getLoginItemSettings({ args: ['--hidden'] });
+  return { openAtLogin: state.openAtLogin, blockedByWindows: state.openAtLogin && state.executableWillLaunchAtLogin === false };
+}
+
+function desktopPrefs() {
+  const login = app.isPackaged ? loginItem() : { openAtLogin: false, blockedByWindows: false };
+  return {
+    // Only the installed app can register itself; a development run would register electron.exe.
+    startWithWindowsAvailable: app.isPackaged && process.platform === 'win32',
+    startWithWindows: login.openAtLogin,
+    startupBlockedByWindows: login.blockedByWindows,
+    keepInTray: settings.keepInTray,
+    hotkeys: { ...settings.globalHotkeys },
+    hotkeyErrors: { ...hotkeyErrors },
+  };
+}
+
+const ACCELERATOR = /^((Control|Alt|Shift)\+){1,3}([A-Z0-9]|F([1-9]|1[0-9]|2[0-4])|Space|Up|Down|Left|Right|[`\-=[\]\\;',./])$/;
+
+ipcMain.handle('desktop:get-prefs', () => desktopPrefs());
+ipcMain.handle('desktop:set-prefs', (_event, patch) => {
+  if (patch && typeof patch === 'object') {
+    if (typeof patch.startWithWindows === 'boolean' && app.isPackaged) {
+      app.setLoginItemSettings({ openAtLogin: patch.startWithWindows, args: ['--hidden'] });
+    }
+    if (typeof patch.keepInTray === 'boolean') {
+      settings.keepInTray = patch.keepInTray;
+      updateTray();
+    }
+    if (patch.hotkeys && typeof patch.hotkeys === 'object') {
+      for (const action of Object.keys(HOTKEY_ACTIONS)) {
+        if (!(action in patch.hotkeys)) continue;
+        const value = patch.hotkeys[action];
+        if (value === null || (typeof value === 'string' && ACCELERATOR.test(value))) settings.globalHotkeys[action] = value;
+      }
+      registerGlobalHotkeys();
+      updateTray();
+    }
+    saveSettings();
+  }
+  return desktopPrefs();
+});
+ipcMain.handle('desktop:set-tray-labels', (_event, labels) => {
+  if (!labels || typeof labels !== 'object') return;
+  for (const key of Object.keys(trayLabels)) {
+    if (typeof labels[key] === 'string' && labels[key].length <= 60) trayLabels[key] = labels[key];
+  }
+  updateTray();
+});
+ipcMain.handle('quick-add:close', () => quickAddWindow?.hide());
+ipcMain.handle('quick:take-pending-note', () => {
+  const pending = pendingNewNote;
+  pendingNewNote = false;
+  return pending;
+});
+// A window changed tasks (the quick-add popup): the others refetch.
+ipcMain.on('tasks:changed', (event) => {
+  for (const other of BrowserWindow.getAllWindows()) {
+    if (!other.isDestroyed() && other.webContents !== event.sender) other.webContents.send('tasks:changed');
+  }
+});
+
 app.whenReady().then(async () => {
   if (app.isPackaged) {
     const ok = await ensureApi();
@@ -610,7 +858,9 @@ app.whenReady().then(async () => {
       );
     }
   }
-  createWindow();
+  createWindow({ show: !startHidden });
+  updateTray();
+  registerGlobalHotkeys();
   // Notes that were open in their own windows at the last quit come back.
   for (const id of Array.isArray(settings.openNotes) ? settings.openNotes : []) openNoteWindow(id);
   app.on('activate', () => {
@@ -637,6 +887,7 @@ app.on('window-all-closed', () => {
 
 let apiStopped = false;
 app.on('will-quit', (event) => {
+  globalShortcut.unregisterAll();
   if (apiStopped) return;
   // Hold the quit until the API has been asked to shut down and has exited (or timed out).
   event.preventDefault();

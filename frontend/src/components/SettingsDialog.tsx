@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bot, CalendarDays, Check, Database, Download, Info, Keyboard, Monitor, Moon, Palette, Pipette, Search, Sun, Upload, UserRound } from 'lucide-react';
+import { AppWindow, Bot, CalendarDays, Check, Database, Download, Info, Keyboard, Monitor, Moon, Palette, Pipette, Search, Sun, Upload, UserRound } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { IS_WEB_APP } from '../api/backend';
 import { api, ApiError } from '../api/client';
@@ -13,6 +13,7 @@ import { Modal } from './Dialogs';
 import { CalendarSyncSection } from './CalendarSyncSection';
 import { CloudAccountSection } from './CloudAccountSection';
 import { McpSection } from './McpSection';
+import { DesktopSection } from './DesktopSection';
 import { ShortcutsPanel } from './KeyboardShortcuts';
 import { SettingRow, SwitchRow } from './SettingRows';
 import { useCloudUser } from './SessionGate';
@@ -25,7 +26,7 @@ const THEMES: { value: ThemePreference; label: string; icon: ReactNode }[] = [
   { value: 'system', label: t('System'), icon: <Monitor size={15} /> },
 ];
 
-type SettingsTab = 'appearance' | 'shortcuts' | 'account' | 'calendar' | 'ai' | 'data' | 'about';
+type SettingsTab = 'appearance' | 'shortcuts' | 'desktop' | 'account' | 'calendar' | 'ai' | 'data' | 'about';
 
 /** The nav, grouped like a desktop app's preferences. `keywords` feed the search box at the top of the nav. */
 const TAB_GROUPS: { title: string; tabs: { id: SettingsTab; label: string; icon: ReactNode; keywords: string }[] }[] = [
@@ -43,6 +44,13 @@ const TAB_GROUPS: { title: string; tabs: { id: SettingsTab; label: string; icon:
         label: t('Shortcuts'),
         icon: <Keyboard size={16} />,
         keywords: 'keyboard hotkey keybind shortcut search quick add settings collapse sidebar',
+      },
+      // Desktop app only (filtered out in the browser below).
+      {
+        id: 'desktop',
+        label: t('Desktop app'),
+        icon: <AppWindow size={16} />,
+        keywords: 'windows start startup login boot tray background global hotkey shortcut new task sticky note',
       },
     ],
   },
@@ -115,9 +123,12 @@ export function SettingsDialog({
   const [tab, setTab] = useState<SettingsTab>('appearance');
   const [navQuery, setNavQuery] = useState('');
   const q = navQuery.trim().toLowerCase();
+  const hasDesktopPrefs = !!window.mytodoease?.getDesktopPrefs;
   const shownGroups = TAB_GROUPS.map((g) => ({
     ...g,
-    tabs: g.tabs.filter((t) => !q || `${t.label} ${t.keywords}`.toLowerCase().includes(q)),
+    tabs: g.tabs.filter(
+      (t) => (t.id !== 'desktop' || hasDesktopPrefs) && (!q || `${t.label} ${t.keywords}`.toLowerCase().includes(q)),
+    ),
   })).filter((g) => g.tabs.length > 0);
   const firstMatch = shownGroups[0]?.tabs[0]?.id;
   // While searching, show the best match unless the current page still matches.
@@ -312,6 +323,7 @@ export function SettingsDialog({
             <ShortcutsPanel />
           </section>
         )}
+        {activeTab === 'desktop' && <DesktopSection />}
         {activeTab === 'account' && <CloudAccountSection confirm={confirm} />}
         {activeTab === 'calendar' && <CalendarSyncSection confirm={confirm} />}
         {activeTab === 'ai' && <McpSection />}

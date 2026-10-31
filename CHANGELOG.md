@@ -10,6 +10,9 @@ Newest first. Each release is a GitHub release with the Windows installer; todoe
 - "When I get things done" heatmap in Insights: completions by weekday and hour, with your best slot.
 - Achievements and points (50 achievements, 10,000 points) and a skin shop preview (coming soon). Both open from the profile menu at the bottom of the sidebar.
 - Languages: English, 简体中文, 日本語, 한국어 (Settings > Appearance > Language). Dates and times follow the language. Still English: the web sign-in page and the setup pages for Account & sync, Google Calendar and AI assistants.
+- Desktop app runs in the background (Settings > Desktop app): Start with Windows (opens in the tray at sign-in),
+  closing the window keeps TodoEase in the notification area, and shortcuts that work in any app: Ctrl+Alt+T opens
+  a small New task box, Ctrl+Alt+N opens a new sticky note. Both shortcuts can be changed or turned off.
 - Turn into tasks understands more date phrases ("next Friday at 3pm", "end of the month", "in 2 weeks").
 
 ### Docs

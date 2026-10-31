@@ -30,6 +30,19 @@ interface DesktopUpdateState {
   error: string | null;
 }
 
+/** Background mode of the desktop app (Settings > Desktop app). Hotkeys are Electron accelerators, e.g. "Control+Alt+T". */
+interface DesktopPrefs {
+  /** Only the installed app can register itself to start with Windows. */
+  startWithWindowsAvailable: boolean;
+  startWithWindows: boolean;
+  /** Turned on here but switched off in Windows Settings > Apps > Startup. */
+  startupBlockedByWindows: boolean;
+  keepInTray: boolean;
+  hotkeys: { newTask: string | null; newNote: string | null };
+  /** Shortcuts another app already holds. */
+  hotkeyErrors: { newTask?: boolean; newNote?: boolean };
+}
+
 /** App version baked in at build time (frontend/vite.config.ts); the desktop shell reports its own in DesktopUpdateState. */
 declare const __APP_VERSION__: string;
 
@@ -66,5 +79,17 @@ interface Window {
     notesChanged?: () => void;
     /** Called when another window changed notes; returns an unsubscribe function. */
     onNotesChanged?: (callback: () => void) => () => void;
+    /** Tell the other windows that tasks changed (the quick-add popup). */
+    tasksChanged?: () => void;
+    onTasksChanged?: (callback: () => void) => () => void;
+    getDesktopPrefs?: () => Promise<DesktopPrefs>;
+    setDesktopPrefs?: (patch: Partial<Pick<DesktopPrefs, 'startWithWindows' | 'keepInTray'>> & { hotkeys?: Partial<DesktopPrefs['hotkeys']> }) => Promise<DesktopPrefs>;
+    /** Tray menu labels in the app's language. */
+    setTrayLabels?: (labels: { open: string; newTask: string; newNote: string; quit: string }) => Promise<void>;
+    /** The quick-add popup was shown again (reset the form). */
+    onQuickAddShown?: (callback: () => void) => () => void;
+    closeQuickAdd?: () => Promise<void>;
+    /** The "new sticky note" global shortcut was pressed. */
+    onNewNoteRequest?: (callback: () => void) => () => void;
   };
 }

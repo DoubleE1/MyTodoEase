@@ -45,6 +45,7 @@ import { undoLast } from './lib/undo';
 import { recordEvent } from './lib/achievements';
 import { useAchievementWatcher } from './lib/useAchievements';
 import { useNotesSync } from './lib/notes';
+import { useBackgroundModeBridge } from './lib/globalHotkeys';
 import { useTheme } from './lib/theme';
 import type { View } from './lib/views';
 import { t } from './i18n';
@@ -91,6 +92,8 @@ export default function App() {
   const { confirm, element: confirmElement } = useConfirm();
   // Desktop: notes edited in a popped-out window show up here too.
   useNotesSync();
+  // Desktop: the tray, the quick-add popup and the "New sticky note" shortcut talk to this window.
+  useBackgroundModeBridge();
   const theme = useTheme();
   const windowMode = useWindowMode();
 

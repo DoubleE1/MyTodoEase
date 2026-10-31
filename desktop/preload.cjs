@@ -38,4 +38,29 @@ contextBridge.exposeInMainWorld('mytodoease', {
     ipcRenderer.on('notes:changed', listener);
     return () => ipcRenderer.removeListener('notes:changed', listener);
   },
+  tasksChanged: () => ipcRenderer.send('tasks:changed'),
+  onTasksChanged: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('tasks:changed', listener);
+    return () => ipcRenderer.removeListener('tasks:changed', listener);
+  },
+  // Background mode (Settings > Desktop app): start with Windows, the tray, global shortcuts.
+  getDesktopPrefs: () => ipcRenderer.invoke('desktop:get-prefs'),
+  setDesktopPrefs: (patch) => ipcRenderer.invoke('desktop:set-prefs', patch),
+  setTrayLabels: (labels) => ipcRenderer.invoke('desktop:set-tray-labels', labels),
+  // The quick-add popup (#quick-add): shown again, and put away.
+  onQuickAddShown: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('quick-add:shown', listener);
+    return () => ipcRenderer.removeListener('quick-add:shown', listener);
+  },
+  closeQuickAdd: () => ipcRenderer.invoke('quick-add:close'),
+  // The "new sticky note" shortcut asks the main window's page to make one; a request made before the page
+  // was ready is handed over when it subscribes.
+  onNewNoteRequest: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('quick:new-note', listener);
+    void ipcRenderer.invoke('quick:take-pending-note').then((pending) => pending && callback());
+    return () => ipcRenderer.removeListener('quick:new-note', listener);
+  },
 });

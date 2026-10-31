@@ -25,6 +25,9 @@ const queryClient = new QueryClient({
 // Desktop: a sticky note popped out into its own window loads this page with #note=<id>.
 const NoteWindow = lazy(() => import('./components/NoteWindow').then((m) => ({ default: m.NoteWindow })));
 const noteWindowId = /^#note=([\w-]+)$/.exec(window.location.hash)?.[1];
+// Desktop: the "New task" global shortcut's popup loads this page with #quick-add.
+const QuickAddWindow = lazy(() => import('./components/QuickAddWindow').then((m) => ({ default: m.QuickAddWindow })));
+const isQuickAddWindow = window.location.hash === '#quick-add';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -33,6 +36,10 @@ createRoot(document.getElementById('root')!).render(
         {noteWindowId ? (
           <Suspense fallback={null}>
             <NoteWindow noteId={noteWindowId} />
+          </Suspense>
+        ) : isQuickAddWindow ? (
+          <Suspense fallback={null}>
+            <QuickAddWindow />
           </Suspense>
         ) : (
           <App />
