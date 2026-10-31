@@ -6,17 +6,20 @@ import { motionReduced } from '../lib/motion';
  * canvas "blackhole" demo. Each particle draws a short line from where it was to where it is, over a picture that
  * fades a little every frame, so the disk is made of light streaks.
  *
- * The hole glides after the pointer (and back to the open space under `below` when the pointer leaves). The disk
- * lags behind it, outer rings more than inner ones, so a quick move smears it into a comet. Loose dust across the
- * page spirals in the way the disk turns, flattening into it as it arrives, and is drawn as streams towards the
- * pointer. Holding the mouse button down pulls
- * harder (the disk shrinks and spins faster); a click on the page itself (not on a card, button or field) makes
- * the disk flare out, then settle.
+ * Every particle makes one journey: it starts at the page's edge, spirals in the way the disk turns (its orbit round
+ * far out, flattening into the disk's tilted plane as it nears it), slows down and joins the disk, drifts inwards
+ * through it, circling faster as it goes (as in a real disk), and drops into the hole. Then it starts again at the
+ * edge. The disk is simply where particles are slow, so they gather there.
  *
- * Inner particles circle faster than outer ones (as in a real disk) and drift slowly inwards; one that reaches the
- * rim comes back at the outer edge. The side coming towards you is brighter, and brightness rises and falls with
- * the radius, which shows as rings. In the light theme the light is
- * darker purple ink. It pauses while the window is hidden; with Reduce motion it draws one still picture.
+ * The hole glides after the pointer (and back to the open space under `below` when the pointer leaves). Each
+ * particle's orbit lags behind it, outer ones more, so a quick move smears the disk into a comet and draws streams
+ * towards the pointer. Holding the mouse button down makes everything fall in and spin faster (the disk drains into
+ * the hole and refills from outside afterwards); a click on the page itself (not on a card, button or field) makes
+ * it flare out, then settle.
+ *
+ * The side coming towards you is brighter, and brightness rises and falls with the radius, which shows as rings.
+ * In the light theme the light is darker purple ink. It pauses while the window is hidden; with Reduce motion it
+ * draws one still picture.
  */
 export function BlackHole({ className, below }: { className?: string; below?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -36,7 +39,7 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     /** The disk's tilt (radians, rising to the right) and how flat it looks (height over width). */
     const TILT = -0.22;
     const SQUASH = 0.34;
-    /** Turns per second at the inner edge (radians); outer rings are slower by (inner / r) ^ 1.5. */
+    /** Turns per second at the disk's inner edge (radians); outer rings are slower by (inner / r) ^ 1.5. */
     const SPIN = 2.4;
     /** How quickly the hole catches up with the pointer (per second): slow and heavy. */
     const FOLLOW = 3.2;
@@ -65,7 +68,9 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     let kick = 0;
     let burst = 0;
 
-    // Disk particles: radius, angle, their own centre (lagging behind the hole), last drawn point, sparkle.
+    // Particles: the radius and angle of their orbit round the hole (in the disk's plane), their own centre (trailing
+    // the hole), last drawn point, sparkle. One set for everything: a particle starts at the page's edge, spirals in,
+    // slows down and joins the disk, drifts through it, and drops into the hole.
     let n = 0;
     let r = new Float32Array(0);
     let a = new Float32Array(0);
@@ -74,16 +79,7 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     let px = new Float32Array(0);
     let py = new Float32Array(0);
     let shine = new Float32Array(0);
-    // Dust: its orbit's radius and angle round the hole (in the disk's own plane, like the disk particles), its own
-    // centre (trailing the hole slowly), last drawn point.
-    let m = 0;
-    let dr = new Float32Array(0);
-    let da = new Float32Array(0);
-    let dox = new Float32Array(0);
-    let doy = new Float32Array(0);
-    let qx = new Float32Array(0);
-    let qy = new Float32Array(0);
-    /** The farthest a dust orbit starts: the page's far corner from the hole. */
+    /** Where particles start: the page's far corner from the hole. */
     let reach = 400;
 
     /** Line colours per level, and in the light theme a darker ink. */
@@ -95,52 +91,63 @@ export function BlackHole({ className, below }: { className?: string; below?: st
         : ['rgba(150,120,230,0.35)', 'rgba(130,95,225,0.45)', 'rgba(110,70,220,0.55)', 'rgba(90,50,200,0.65)', 'rgba(70,35,170,0.75)', 'rgba(50,20,130,0.85)'];
     };
 
-    const spawnDisk = (i: number, anywhere: boolean) => {
-      // Most particles sit near the inner edge; new ones (anywhere = false) arrive at the outer edge.
-      const u = anywhere ? Math.random() ** 1.6 : 0.75 + Math.random() * 0.25;
-      r[i] = inner + (outer - inner) * u;
+    const smoothstep = (from: number, to: number, x: number) => {
+      const t = Math.min(1, Math.max(0, (x - from) / (to - from)));
+      return t * t * (3 - 2 * t);
+    };
+
+    /**
+     * How fast a particle falls in at a radius (px per second): fast far out, slow in the disk (so particles gather
+     * there and it stays full), then a quick plunge past its inner edge into the hole.
+     */
+    const fallSpeed = (radius: number) =>
+      0.035 * radius +
+      0.12 * Math.max(0, radius - outer) +
+      22 * smoothstep(outer * 0.85, outer * 1.25, radius) +
+      (radius < inner ? 25 + 90 * (1 - radius / inner) : 0);
+
+    /** How fast it turns (radians per second): as a real disk inside it (faster nearer in), more gently outside. */
+    const turnSpeed = (radius: number) =>
+      radius <= outer ? SPIN * (inner / radius) ** 1.5 : SPIN * (inner / outer) ** 1.5 * (outer / radius);
+
+    /**
+     * A particle's place on the screen. Far out its orbit is round; nearing the disk it flattens into the disk's
+     * tilted plane, so it arrives moving the way the disk turns and joins it sideways. The flare after a click
+     * spreads everything out for a moment.
+     */
+    const point = (i: number) => {
+      const flat = smoothstep(outer, outer * 3.5, r[i]);
+      const squash = SQUASH + (1 - SQUASH) * flat;
+      const spread = 1 + burst * (0.4 + 0.6 * Math.min(1, Math.max(0, (r[i] - inner) / (outer - inner))));
+      const re = r[i] * spread;
+      const lx = Math.cos(a[i]) * re;
+      const ly = Math.sin(a[i]) * re * squash;
+      return { x: ox[i] + lx * Math.cos(TILT) - ly * Math.sin(TILT), y: oy[i] + lx * Math.sin(TILT) + ly * Math.cos(TILT) };
+    };
+
+    /**
+     * Start a particle at `radius`, or (none given) at the page's edge, spread evenly over that band's area (the
+     * square root).
+     */
+    const spawn = (i: number, radius?: number) => {
+      const from = reach * 0.85;
+      r[i] = radius ?? Math.sqrt(from * from + Math.random() * (reach * reach - from * from));
       a[i] = Math.random() * Math.PI * 2;
       ox[i] = center.x;
       oy[i] = center.y;
-      const p = diskPoint(i);
+      const p = point(i);
       px[i] = p.x;
       py[i] = p.y;
     };
 
     /**
-     * New dust: anywhere on the page at first (`anywhere`), later from the far edge. Spread evenly over the area
-     * (the square root), so the page is not crowded near the hole.
+     * The radii one particle passes through on its way in, one every 1/20 s. Starting each particle at a random one
+     * fills the page as if it had been running for a while: most in the disk, where they are slow, a few on the way.
      */
-    const spawnDust = (j: number, anywhere: boolean) => {
-      const from = anywhere ? outer * 1.15 : reach * 0.8;
-      dr[j] = Math.sqrt(from * from + Math.random() * (reach * reach - from * from));
-      da[j] = Math.random() * Math.PI * 2;
-      dox[j] = center.x;
-      doy[j] = center.y;
-      const p = dustPoint(j);
-      qx[j] = p.x;
-      qy[j] = p.y;
-    };
-
-    /**
-     * Dust's place on the screen. Far out its orbit is round; nearing the disk it flattens into the disk's tilted
-     * plane, so it arrives moving the way the disk turns and joins it sideways.
-     */
-    const dustPoint = (j: number) => {
-      const flat = Math.min(1, Math.max(0, (dr[j] - outer) / (outer * 2.5)));
-      const squash = SQUASH + (1 - SQUASH) * flat;
-      const lx = Math.cos(da[j]) * dr[j];
-      const ly = Math.sin(da[j]) * dr[j] * squash;
-      return { x: dox[j] + lx * Math.cos(TILT) - ly * Math.sin(TILT), y: doy[j] + lx * Math.sin(TILT) + ly * Math.cos(TILT) };
-    };
-
-    /** A disk particle's place on the screen: its circle, flattened and tilted, round its own centre. */
-    const diskPoint = (i: number) => {
-      const spread = 1 + burst * (0.5 + (r[i] - inner) / (outer - inner)) - pull * 0.28;
-      const re = r[i] * spread;
-      const lx = Math.cos(a[i]) * re;
-      const ly = Math.sin(a[i]) * re * SQUASH;
-      return { x: ox[i] + lx * Math.cos(TILT) - ly * Math.sin(TILT), y: oy[i] + lx * Math.sin(TILT) + ly * Math.cos(TILT) };
+    const journey = () => {
+      const radii: number[] = [];
+      for (let radius = reach; radius > hole && radii.length < 4000; radius -= fallSpeed(radius) * 0.05) radii.push(radius);
+      return radii;
     };
 
     const restPoint = () => {
@@ -174,8 +181,8 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       target = { ...home };
 
       const area = width * height;
-      n = Math.round(Math.max(500, Math.min(1400, area / 900)));
-      m = Math.round(Math.max(60, Math.min(260, area / 6000)));
+      n = Math.round(Math.max(560, Math.min(1660, area / 800)));
+      reach = Math.hypot(Math.max(center.x, width - center.x), Math.max(center.y, height - center.y)) + 40;
       r = new Float32Array(n);
       a = new Float32Array(n);
       ox = new Float32Array(n);
@@ -183,18 +190,11 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       px = new Float32Array(n);
       py = new Float32Array(n);
       shine = new Float32Array(n);
+      const radii = journey();
       for (let i = 0; i < n; i++) {
         shine[i] = 0.55 + Math.random() * 0.6;
-        spawnDisk(i, true);
+        spawn(i, radii[Math.floor(Math.random() * radii.length)]);
       }
-      dr = new Float32Array(m);
-      da = new Float32Array(m);
-      dox = new Float32Array(m);
-      doy = new Float32Array(m);
-      qx = new Float32Array(m);
-      qy = new Float32Array(m);
-      reach = Math.hypot(Math.max(center.x, width - center.x), Math.max(center.y, height - center.y)) + 40;
-      for (let j = 0; j < m; j++) spawnDust(j, true);
 
       const size = outer * 3.2;
       glow.style.width = glow.style.height = `${size}px`;
@@ -220,54 +220,39 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       }
 
       for (let i = 0; i < n; i++) {
-        const near = inner / r[i];
-        // Inner rings follow the hole closely; outer ones trail behind.
-        const lag = 1 - Math.exp(-(2.5 + 16 * near) * dt);
+        // Inner orbits follow the hole closely; outer ones trail behind, so a moving hole drags streams after it.
+        const lag = 1 - Math.exp(-(1.2 + 16 * (inner / r[i])) * dt);
         ox[i] += (center.x - ox[i]) * lag;
         oy[i] += (center.y - oy[i]) * lag;
-        a[i] += SPIN * near ** 1.5 * (1 + pull * 1.6) * (1 - burst * 0.5) * dt;
-        r[i] -= r[i] * (0.03 + pull * 0.35) * dt;
-        if (r[i] < inner * 0.92) {
-          spawnDisk(i, false);
+        // Holding the mouse down: everything falls in faster (the disk drains into the hole) and spins faster.
+        a[i] += turnSpeed(r[i]) * (1 + pull * 1.2) * (1 - burst * 0.5) * dt;
+        r[i] -= fallSpeed(r[i]) * (1 + pull * 4) * dt;
+        if (r[i] < hole) {
+          // Gone into the hole; it starts again at the page's edge.
+          spawn(i);
           continue;
         }
-        const p = diskPoint(i);
-        const sin = Math.sin(a[i]);
-        // Brighter near the centre and on the side coming towards you (the left, as it turns).
-        const t = 1 - (r[i] - inner) / (outer - inner);
-        const toward = Math.cos(a[i]) < -0.2 ? 1 : 0;
-        // Rings: brightness rises and falls with the radius, so the disk shows bands (fixed in place as particles
-        // drift through them).
-        const band = 0.55 + 0.45 * Math.sin((r[i] / hole) * 4.2) ** 2;
-        const level = Math.max(0, Math.min(LEVELS - 1, Math.floor((0.25 + t ** 1.2) * shine[i] * band * LEVELS + toward)));
-        // The near half passes in front of the hole (across its lower part), so the disk reads as orbiting round it.
-        const path = sin > 0 ? front[level] : back[level];
+        const p = point(i);
+        let level: number;
+        if (r[i] > outer) {
+          // On the way in: faint far out, brighter nearer the disk.
+          level = Math.floor((outer * 1.6) / r[i]);
+        } else {
+          // In the disk: brighter near the centre and on the side coming towards you (the left, as it turns). Rings:
+          // brightness rises and falls with the radius, so the disk shows bands (fixed in place as particles drift
+          // through them).
+          const t = Math.min(1, Math.max(0, 1 - (r[i] - inner) / (outer - inner)));
+          const toward = Math.cos(a[i]) < -0.2 ? 1 : 0;
+          const band = 0.55 + 0.45 * Math.sin((r[i] / hole) * 4.2) ** 2;
+          level = Math.floor((0.25 + t ** 1.2) * shine[i] * band * LEVELS + toward);
+        }
+        level = Math.max(0, Math.min(LEVELS - 1, level));
+        // The near half of the disk passes in front of the hole (across its lower part), so it reads as orbiting.
+        const path = Math.sin(a[i]) > 0 && r[i] < outer * 1.4 ? front[level] : back[level];
         path.moveTo(px[i], py[i]);
         path.lineTo(p.x, p.y);
         px[i] = p.x;
         py[i] = p.y;
-      }
-
-      for (let j = 0; j < m; j++) {
-        // The dust's own centre trails the hole slowly, so a moving hole drags streams after it.
-        const lag = 1 - Math.exp(-1.6 * dt);
-        dox[j] += (center.x - dox[j]) * lag;
-        doy[j] += (center.y - doy[j]) * lag;
-        // It turns the way the disk does (faster nearer in) and falls in, quickly far out and slowly near the disk,
-        // so its path bends from a fall into an orbit. Holding the mouse pulls it in faster; the flare pushes it out.
-        da[j] += SPIN * (inner / dr[j]) ** 1.2 * (1 + pull) * dt;
-        dr[j] -= (30 + 0.12 * (dr[j] - outer)) * (1 + pull * 3) * dt;
-        dr[j] += kick * 300 * dt;
-        if (dr[j] < outer * 0.92) {
-          spawnDust(j, false);
-          continue;
-        }
-        const p = dustPoint(j);
-        const level = Math.max(0, Math.min(LEVELS - 1, Math.floor((outer * 1.6) / dr[j])));
-        back[level].moveTo(qx[j], qy[j]);
-        back[level].lineTo(p.x, p.y);
-        qx[j] = p.x;
-        qy[j] = p.y;
       }
     };
 
@@ -379,6 +364,10 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     const onDown = (event: PointerEvent) => {
       if (onPage(event)) pullTarget = 1;
     };
+    // Holding and moving the mouse over the background would otherwise select the page's text.
+    const onMouseDown = (event: MouseEvent) => {
+      if (onPage(event)) event.preventDefault();
+    };
     const onUp = () => {
       pullTarget = 0;
     };
@@ -390,6 +379,7 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerdown', onDown);
+    window.addEventListener('mousedown', onMouseDown);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('click', onClick);
     window.addEventListener('blur', onLeave);
@@ -403,6 +393,7 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       theme.disconnect();
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('click', onClick);
       window.removeEventListener('blur', onLeave);
