@@ -7867,14 +7867,12 @@ body.is-resizing-span * {
   z-index: 0;
 }
 
-/* The character field fills the page; it fades out at the bottom so long pages end calmly. */
+/* The character field fills the page (it fades itself out at the top and bottom). */
 .home-field {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent);
-  mask-image: linear-gradient(to bottom, #000 70%, transparent);
 }
 
 /* ---- Page content: centred and capped so wide monitors do not stretch it ---- */
