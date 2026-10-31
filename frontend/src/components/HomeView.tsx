@@ -2,6 +2,7 @@ import { ArrowRight, BookOpen, CalendarDays, CircleCheckBig, Clock3, Wallet } fr
 import type { ReactNode } from 'react';
 import type { Note, Task } from '../api/types';
 import { todayStr } from '../lib/dates';
+import { HOME_BACKGROUNDS, setHomeBackground, useHomeBackground, type HomeBackground } from '../lib/homeBackground';
 import type { ThemePreference } from '../lib/theme';
 import type { View } from '../lib/views';
 import { ProfileMenu } from './AccountMenu';
@@ -43,6 +44,7 @@ export function HomeView({
   themePreference: ThemePreference;
   onSetTheme: (preference: ThemePreference) => void;
 }) {
+  const background = useHomeBackground();
   const today = todayStr();
   const dueToday = tasks.filter((task) => task.dueDate === today).length;
   const overdue = tasks.filter((task) => task.dueDate !== null && task.dueDate < today).length;
@@ -84,11 +86,20 @@ export function HomeView({
   ];
 
   return (
-    <div className="view view-home">
-      {/* A moving field of characters behind the page; decoration only. */}
+    <div className="view view-home" data-bg={background}>
+      {/* The background effect (decoration only). "dots" is the Tasks pages' header art, shown by App via CSS. */}
       <div className="home-decor" aria-hidden="true">
-        <AsciiField word="TodoEase" clearOf=".home-bar > *, .home-head p" className="home-field" />
+        {background === 'field' && <AsciiField word="TodoEase" clearOf=".home-bar > *, .home-head p" className="home-field" />}
+        {background === 'orbs' && (
+          <>
+            <span className="home-orb home-orb-a" />
+            <span className="home-orb home-orb-b" />
+            <span className="home-dots home-dots-a" />
+            <span className="home-dots home-dots-b" />
+          </>
+        )}
       </div>
+      {import.meta.env.DEV && <BackgroundSwitcher value={background} />}
 
       <div className="home-page">
       {/* No feature sidebar here: just the logo and the profile menu (Settings, theme, account). */}
@@ -147,5 +158,24 @@ function FeatureBody({ feature }: { feature: Feature }) {
         <span>{feature.stat ?? t('Coming soon')}</span>
       </span>
     </>
+  );
+}
+
+/**
+ * Development only (never in a build): pick Home's background to compare the effects. To be replaced by the
+ * shop's background category.
+ */
+function BackgroundSwitcher({ value }: { value: HomeBackground }) {
+  return (
+    <label className="home-bg-switcher">
+      <span>Background (dev)</span>
+      <select value={value} onChange={(e) => setHomeBackground(e.target.value as HomeBackground)}>
+        {HOME_BACKGROUNDS.map((b) => (
+          <option key={b.id} value={b.id}>
+            {b.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
