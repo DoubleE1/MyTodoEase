@@ -9,7 +9,8 @@ import { motionReduced } from '../lib/motion';
  * Drawn by stamping soft glow dots closely along the smoothed path and adding their light together, which gives
  * the same bright-centre, long-falloff profile as the shader. The trail's head glides after the pointer, so a quick
  * change of direction comes out as a rounded arc, and the colour edges turn round gradually with it. While the
- * pointer rests, a glowing orb stays on it (drawn once, nothing animating); it fades when the pointer leaves. In the light theme, where added light would vanish
+ * pointer rests, a glowing orb stays with it, drifting slowly a few px around it and gently growing and shrinking
+ * (30 frames a second; still with Reduce motion); it fades when the pointer leaves. In the light theme, where added light would vanish
  * against white, it is a softer glow in the brand colours. Nothing runs once the trail has faded; Reduce motion
  * (OS or Settings) turns it off.
  */
@@ -40,6 +41,11 @@ export function ChromaTrail({ className }: { className?: string }) {
     let orbTarget = 0;
     /** Which way the colour rims face (the trail's last sideways direction). */
     let edge = { x: -1, y: 0 };
+    /** When the pointer last moved; the orb starts drifting a moment after it rests. */
+    let lastMoveAt = 0;
+    /** Frame pace while only the resting orb drifts (no trail): slow and cheap. */
+    const DRIFT_MS = 33;
+    let lastDrift = 0;
     let width = 0;
     let height = 0;
     let dark = true;
@@ -127,14 +133,26 @@ export function ChromaTrail({ className }: { className?: string }) {
     };
 
     /** The resting glow at the head: the three colours stacked (white core) with slight warm and blue rims. */
-    const drawOrb = () => {
+    const drawOrb = (now: number) => {
       if (!head || orb < 0.01) return;
-      const radius = RADIUS * 1.45;
+      // Resting, the orb wanders slowly round the pointer (overlapping slow waves, so it never loops visibly),
+      // its colour rims turning with it. It eases in after the pointer stops; while moving it sits on the pointer.
+      const rest = motionReduced() ? 0 : Math.min(1, Math.max(0, (now - lastMoveAt - 250) / 900));
+      const t = now / 1000;
+      const dx = (Math.sin(t * 0.9) * 6 + Math.sin(t * 0.37 + 1.3) * 3) * rest;
+      const dy = (Math.cos(t * 0.73) * 5 + Math.sin(t * 0.51 + 0.4) * 3) * rest;
+      const dl = Math.hypot(dx, dy);
+      const rim = rest > 0.05 && dl > 0.5 ? { x: dx / dl, y: dy / dl } : edge;
+      const x = head.x + dx;
+      const y = head.y + dy;
+      // ...and breathes, growing and shrinking a little (about 6%, every ~3 s).
+      const breathe = 1 + Math.sin(t * 2.1) * 0.06 * rest;
+      const radius = RADIUS * 1.45 * breathe;
       ctx.globalAlpha = (dark ? 0.62 : 0.26) * orb;
       for (let pass = 0; pass < 2; pass++) {
         sprites.forEach((sprite, channel) => {
           const shift = (channel - 1) * 4;
-          ctx.drawImage(sprite, head!.x + edge.x * shift - radius, head!.y + edge.y * shift - radius, radius * 2, radius * 2);
+          ctx.drawImage(sprite, x + rim.x * shift - radius, y + rim.y * shift - radius, radius * 2, radius * 2);
         });
       }
     };
@@ -147,7 +165,7 @@ export function ChromaTrail({ className }: { className?: string }) {
       ctx.globalCompositeOperation = dark ? 'lighter' : 'source-over';
       const trail = points.length >= 2;
       if (trail) drawTrail(now);
-      drawOrb();
+      drawOrb(now);
       ctx.restore();
       return trail;
     };
@@ -215,9 +233,14 @@ export function ChromaTrail({ className }: { className?: string }) {
       orb += (orbTarget - orb) * (1 - Math.exp(-8 * dt));
       const easing = Math.abs(orbTarget - orb) > 0.01;
       if (!easing) orb = orbTarget;
-      const lit = draw(now);
-      // Once the trail has faded and the head has caught up, the last frame (with the orb, if any) just stays.
-      if ((lit || chasing || easing) && !document.hidden) frame = requestAnimationFrame(loop);
+      // With only the resting orb drifting (no trail), a slower pace is enough.
+      const drifting = orb > 0.01 && !motionReduced();
+      const busy = chasing || easing || points.length > 0;
+      if (busy || now - lastDrift >= DRIFT_MS) {
+        lastDrift = now;
+        draw(now);
+      }
+      if ((busy || drifting) && !document.hidden) frame = requestAnimationFrame(loop);
       else lastFrame = 0;
     };
     const kick = () => {
@@ -245,6 +268,7 @@ export function ChromaTrail({ className }: { className?: string }) {
       }
       target = { x, y };
       orbTarget = 1;
+      lastMoveAt = performance.now();
       kick();
     };
     // The pointer left the page (or a finger lifted): the resting glow fades out.
@@ -257,6 +281,10 @@ export function ChromaTrail({ className }: { className?: string }) {
     document.addEventListener('pointerleave', onGone);
     window.addEventListener('pointerup', onGone);
     const onBlur = () => onGone();
+    const onVisible = () => {
+      if (!document.hidden) kick();
+    };
+    document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('blur', onBlur);
 
     return () => {
@@ -267,6 +295,7 @@ export function ChromaTrail({ className }: { className?: string }) {
       document.removeEventListener('pointerleave', onGone);
       window.removeEventListener('pointerup', onGone);
       window.removeEventListener('blur', onBlur);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
 
