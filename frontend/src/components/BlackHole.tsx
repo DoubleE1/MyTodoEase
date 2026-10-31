@@ -8,7 +8,8 @@ import { motionReduced } from '../lib/motion';
  *
  * The hole glides after the pointer (and back to the open space under `below` when the pointer leaves). The disk
  * lags behind it, outer rings more than inner ones, so a quick move smears it into a comet. Loose dust across the
- * page falls in, spiralling, and is drawn as streams towards the pointer. Holding the mouse button down pulls
+ * page spirals in the way the disk turns, flattening into it as it arrives, and is drawn as streams towards the
+ * pointer. Holding the mouse button down pulls
  * harder (the disk shrinks and spins faster); a click on the page itself (not on a card, button or field) makes
  * the disk flare out, then settle.
  *
@@ -73,14 +74,17 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     let px = new Float32Array(0);
     let py = new Float32Array(0);
     let shine = new Float32Array(0);
-    // Dust: position, velocity, last drawn point.
+    // Dust: its orbit's radius and angle round the hole (in the disk's own plane, like the disk particles), its own
+    // centre (trailing the hole slowly), last drawn point.
     let m = 0;
-    let dx = new Float32Array(0);
-    let dy = new Float32Array(0);
-    let vx = new Float32Array(0);
-    let vy = new Float32Array(0);
+    let dr = new Float32Array(0);
+    let da = new Float32Array(0);
+    let dox = new Float32Array(0);
+    let doy = new Float32Array(0);
     let qx = new Float32Array(0);
     let qy = new Float32Array(0);
+    /** The farthest a dust orbit starts: the page's far corner from the hole. */
+    let reach = 400;
 
     /** Line colours per level, and in the light theme a darker ink. */
     let colours: string[] = [];
@@ -103,19 +107,31 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       py[i] = p.y;
     };
 
-    const spawnDust = (j: number) => {
-      // Somewhere on the page, away from the disk.
-      for (let tries = 0; tries < 8; tries++) {
-        dx[j] = Math.random() * width;
-        dy[j] = Math.random() * height;
-        if (Math.hypot(dx[j] - center.x, dy[j] - center.y) > outer * 1.4) break;
-      }
-      const ang = Math.atan2(dy[j] - center.y, dx[j] - center.x);
-      // A small sideways push, so the dust spirals in rather than dropping straight.
-      vx[j] = -Math.sin(ang) * 40;
-      vy[j] = Math.cos(ang) * 40;
-      qx[j] = dx[j];
-      qy[j] = dy[j];
+    /**
+     * New dust: anywhere on the page at first (`anywhere`), later from the far edge. Spread evenly over the area
+     * (the square root), so the page is not crowded near the hole.
+     */
+    const spawnDust = (j: number, anywhere: boolean) => {
+      const from = anywhere ? outer * 1.15 : reach * 0.8;
+      dr[j] = Math.sqrt(from * from + Math.random() * (reach * reach - from * from));
+      da[j] = Math.random() * Math.PI * 2;
+      dox[j] = center.x;
+      doy[j] = center.y;
+      const p = dustPoint(j);
+      qx[j] = p.x;
+      qy[j] = p.y;
+    };
+
+    /**
+     * Dust's place on the screen. Far out its orbit is round; nearing the disk it flattens into the disk's tilted
+     * plane, so it arrives moving the way the disk turns and joins it sideways.
+     */
+    const dustPoint = (j: number) => {
+      const flat = Math.min(1, Math.max(0, (dr[j] - outer) / (outer * 2.5)));
+      const squash = SQUASH + (1 - SQUASH) * flat;
+      const lx = Math.cos(da[j]) * dr[j];
+      const ly = Math.sin(da[j]) * dr[j] * squash;
+      return { x: dox[j] + lx * Math.cos(TILT) - ly * Math.sin(TILT), y: doy[j] + lx * Math.sin(TILT) + ly * Math.cos(TILT) };
     };
 
     /** A disk particle's place on the screen: its circle, flattened and tilted, round its own centre. */
@@ -171,13 +187,14 @@ export function BlackHole({ className, below }: { className?: string; below?: st
         shine[i] = 0.55 + Math.random() * 0.6;
         spawnDisk(i, true);
       }
-      dx = new Float32Array(m);
-      dy = new Float32Array(m);
-      vx = new Float32Array(m);
-      vy = new Float32Array(m);
+      dr = new Float32Array(m);
+      da = new Float32Array(m);
+      dox = new Float32Array(m);
+      doy = new Float32Array(m);
       qx = new Float32Array(m);
       qy = new Float32Array(m);
-      for (let j = 0; j < m; j++) spawnDust(j);
+      reach = Math.hypot(Math.max(center.x, width - center.x), Math.max(center.y, height - center.y)) + 40;
+      for (let j = 0; j < m; j++) spawnDust(j, true);
 
       const size = outer * 3.2;
       glow.style.width = glow.style.height = `${size}px`;
@@ -232,39 +249,25 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       }
 
       for (let j = 0; j < m; j++) {
-        const ex = center.x - dx[j];
-        const ey = center.y - dy[j];
-        const d = Math.hypot(ex, ey) || 1;
-        // Reaching the disk (its flattened, tilted shape, not a circle round it) or the hole, the dust joins it and
-        // comes back elsewhere.
-        const lx = -ex * Math.cos(TILT) - ey * Math.sin(TILT);
-        const ly = (ex * Math.sin(TILT) - ey * Math.cos(TILT)) / SQUASH;
-        if (Math.hypot(lx, ly) < outer * 0.9 || d < hole * 1.1) {
-          spawnDust(j);
+        // The dust's own centre trails the hole slowly, so a moving hole drags streams after it.
+        const lag = 1 - Math.exp(-1.6 * dt);
+        dox[j] += (center.x - dox[j]) * lag;
+        doy[j] += (center.y - doy[j]) * lag;
+        // It turns the way the disk does (faster nearer in) and falls in, quickly far out and slowly near the disk,
+        // so its path bends from a fall into an orbit. Holding the mouse pulls it in faster; the flare pushes it out.
+        da[j] += SPIN * (inner / dr[j]) ** 1.2 * (1 + pull) * dt;
+        dr[j] -= (30 + 0.12 * (dr[j] - outer)) * (1 + pull * 3) * dt;
+        dr[j] += kick * 300 * dt;
+        if (dr[j] < outer * 0.92) {
+          spawnDust(j, false);
           continue;
         }
-        // Gravity (softened so nothing slingshots) and drag. The sideways push it starts with makes it spiral; the
-        // drag takes that away, so it always falls in instead of settling into a ring.
-        const g = (2.2e5 * (1 + pull * 4)) / (d * d + 2500) + 6;
-        vx[j] += (ex / d) * g * dt * 6;
-        vy[j] += (ey / d) * g * dt * 6;
-        const drag = Math.exp(-0.9 * dt);
-        vx[j] *= drag;
-        vy[j] *= drag;
-        // The flare pushes dust out too.
-        vx[j] -= (ex / d) * kick * 260 * dt;
-        vy[j] -= (ey / d) * kick * 260 * dt;
-        dx[j] += vx[j] * dt;
-        dy[j] += vy[j] * dt;
-        if (dx[j] < -40 || dy[j] < -40 || dx[j] > width + 40 || dy[j] > height + 40) {
-          spawnDust(j);
-          continue;
-        }
-        const level = Math.max(0, Math.min(LEVELS - 1, Math.floor((outer * 1.6) / d)));
+        const p = dustPoint(j);
+        const level = Math.max(0, Math.min(LEVELS - 1, Math.floor((outer * 1.6) / dr[j])));
         back[level].moveTo(qx[j], qy[j]);
-        back[level].lineTo(dx[j], dy[j]);
-        qx[j] = dx[j];
-        qy[j] = dy[j];
+        back[level].lineTo(p.x, p.y);
+        qx[j] = p.x;
+        qy[j] = p.y;
       }
     };
 
