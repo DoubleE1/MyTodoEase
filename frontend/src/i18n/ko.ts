@@ -800,4 +800,8 @@ export const ko: Record<string, string> = {
   "A spinning disk of light that follows the pointer and pulls everything in.": "포인터를 따라가며 모든 것을 끌어당기는 회전하는 빛의 원반.",
   "It follows the pointer. Hold the mouse button to pull harder; click and the disk flares out.": "포인터를 따라가요. 마우스 버튼을 누르고 있으면 더 세게 끌어당기고, 클릭하면 원반이 밖으로 퍼져요.",
   "1 more skin": "스킨 1개 더",
+  // Shop: northern lights background.
+  "Northern lights": "오로라",
+  "Curtains of green light that sway over a night sky and a still lake.": "밤하늘과 잔잔한 호수 위로 흔들리는 초록빛 커튼.",
+  "The lights lean towards the pointer; click to send a pulse along them.": "빛이 포인터 쪽으로 기울어요. 클릭하면 빛의 파동이 퍼져요.",
 };

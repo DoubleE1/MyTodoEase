@@ -800,4 +800,8 @@ export const ja: Record<string, string> = {
   "A spinning disk of light that follows the pointer and pulls everything in.": "ポインターを追いかけ、すべてを引き込む回転する光の円盤。",
   "It follows the pointer. Hold the mouse button to pull harder; click and the disk flares out.": "ポインターを追いかけます。マウスボタンを押し続けると強く引き込み、クリックすると円盤が外へ広がります。",
   "1 more skin": "ほかに 1 個のスキン",
+  // Shop: northern lights background.
+  "Northern lights": "オーロラ",
+  "Curtains of green light that sway over a night sky and a still lake.": "夜空と静かな湖の上で揺れる緑の光のカーテン。",
+  "The lights lean towards the pointer; click to send a pulse along them.": "光はポインターの方へ傾きます。クリックすると光の波が広がります。",
 };

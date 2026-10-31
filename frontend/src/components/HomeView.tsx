@@ -3,10 +3,11 @@ import { useRef, useState, type ReactNode } from 'react';
 import type { Note, Task } from '../api/types';
 import { todayStr } from '../lib/dates';
 import { HOME_BACKGROUNDS, LINE_WORD_MAX, setHomeBackground, setLineWord, useHomeBackground, useLineWord, type HomeBackground } from '../lib/homeBackground';
-import type { ThemePreference } from '../lib/theme';
+import { useResolvedTheme, type ThemePreference } from '../lib/theme';
 import type { View } from '../lib/views';
 import { ProfileMenu } from './AccountMenu';
 import { AsciiField } from './AsciiField';
+import { Aurora } from './Aurora';
 import { BlackHole } from './BlackHole';
 import { ChromaTrail } from './ChromaTrail';
 import { DotTrail } from './DotTrail';
@@ -60,6 +61,10 @@ export function HomeView({
   onSetTheme: (preference: ThemePreference) => void;
 }) {
   const background = useHomeBackground();
+  // The black hole and the northern lights need a dark sky: in the light theme the page itself turns dark (night)
+  // while the cards and menus stay light.
+  const theme = useResolvedTheme();
+  const space = (background === 'blackhole' || background === 'aurora') && theme === 'light';
   // The line wave's word: click it to change it; the lines follow while typing.
   const lineWord = useLineWord();
   const [wordBox, setWordBox] = useState<WordBox | null>(null);
@@ -107,7 +112,7 @@ export function HomeView({
   ];
 
   return (
-    <div className="view view-home" data-bg={background}>
+    <div className="view view-home" data-bg={background} data-space={space || undefined}>
       {/* The background effect (decoration only). The "dots" ones are the Tasks pages' header art, shown via CSS. */}
       <div className="home-decor" aria-hidden="true">
         {background === 'field' && <AsciiField word="TodoEase" clearOf={HOME_CLEAR} className="home-field" />}
@@ -115,6 +120,7 @@ export function HomeView({
         {background === 'dots-full' && <DotTrail className="home-field" />}
         {background === 'chroma' && <ChromaTrail word="TodoEase" below=".home-grid" className="home-field" />}
         {background === 'blackhole' && <BlackHole below=".home-grid" className="home-field" />}
+        {background === 'aurora' && <Aurora className="home-field" />}
         {background === 'lines' && (
           <LineField word={draft ?? lineWord} caret={draft !== null} below=".home-grid" className="home-field" onWordBox={setWordBox} />
         )}

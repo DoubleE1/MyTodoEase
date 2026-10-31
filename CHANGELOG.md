@@ -32,7 +32,12 @@ Newest first. Each release is a GitHub release with the Windows installer; todoe
   under the pointer, other skins show their sketch enlarged; the arrows or ← → step through the section.
 - Black hole background (Shop, Legendary): a tilted, spinning disk of purple light round a black centre that
   follows the pointer and pulls loose dust in; hold the mouse button to pull harder, click to make it flare out.
+  The far side of the disk is bent over the top of the hole into a bright arch, with a glow round the hole.
   Also in the Home background switcher on the dev server.
+- Northern lights background (Shop, Epic): green ribbons sweeping over a night sky with stars, a black mountain
+  range and a lake that reflects it all; the lights brighten towards the pointer and a click sends a pulse along them.
+- Black hole and Northern lights need a dark sky: in the light theme Home turns its page dark for them and keeps its
+  cards white.
 
 ### Fixed
 - Notes board: a note dragged or resized quickly now keeps up with the mouse instead of stopping halfway.

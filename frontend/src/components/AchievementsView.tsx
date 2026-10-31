@@ -15,6 +15,7 @@ import {
 } from '../lib/achievements';
 import { motionReduced } from '../lib/motion';
 import { AsciiField } from './AsciiField';
+import { Aurora } from './Aurora';
 import { BlackHole } from './BlackHole';
 import { ChromaTrail } from './ChromaTrail';
 import { Modal } from './Dialogs';
@@ -317,13 +318,16 @@ function SkinPreviewDialog({ item, points, onStep, onClose }: { item: ShopItem; 
     'bg-lines': <LineField word="TodoEase" className="home-field" />,
     'bg-chroma': <ChromaTrail word="TodoEase" className="home-field" />,
     'bg-blackhole': <BlackHole className="home-field" />,
+    'bg-aurora': <Aurora className="home-field" />,
   };
   const hint =
     item.id === 'bg-plain'
       ? t('No effect: the Home page stays calm.')
       : item.id === 'bg-chroma'
         ? t('Click the preview and the light follows the pointer; click again and it signs the word.')
-        : item.id === 'bg-blackhole'
+        : item.id === 'bg-aurora'
+          ? t('The lights lean towards the pointer; click to send a pulse along them.')
+          : item.id === 'bg-blackhole'
           ? t('It follows the pointer. Hold the mouse button to pull harder; click and the disk flares out.')
           : item.category === 'background'
           ? t('Move the pointer over the preview.')

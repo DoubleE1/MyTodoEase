@@ -8174,6 +8174,40 @@ body.is-resizing-span * {
     var(--bg);
 }
 
+/* Northern lights: green and teal curtains with fine rays over a night sky, above dark hills. */
+.shop-preview[data-preview='bg-aurora'] {
+  background:
+    radial-gradient(ellipse 30% 55% at 32% 70%, rgba(80, 255, 170, 0.6), transparent 70%),
+    radial-gradient(ellipse 26% 45% at 62% 55%, rgba(60, 220, 210, 0.45), transparent 70%),
+    radial-gradient(ellipse 22% 35% at 78% 40%, rgba(170, 110, 255, 0.35), transparent 70%),
+    linear-gradient(#03050d, #0d2433);
+}
+
+.shop-preview[data-preview='bg-aurora']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 4px);
+  -webkit-mask: linear-gradient(transparent 15%, #000 55%, transparent 85%);
+  mask: linear-gradient(transparent 15%, #000 55%, transparent 85%);
+}
+
+.shop-preview[data-preview='bg-aurora']::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26%;
+  background: #060a12;
+  clip-path: polygon(0 45%, 14% 20%, 26% 40%, 40% 5%, 55% 38%, 68% 18%, 82% 42%, 100% 25%, 100% 100%, 0 100%);
+}
+
+/* The black hole always needs a dark sky (it is made of added light), so its preview runs on one in both themes. */
+.skin-stage[data-preview='bg-blackhole'] {
+  background: #0d0a14;
+}
+
 /* Chroma trail: a white arc with warm and blue edges, always on a dark sky. */
 .shop-preview[data-preview='bg-chroma'] {
   background: #15131d;
@@ -8656,6 +8690,32 @@ body.is-resizing-span * {
   display: none;
 }
 
+/* The black hole and the northern lights in the light theme: the page is a dark sky (both are made of light), while
+   the cards and menus stay light. Only the page's own text and controls (logo, greeting, profile button, background
+   switcher) take the dark theme's colours. */
+.app.is-home:has(.view-home[data-space]) .main {
+  --home-bg: #15131c;
+}
+
+.view-home[data-space] .home-bar .wordmark,
+.view-home[data-space] .home-bar .profile-btn,
+.view-home[data-space] .home-head,
+.view-home[data-space] > .home-bg-switcher {
+  --text: #e8e8e8;
+  --text-muted: #9c9c9c;
+  --border: #3a3a3a;
+  --bg: #1f1f1f;
+  --bg-hover: #353535;
+  --bg-active: #2c2850;
+  --home-card: rgba(32, 30, 40, 0.72);
+  --home-text-2: #b5b5bd;
+}
+
+/* Over the dark sky the light cards would turn grey through their see-through glass: nearly solid white instead. */
+.view-home[data-space] .home-card {
+  --home-card: rgba(255, 255, 255, 0.95);
+}
+
 /* The page fills the whole area edge to edge, so the orbs are not cut off by the feature pages' padding. */
 .app.is-home .main {
   padding: 0;
@@ -8725,16 +8785,6 @@ body.is-resizing-span * {
     transparent
   );
   will-change: transform;
-}
-
-/* Light theme: a pink heart fading to violet, matching the disk's hot inner edge. */
-:root:not([data-theme='dark']) .blackhole-glow {
-  background: radial-gradient(
-    closest-side,
-    color-mix(in srgb, var(--brand-3, #ff5fa8) 22%, transparent),
-    color-mix(in srgb, var(--brand-2, #7b4dff) 9%, transparent) 40%,
-    transparent
-  );
 }
 
 /* ---- Background option "dots": the Tasks pages' header art (dot grid with a breathing halo) ---- */

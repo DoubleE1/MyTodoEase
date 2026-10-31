@@ -18,10 +18,14 @@ import { motionReduced } from '../lib/motion';
  * the hole and refills from outside afterwards); a click on the page itself (not on a card, button or field) makes
  * it flare out, then settle.
  *
+ * Bent light: the far half of the disk is seen through the hole's gravity, so it arches up over the hole (each far
+ * point is moved by the lens equation of a point mass: strongly just behind the hole, hardly at all far out), and a
+ * thin faint arc shows under it. A soft glow fills the band round the hole (brightest over the top), with a thin
+ * bright ring at its edge.
+ *
  * The side coming towards you is brighter, and brightness rises and falls with the radius, which shows as rings.
- * In the light theme it is ink in the brand colours by heat (blue far out, violet, hot pink at the inner edge)
- * round a deep indigo hole with a pink rim. It pauses while the window is hidden; with Reduce motion it
- * draws one still picture.
+ * It is made of added light, so it always needs a dark sky: in the light theme Home turns its page dark for it (the
+ * cards stay light). It pauses while the window is hidden; with Reduce motion it draws one still picture.
  */
 export function BlackHole({ className, below }: { className?: string; below?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -35,7 +39,7 @@ export function BlackHole({ className, below }: { className?: string; below?: st
 
     /** The disk's tilt (radians, rising to the right) and how flat it looks (height over width). */
     const TILT = -0.22;
-    const SQUASH = 0.34;
+    const SQUASH = 0.24;
     /** Turns per second at the disk's inner edge (radians); outer rings are slower by (inner / r) ^ 1.5. */
     const SPIN = 2.4;
     /**
@@ -45,18 +49,21 @@ export function BlackHole({ className, below }: { className?: string; below?: st
      */
     const SPRING = 10;
     const DAMPING = 2 * Math.sqrt(SPRING);
-    /** Points kept for each particle's tail, one every TRAIL_STEP seconds (the tail's length; longer in the light
-     *  theme, where ink needs length to read as a streak rather than a dash), and how bright its newest, middle and
-     *  oldest parts are. */
+    /** Points kept for each particle's tail, one every TRAIL_STEP seconds (the tail's length), and how bright its
+     *  newest, middle and oldest parts are. */
     const TRAIL = 6;
-    const TRAIL_STEP = { dark: 1 / 30, light: 1 / 16 };
+    const TRAIL_STEP = 1 / 30;
     const AGE_ALPHA = [1, 0.6, 0.28];
-    /** Brightness levels, from the dim outer edge (0) to white (5). */
+    /** Brightness levels, from the dim outer edge (0) to white (5), and their colours. */
     const LEVELS = 6;
+    const COLOURS = ['rgba(96,56,200,0.55)', 'rgba(124,78,240,0.65)', 'rgba(152,102,255,0.75)', 'rgba(184,142,255,0.85)', 'rgba(222,200,255,0.9)', 'rgba(255,246,255,0.95)'];
+    /** The arch of the bent far side: its inner edge's distance from the centre, and the most the outer rings sit
+     *  above that (both in hole radii), so the whole far side is squeezed into a thin band at the bright edge. */
+    const LENS = 1.12;
+    const ARCH_RISE = 0.45;
 
     let width = 0;
     let height = 0;
-    let dark = true;
     let frame = 0;
     let lastFrame = 0;
     /** Time since the tails last took a point. */
@@ -80,8 +87,9 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     let burst = 0;
 
     // Particles: the radius and angle of their orbit round the hole (in the disk's plane), their own centre (trailing
-    // the hole), sparkle, and their tail's points (relative to the hole, newest first). One set for everything: a particle starts at the page's edge, spirals in,
-    // slows down and joins the disk, drifts through it, and drops into the hole.
+    // the hole), sparkle, and their tail's points (relative to the hole, newest first). One set for everything: a
+    // particle starts at the page's edge, spirals in, slows down and joins the disk, drifts through it, and drops into
+    // the hole.
     let n = 0;
     let r = new Float32Array(0);
     let a = new Float32Array(0);
@@ -92,17 +100,6 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     let shine = new Float32Array(0);
     /** Where particles start: the page's far corner from the hole. */
     let reach = 400;
-
-    /** Line colours per level, and in the light theme a darker ink. */
-    let colours: string[] = [];
-    const readTheme = () => {
-      dark = document.documentElement.dataset.theme === 'dark';
-      colours = dark
-        ? ['rgba(96,56,200,0.55)', 'rgba(124,78,240,0.65)', 'rgba(152,102,255,0.75)', 'rgba(184,142,255,0.85)', 'rgba(222,200,255,0.9)', 'rgba(255,246,255,0.95)']
-        : // Light theme: the brand colours by heat, as added light cannot glow on white. Soft blue far out and in the
-          // dust, through violet, to hot pink at the inner edge (where the dark theme turns white).
-          ['rgba(110,150,255,0.32)', 'rgba(105,115,250,0.45)', 'rgba(123,77,255,0.58)', 'rgba(160,70,240,0.7)', 'rgba(205,70,200,0.8)', 'rgba(240,70,140,0.9)'];
-    };
 
     const smoothstep = (from: number, to: number, x: number) => {
       const t = Math.min(1, Math.max(0, (x - from) / (to - from)));
@@ -127,6 +124,12 @@ export function BlackHole({ className, below }: { className?: string; below?: st
      * A particle's place on the screen. Far out its orbit is round; nearing the disk it flattens into the disk's
      * tilted plane, so it arrives moving the way the disk turns and joins it sideways. The flare after a click
      * spreads everything out for a moment.
+     *
+     * Behind the hole its light is bent by the hole's gravity, so the far side of the disk is seen arching up over
+     * the hole. Each ring of the far side is lifted (straight up, never sideways, so neighbouring streaks never cross)
+     * onto a round arch hugging the hole: the inner edge just outside it, outer rings only a little higher, so the
+     * whole disk's width is squeezed into a thin bright band over the top. Where the arch comes down to the flat disk the two are
+     * blended smoothly, so the arch flows into the disk on both sides. Far out (the dust) nothing is bent.
      */
     const point = (i: number) => {
       const flat = smoothstep(outer, outer * 3.5, r[i]);
@@ -134,7 +137,21 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       const spread = 1 + burst * (0.4 + 0.6 * Math.min(1, Math.max(0, (r[i] - inner) / (outer - inner))));
       const re = r[i] * spread;
       const lx = Math.cos(a[i]) * re;
-      const ly = Math.sin(a[i]) * re * squash;
+      let ly = Math.sin(a[i]) * re * squash;
+      if (ly < 0) {
+        // The arch for this ring: a circle round the hole, higher for rings further out but levelling off quickly, so
+        // even the outermost rings stay within ARCH_RISE of the inner edge.
+        const radius = hole * (LENS + ARCH_RISE * (1 - Math.exp(-Math.max(0, r[i] - inner) / (hole * 2.5))));
+        const arch = Math.abs(lx) < radius ? Math.sqrt(radius * radius - lx * lx) : 0;
+        if (arch > 0) {
+          // A smooth "higher of the two" (the arch or the flat disk), softest where the arch is high, sharp where it
+          // meets the disk (so it joins it exactly). Fades out beyond the disk.
+          const height = -ly;
+          const soft = Math.min(hole * 0.35, arch);
+          const lifted = (height + arch + Math.sqrt((height - arch) ** 2 + soft * soft)) / 2;
+          ly = -(height + (lifted - height) * (1 - smoothstep(outer, outer * 1.6, r[i])));
+        }
+      }
       return { x: ox[i] + lx * Math.cos(TILT) - ly * Math.sin(TILT), y: oy[i] + lx * Math.sin(TILT) + ly * Math.cos(TILT) };
     };
 
@@ -183,7 +200,7 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       // The disk's size follows the space; the hole is small inside it, so most of the disk is light.
       const scale = Math.max(18, Math.min(60, Math.min(width, height * 2) * 0.062));
       hole = scale * 0.6;
-      inner = hole * 1.55;
+      inner = hole * 1.35;
       outer = Math.min(scale * 5.5, width * 0.42);
       home = restPoint();
       center = { ...home };
@@ -236,9 +253,8 @@ export function BlackHole({ className, below }: { className?: string; below?: st
         front[k] = new Path2D();
       }
       sinceSample += dt;
-      const trailStep = dark ? TRAIL_STEP.dark : TRAIL_STEP.light;
-      const sample = sinceSample >= trailStep;
-      if (sample) sinceSample %= trailStep;
+      const sample = sinceSample >= TRAIL_STEP;
+      if (sample) sinceSample %= TRAIL_STEP;
 
       for (let i = 0; i < n; i++) {
         // Each orbit is carried along with the hole: inner ones tightly, outer ones and the dust on its way in a
@@ -259,10 +275,6 @@ export function BlackHole({ className, below }: { className?: string; below?: st
         if (r[i] > outer) {
           // On the way in: faint far out, brighter nearer the disk.
           level = Math.floor((outer * 1.6) / r[i]);
-        } else if (!dark) {
-          // Light theme: the colour follows the distance only (no sparkle), so the disk forms clean rings from hot
-          // pink inside through violet to blue, instead of pink and blue dashes side by side.
-          level = Math.round((1 - (r[i] - inner) / (outer - inner)) ** 1.3 * (LEVELS - 1) + 0.6);
         } else {
           // In the disk: brighter near the centre and on the side coming towards you (the left, as it turns). Rings:
           // brightness rises and falls with the radius, so the disk shows bands (fixed in place as particles drift
@@ -276,11 +288,13 @@ export function BlackHole({ className, below }: { className?: string; below?: st
         // The near half of the disk passes in front of the hole (across its lower part), so it reads as orbiting.
         const paths = Math.sin(a[i]) > 0 && r[i] < outer * 1.4 ? front : back;
         // The tail: from where the particle is back through its earlier points (relative to the hole, so it travels
-        // with it), two segments per age.
+        // with it), two segments per age. Past the disk's inner edge, in its last quick plunge, it is no longer drawn
+        // (its tail would point straight in, as a spike); the ring of bent light round the hole covers that gap.
         const base = i * TRAIL;
+        const plunging = r[i] < inner;
         let x = p.x;
         let y = p.y;
-        for (let k = 0; k < TRAIL; k++) {
+        for (let k = 0; k < TRAIL && !plunging; k++) {
           const path = paths[(k >> 1) * LEVELS + level];
           const nx = hx[base + k] + center.x;
           const ny = hy[base + k] + center.y;
@@ -295,20 +309,37 @@ export function BlackHole({ className, below }: { className?: string; below?: st
           hx[base] = p.x - center.x;
           hy[base] = p.y - center.y;
         }
+        // The far side's light also reaches us bent the other way round the hole, as a thin faint arc under it.
+        if (!plunging && r[i] < outer && Math.sin(a[i]) < 0) underArc(i, level);
       }
+    };
+
+    /** The far side's second image: the inner part of the disk squeezed into a thin arc just under the hole. */
+    const underArc = (i: number, level: number) => {
+      const u = Math.min(1, Math.max(0, (r[i] - inner) / (outer - inner)));
+      if (u >= 0.45) return;
+      const radius = hole * (1.06 + 0.4 * u);
+      const arc = (angle: number) => {
+        const lx = Math.cos(angle) * radius;
+        const ly = -Math.sin(angle) * radius;
+        return { x: center.x + lx * Math.cos(TILT) - ly * Math.sin(TILT), y: center.y + lx * Math.sin(TILT) + ly * Math.cos(TILT) };
+      };
+      const from = arc(a[i] - turnSpeed(r[i]) * 0.2);
+      const to = arc(a[i]);
+      const path = back[2 * LEVELS + Math.max(0, level - 1)];
+      path.moveTo(from.x, from.y);
+      path.lineTo(to.x, to.y);
     };
 
     const strokeAll = (c: CanvasRenderingContext2D, paths: Path2D[]) => {
       c.lineCap = 'round';
-      // Dark: light adds up to white where streaks cross. Light: ink multiplies, so crossings get deeper, not muddier.
-      // Over the hole (the near half) ink is drawn plainly: multiplied onto the dark hole it would vanish.
-      c.globalCompositeOperation = dark ? 'lighter' : paths === front ? 'source-over' : 'multiply';
+      // Light adds up: white where streaks cross.
+      c.globalCompositeOperation = 'lighter';
       AGE_ALPHA.forEach((alpha, age) => {
         c.globalAlpha = alpha;
         for (let l = 0; l < LEVELS; l++) {
-          c.strokeStyle = colours[l];
-          // Ink needs a little more weight than light to read as a streak rather than a dash.
-          c.lineWidth = 0.8 + l * 0.22 + (dark ? 0 : 0.45);
+          c.strokeStyle = COLOURS[l];
+          c.lineWidth = 0.8 + l * 0.22;
           c.stroke(paths[age * LEVELS + l]);
         }
       });
@@ -316,51 +347,46 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       c.globalCompositeOperation = 'source-over';
     };
 
-    /**
-     * Light theme: a soft body for the disk under its streaks (pink at the centre, violet, fading out), flattened and
-     * tilted like it. On a dark page the streaks' added light fills the disk in; ink on white needs this.
-     */
-    const drawBody = () => {
-      const spread = 1 + burst * 0.6;
-      ctx.save();
-      ctx.translate(center.x, center.y);
-      ctx.rotate(TILT);
-      ctx.scale(1, SQUASH);
-      const g = ctx.createRadialGradient(0, 0, inner * 0.8, 0, 0, outer * 1.1 * spread);
-      g.addColorStop(0, 'rgba(240,80,150,0.32)');
-      g.addColorStop(0.35, 'rgba(170,80,240,0.2)');
-      g.addColorStop(0.7, 'rgba(120,110,255,0.08)');
-      g.addColorStop(1, 'rgba(120,110,255,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(0, 0, outer * 1.1 * spread, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    };
-
     const draw = () => {
       ctx.clearRect(0, 0, width, height);
-      if (!dark) drawBody();
       strokeAll(ctx, back);
 
-      // The hole, with a thin bright rim of bent light.
+      // The bent light round the hole as one continuous glow, so the band between the hole and the arched far side
+      // is filled (the streaks alone spread thin there, where the bending stretches them, and the page showed
+      // through). Brightest at the hole's edge and fading outwards; centred a little above the hole, so the arch
+      // over the top glows most. Then a thin bright ring right at the edge. The hole covers the middle.
       const h = hole * (1 - pull * 0.12);
-      // Light theme: a little depth (darkest in the middle) so it is not a flat disc on the white page.
-      if (dark) ctx.fillStyle = '#05030a';
-      else {
-        const g = ctx.createRadialGradient(center.x, center.y - h * 0.15, 0, center.x, center.y, h);
-        g.addColorStop(0, '#0d0719');
-        g.addColorStop(0.75, '#1c1033');
-        g.addColorStop(1, '#33205a');
-        ctx.fillStyle = g;
-      }
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const gy = center.y - h * 0.22;
+      const halo = ctx.createRadialGradient(center.x, gy, h * 0.9, center.x, gy, h * 2.5);
+      halo.addColorStop(0, 'rgba(245,235,255,0.85)');
+      halo.addColorStop(0.18, 'rgba(215,190,255,0.6)');
+      halo.addColorStop(0.45, 'rgba(170,130,255,0.28)');
+      halo.addColorStop(0.75, 'rgba(130,90,240,0.08)');
+      halo.addColorStop(1, 'rgba(130,90,240,0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(center.x, gy, h * 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(240,228,255,0.8)';
+      ctx.lineWidth = h * 0.16;
+      ctx.shadowColor = 'rgba(190,150,255,0.9)';
+      ctx.shadowBlur = h * 0.4;
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, h * 1.06, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // The hole, with a thin bright rim of bent light.
+      ctx.fillStyle = '#05030a';
       ctx.beginPath();
       ctx.arc(center.x, center.y, h, 0, Math.PI * 2);
       ctx.fill();
       ctx.save();
-      ctx.shadowColor = dark ? 'rgba(190,150,255,0.9)' : 'rgba(240,80,160,0.7)';
+      ctx.shadowColor = 'rgba(190,150,255,0.9)';
       ctx.shadowBlur = h * 0.5;
-      ctx.strokeStyle = dark ? 'rgba(255,250,255,0.95)' : 'rgba(245,95,165,0.95)';
+      ctx.strokeStyle = 'rgba(255,250,255,0.95)';
       ctx.lineWidth = Math.max(1.2, h * 0.07);
       ctx.beginPath();
       ctx.arc(center.x, center.y, h * 1.03, 0, Math.PI * 2);
@@ -397,19 +423,12 @@ export function BlackHole({ className, below }: { className?: string; below?: st
       frame = requestAnimationFrame(loop);
     };
 
-    readTheme();
     resize();
     const sizes = new ResizeObserver(() => {
       resize();
       if (motionReduced()) start();
     });
     sizes.observe(canvas);
-    const theme = new MutationObserver(() => {
-      readTheme();
-      ctx.clearRect(0, 0, width, height);
-      if (motionReduced()) start();
-    });
-    theme.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
     const inside = (event: { clientX: number; clientY: number }) => {
       const rect = canvas.getBoundingClientRect();
@@ -461,7 +480,6 @@ export function BlackHole({ className, below }: { className?: string; below?: st
     return () => {
       cancelAnimationFrame(frame);
       sizes.disconnect();
-      theme.disconnect();
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerdown', onDown);
       window.removeEventListener('mousedown', onMouseDown);

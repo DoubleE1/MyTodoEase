@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { applyAccent, readStoredAccent, storeAccent } from './accent';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
@@ -60,4 +60,16 @@ export function useTheme() {
   }, []);
 
   return { preference, setPreference, cycle, accent, setAccent };
+}
+
+/** The theme actually showing ("system" resolved), kept current as it changes (it follows <html data-theme>). */
+export function useResolvedTheme(): 'light' | 'dark' {
+  return useSyncExternalStore(
+    (onChange) => {
+      const observer = new MutationObserver(onChange);
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+      return () => observer.disconnect();
+    },
+    () => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'),
+  );
 }

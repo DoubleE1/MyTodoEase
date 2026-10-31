@@ -800,4 +800,8 @@ export const zhCN: Record<string, string> = {
   "A spinning disk of light that follows the pointer and pulls everything in.": "一圈旋转的光盘，跟随鼠标并把一切吸进去。",
   "It follows the pointer. Hold the mouse button to pull harder; click and the disk flares out.": "它会跟随鼠标。按住鼠标键吸得更猛；点击一下，光盘会向外迸发。",
   "1 more skin": "还有 1 款皮肤",
+  // Shop: northern lights background.
+  "Northern lights": "北极光",
+  "Curtains of green light that sway over a night sky and a still lake.": "绿色光幕在夜空和平静的湖面上方轻轻摇曳。",
+  "The lights lean towards the pointer; click to send a pulse along them.": "光幕会向鼠标倾斜；点击一下，一道亮光会沿着它们传开。",
 };

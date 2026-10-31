@@ -66,7 +66,7 @@ a section with more ends in a Show more card that opens that section on its own 
 
 | Section | Skins |
 | ------- | ----- |
-| Background effects (Home page) | Plain (included), Dot trail (Rare), Character field, Line wave, Chroma trail (Epic), Black hole (Legendary) |
+| Background effects (Home page) | Plain (included), Dot trail (Rare), Character field, Line wave, Chroma trail, Northern lights (Epic), Black hole (Legendary) |
 | Tab effects (selected sidebar item) | Soft fill (included), Accent bar, Gradient pill (Common), Shimmer, Neon glow (Rare) |
 | Dashboard effects (sidebar progress card) | Classic (included), Aurora, Confetti finish (Rare), Constellation week (Epic) |
 | Calendar effects | Classic (included), Today spotlight, Busy-day glow (Common), Seasons (Rare) |
